@@ -1,0 +1,50 @@
+{
+  "format": "cezar-automations",
+  "version": 1,
+  "exportedAt": "2026-11-18T11:51:51.503Z",
+  "cezarVersion": "0.20.0",
+  "automations": [
+    {
+      "name": "Daily founder report",
+      "kind": "schedule",
+      "schedule": {
+        "type": "daily",
+        "hour": 9,
+        "minute": 0
+      },
+      "task": {
+        "prompt": "Prepare the daily AI organization report for {{date}} at {{time}}.",
+        "workflow": "daily-founder-report",
+        "runner": "codex",
+        "worktree": true,
+        "autonomous": true
+      }
+    },
+    {
+      "name": "Independent QA for new pull requests",
+      "description": "Run independent QA and deterministic checks against each new pull-request head.",
+      "kind": "github",
+      "events": [
+        "pull_request.opened"
+      ],
+      "intervalSeconds": 300,
+      "filters": {
+        "excludeLabels": [
+          "skip-ai-qa"
+        ],
+        "lookbackDays": 7,
+        "maxRecords": 25
+      },
+      "task": {
+        "prompt": "Independently review pull request #{{github.number}}: {{github.title}} at {{github.url}}.",
+        "workflow": "pr-independent-qa",
+        "runner": "codex",
+        "worktree": true,
+        "generateFollowups": false,
+        "autonomous": true,
+        "checkout": "pr-head",
+        "allowForkHeads": false
+      }
+    }
+  ]
+}

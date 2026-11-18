@@ -1,0 +1,10 @@
+{
+  "skillsRepos": [],
+  "worktreeRetention": 10,
+  "defaultRunner": "codex",
+  "modelsLocked": false,
+  "baseBranch": "main",
+  "branchNaming": "Use ai/<team>/<short-outcome> with lowercase words and hyphens.",
+  "requiredChecks": ["npm run ai:verify"],
+  "defaultSkill": "using-superpowers"
+}

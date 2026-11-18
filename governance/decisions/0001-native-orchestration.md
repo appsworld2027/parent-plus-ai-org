@@ -1,7 +1,7 @@
 # 0001 — Native orchestration first
 
 - Date: 2026-11-18
-- Status: accepted
+- Status: superseded by decision 0002
 - Classification: routine organization implementation
 - Owner: AI CPTO
 - Decision: use Codex native role delegation, repository-owned agent profiles,

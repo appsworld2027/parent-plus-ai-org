@@ -62,3 +62,17 @@ Exit evidence: `projects/parent-plus/ONBOARDING.md`, organization issue #3, and 
 `b27bce897e`. The product repository was inspected read-only and its baseline was not
 modified. Product delivery remains a separate milestone with human-controlled
 production release.
+
+## Milestone 7 — Cezar and Superpowers automation
+
+Status: implemented; hosted CI is the publication gate.
+
+Exit criteria: stable Cezar is pinned and installed; Superpowers skills are pinned,
+licensed and loadable; a one-team workflow executes end to end in an isolated
+worktree; two-team bounded dispatch is configured; deterministic checks and
+independent QA gate delivery; daily reporting and new-PR QA automations are portable;
+usage and cost are visible; no automatic merge or Parent Plus modification occurs.
+
+Local evidence: Cezar `0.20.0`, Superpowers `7.0.2`, 15 skills, four workflows,
+two enabled dry-run automations, 12 passing tests, one successful scheduled-task
+launch, zero automation failures and zero reported cost.
