@@ -1,0 +1,19 @@
+name: two-team-delivery
+description: CPTO dispatches two bounded PM teams, requires independent review, and preserves human merge control.
+steps:
+  - id: architecture
+    name: CPTO architecture and split
+    runner: codex
+    skill: dispatching-parallel-agents
+    prompt: "Act as AI CPTO. For {{task}}, split independent modules between Team A and Team B. Dispatch at most two PM child tasks with explicit path ownership, acceptance criteria and a shared contract. Give the total run a bounded budget. Material founder conflicts must be escalated; routine choices proceed."
+  - id: integration-check
+    name: Integrated quality gate
+    command: "npm run ai:verify"
+  - id: independent-review
+    name: Cross-team QA
+    runner: codex
+    skill: requesting-code-review
+    prompt: "Perform cross-team review for {{task}}. Check ownership boundaries, API and database contract compatibility, test evidence and unresolved conflicts. Do not approve your own high-risk change."
+  - id: release-gate
+    name: Final release gate
+    command: "npm run ai:verify"

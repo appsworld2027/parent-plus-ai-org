@@ -1,0 +1,37 @@
+name: one-team-delivery
+description: One PM coordinates Database, Integration, Coding, and independent QA with deterministic checks.
+steps:
+  - id: plan
+    name: PM plan
+    runner: codex
+    skill: writing-plans
+    prompt: "Act as Team A Project Manager. Convert this outcome into owned tasks, dependencies, risks and acceptance criteria: {{task}}"
+  - id: database
+    name: Database assessment
+    runner: codex
+    skill: parent-plus-database
+    prompt: "Review the task and current plan. Produce or implement only the database-owned work with migration, integrity and rollback evidence. Task: {{task}}"
+  - id: integration
+    name: Integration assessment
+    runner: codex
+    skill: parent-plus-integration
+    prompt: "Review the task and current work. Define or implement stable contracts, failure behavior and integration tests. Task: {{task}}"
+  - id: implement
+    name: TDD implementation
+    runner: codex
+    skill: test-driven-development
+    prompt: "Act as the Coding specialist. Implement the smallest accepted outcome using red-green-refactor. Task: {{task}}"
+  - id: checks
+    name: Automated quality gate
+    command: "npm run ai:verify"
+    onFail:
+      retry: implement
+      max: 2
+  - id: qa
+    name: Independent QA
+    runner: codex
+    skill: verification-before-completion
+    prompt: "Act as an independent QA specialist. Verify the requirement, regression risk, security boundary and exact candidate diff. Do not edit implementation code. Task: {{task}}"
+  - id: release-gate
+    name: Final release gate
+    command: "npm run ai:verify"
