@@ -77,6 +77,48 @@ def report(path):
     }
 
 
+def daily_report(status_path, ledger_path):
+    status = json.loads(status_path.read_text())
+    usage = report(ledger_path)
+    required = {
+        "date", "milestone", "completed", "active", "blocked",
+        "decisions", "quality", "incremental_spend",
+    }
+    missing = required - set(status)
+    if missing:
+        raise ValueError("Missing status fields: " + ", ".join(sorted(missing)))
+
+    def section(title, values):
+        lines = ["## " + title]
+        lines.extend("- " + value for value in values)
+        if not values:
+            lines.append("- None")
+        return lines
+
+    lines = [
+        "# AI organization daily report — " + status["date"],
+        "",
+        "**Milestone:** " + status["milestone"],
+        "",
+        *section("Completed", status["completed"]),
+        "",
+        *section("Active", status["active"]),
+        "",
+        *section("Blocked", status["blocked"]),
+        "",
+        *section("Decisions", status["decisions"]),
+        "",
+        *section("Quality", status["quality"]),
+        "",
+        "## AI usage",
+        "- Attempts: " + str(usage["attempts"]),
+        "- Observed tokens: " + json.dumps(usage["observed_tokens"], sort_keys=True),
+        "- Attempts missing token measurements: " + str(usage["missing_usage"]),
+        "- Incremental spend: " + str(status["incremental_spend"]),
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def run(team, role, brief, ledger_path):
     teams = {item["id"]: item["roles"] for item in CONFIG["teams"]}
     if team not in teams or role not in [CONFIG["lead"], *teams[team]]:
@@ -141,6 +183,9 @@ def main():
     gate_args.add_argument("evidence", type=Path)
     report_args = commands.add_parser("report")
     report_args.add_argument("ledger", type=Path)
+    daily_args = commands.add_parser("daily-report")
+    daily_args.add_argument("status", type=Path)
+    daily_args.add_argument("--ledger", type=Path, required=True)
     run_args = commands.add_parser("run")
     run_args.add_argument("team")
     run_args.add_argument("role")
@@ -149,6 +194,8 @@ def main():
     args = parser.parse_args()
     if args.command == "report":
         print(json.dumps(report(args.ledger), indent=2))
+    elif args.command == "daily-report":
+        print(daily_report(args.status, args.ledger), end="")
     elif args.command == "gate":
         try:
             verdict = gate(**json.loads(args.evidence.read_text()))

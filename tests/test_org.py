@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from demo.reminders import deliver, prepare
-from org import CONFIG, ROOT, failure_reason, gate, report, run
+from org import CONFIG, ROOT, daily_report, failure_reason, gate, report, run
 
 
 class OrganizationTests(unittest.TestCase):
@@ -69,3 +69,12 @@ class OrganizationTests(unittest.TestCase):
 
         onboarding = ROOT / "projects" / "parent-plus" / "ONBOARDING.md"
         self.assertIn("appsworld2027/Parent-plus-", onboarding.read_text())
+
+    def test_daily_report_is_truthful_about_missing_usage(self):
+        output = daily_report(
+            ROOT / "demo" / "status.json",
+            ROOT / "demo" / "usage.jsonl",
+        )
+        self.assertIn("Attempts: 1", output)
+        self.assertIn("Attempts missing token measurements: 1", output)
+        self.assertIn("Incremental spend: 0", output)
