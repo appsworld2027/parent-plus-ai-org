@@ -65,7 +65,7 @@ production release.
 
 ## Milestone 7 — Cezar and Superpowers automation
 
-Status: implemented; hosted CI is the publication gate.
+Status: complete.
 
 Exit criteria: stable Cezar is pinned and installed; Superpowers skills are pinned,
 licensed and loadable; a one-team workflow executes end to end in an isolated
@@ -76,3 +76,6 @@ usage and cost are visible; no automatic merge or Parent Plus modification occur
 Local evidence: Cezar `0.20.0`, Superpowers `7.0.2`, 15 skills, four workflows,
 two enabled dry-run automations, 12 passing tests, one successful scheduled-task
 launch, zero automation failures and zero reported cost.
+
+Hosted evidence: pull request #8, Actions run `44299136249`, and merge
+`74f76db09381c7b30087eabf98550c6f83ddaed7`.
