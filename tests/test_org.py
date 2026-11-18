@@ -57,3 +57,15 @@ class OrganizationTests(unittest.TestCase):
             failure_reason("Read-only file system"),
             "Codex session storage is not writable",
         )
+
+    def test_reusable_roles_are_project_independent(self):
+        project_terms = ("parentplus", "parent plus", "expo", "supabase")
+        role_text = "\n".join(
+            path.read_text().lower()
+            for path in (ROOT / ".codex" / "agents").glob("*.toml")
+        )
+        for term in project_terms:
+            self.assertNotIn(term, role_text)
+
+        onboarding = ROOT / "projects" / "parent-plus" / "ONBOARDING.md"
+        self.assertIn("appsworld2027/Parent-plus-", onboarding.read_text())
