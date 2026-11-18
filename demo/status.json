@@ -1,10 +1,20 @@
 {
   "date": "2026-11-18",
   "milestone": "Independent two-team pilot",
-  "completed": ["Organization foundation", "Controlled Parent Plus onboarding"],
-  "active": ["Disposable two-team reminder pilot"],
+  "completed": [
+    "Organization foundation",
+    "Live reusable AI roles",
+    "Founder synchronization",
+    "Quality, reporting, and cost controls",
+    "Independent two-team reminder pilot",
+    "Controlled Parent Plus read-only onboarding"
+  ],
+  "active": [],
   "blocked": [],
   "decisions": ["Codex native orchestration remains the default"],
-  "quality": ["Organization and pilot test suites"],
+  "quality": [
+    "12 local tests passed",
+    "GitHub Actions run 44296038392 passed for commit 16e95ec7a29c34be6a4a1929b8f74cc3f44f9715"
+  ],
   "incremental_spend": 0
 }
