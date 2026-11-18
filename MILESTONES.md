@@ -44,14 +44,15 @@ Evidence: `.github/workflows/quality.yml`, `.github/workflows/daily-report.yml`,
 
 ## Milestone 5 — Independent two-team pilot
 
-Status: complete locally; hosted CI is the publication gate.
+Status: complete.
 
 Exit criteria: Team A owns a SQLite reminder adapter behind a stable public contract;
 Team B validates only that contract; exact retries are idempotent; conflicting and
 invalid writes are rejected; concurrent writes preserve one valid row; persistent
 storage locks produce stable errors; no Parent Plus code or infrastructure is used.
 
-Evidence: `pilot/` and `tests/test_pilot.py`.
+Evidence: `pilot/`, `tests/test_pilot.py`, pull request #6, Actions run
+`44296038392`, and merge `46d97a97a46c4454a089875147e06d557f836430`.
 
 ## Milestone 6 — Controlled Parent Plus connection
 
