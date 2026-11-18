@@ -3,8 +3,10 @@
 Run `python3 -m unittest discover -s tests -v` to verify the framework.
 Run `python3 org.py demo` to see the synthetic pilot, including the founder conflict and merge gate.
 Run `python3 org.py report PATH_TO_LOCAL_LEDGER` to see usage.
+Run `python3 org.py daily-report demo/status.json --ledger demo/usage.jsonl` for the founder report.
+Run `python3 -m unittest tests.test_pilot -v` to validate the independent two-team pilot.
 
-See `MILESTONES.md` for the activation evidence and the next delivery milestone.
+See `MILESTONES.md` for milestone exit criteria and verifiable evidence.
 
 Live pilot example from the organization directory:
 
