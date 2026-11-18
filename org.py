@@ -15,6 +15,17 @@ CONFIG = json.loads((ROOT / "organization.json").read_text())
 FOUNDERS = set(CONFIG["founders"])
 
 
+def failure_reason(stderr):
+    text = stderr.lower()
+    if "access token could not be refreshed" in text or "not logged in" in text:
+        return "Codex authentication is unavailable"
+    if "read-only file system" in text:
+        return "Codex session storage is not writable"
+    if "timed out" in text:
+        return "Codex execution timed out"
+    return "Codex execution failed"
+
+
 def gate(*, commit, qa_commit, ci_commit, qa_pass, ci_pass, conflict, decisions):
     pending = conflict and (
         set(decisions) != FOUNDERS
@@ -90,6 +101,7 @@ def run(team, role, brief, ledger_path):
         fcntl.flock(ledger, fcntl.LOCK_UN)
         usage = Counter()
         status = 1
+        reason = None
         try:
             result = subprocess.run(
                 ["codex", "exec", "--skip-git-repo-check", "--sandbox", "read-only",
@@ -111,11 +123,13 @@ def run(team, role, brief, ledger_path):
                 if item.get("type") == "agent_message":
                     print(item.get("text", ""))
             if status:
-                print("Codex run failed with exit status " + str(status), file=sys.stderr)
+                reason = failure_reason(result.stderr)
+                print(reason + " (exit status " + str(status) + ")", file=sys.stderr)
         finally:
             fcntl.flock(ledger, fcntl.LOCK_EX)
             append(ledger, {**meta, "event": "finished", "time": utc_now(),
-                            "status": status, "usage": dict(usage)})
+                            "status": status, "usage": dict(usage),
+                            "failure": reason if status else None})
     return status
 
 

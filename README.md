@@ -4,6 +4,8 @@ Run `python3 -m unittest discover -s tests -v` to verify the framework.
 Run `python3 org.py demo` to see the synthetic pilot, including the founder conflict and merge gate.
 Run `python3 org.py report PATH_TO_LOCAL_LEDGER` to see usage.
 
+See `MILESTONES.md` for the activation evidence and the next delivery milestone.
+
 Live pilot example from the organization directory:
 
     python3 org.py run A qa demo/brief.md --ledger /tmp/ai-org-usage.jsonl
