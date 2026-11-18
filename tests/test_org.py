@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 from demo.reminders import deliver, prepare
-from org import CONFIG, ROOT, gate, report, run
+from org import CONFIG, ROOT, failure_reason, gate, report, run
 
 
 class OrganizationTests(unittest.TestCase):
@@ -47,3 +47,13 @@ class OrganizationTests(unittest.TestCase):
                 self.assertIn("read-only", runner.call_args.args[0])
             self.assertEqual(report(ledger)["observed_tokens"], {"input_tokens": 252})
             self.assertEqual(report(ledger)["missing_usage"], 0)
+
+    def test_runtime_failures_are_actionable(self):
+        self.assertEqual(
+            failure_reason("access token could not be refreshed"),
+            "Codex authentication is unavailable",
+        )
+        self.assertEqual(
+            failure_reason("Read-only file system"),
+            "Codex session storage is not writable",
+        )
