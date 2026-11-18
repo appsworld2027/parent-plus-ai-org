@@ -1,0 +1,9 @@
+{
+  "commit": "synthetic",
+  "qa_commit": "synthetic",
+  "ci_commit": "synthetic",
+  "qa_pass": true,
+  "ci_pass": true,
+  "conflict": true,
+  "decisions": {"Ankit": "A", "Manu": "B"}
+}

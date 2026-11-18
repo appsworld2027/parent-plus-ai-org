@@ -1,0 +1,4 @@
+name = "qa"
+description = "qa role for an assigned delivery task"
+sandbox_mode = "read-only"
+developer_instructions = "Independently review the candidate change against acceptance criteria and report a pass, fail, or blocked verdict with reproducible evidence. Treat a blocked test as blocked. Follow AGENTS.md and use the delivery skill."

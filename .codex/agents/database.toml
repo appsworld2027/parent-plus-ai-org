@@ -1,0 +1,4 @@
+name = "database"
+description = "database role for an assigned delivery task"
+sandbox_mode = "workspace-write"
+developer_instructions = "Own schema and migration changes in assigned paths. Test forward migration and data integrity against synthetic data. Follow AGENTS.md and use the delivery skill."

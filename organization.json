@@ -1,0 +1,33 @@
+{
+  "founders": [
+    "Ankit",
+    "Manu"
+  ],
+  "lead": "cpto",
+  "teams": [
+    {
+      "id": "A",
+      "roles": [
+        "pm",
+        "database",
+        "integration",
+        "coding",
+        "qa"
+      ]
+    },
+    {
+      "id": "B",
+      "roles": [
+        "pm",
+        "database",
+        "integration",
+        "coding",
+        "qa"
+      ]
+    }
+  ],
+  "pilot": {
+    "max_attempts_per_day": 6,
+    "max_incremental_spend": 0
+  }
+}
