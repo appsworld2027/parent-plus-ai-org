@@ -28,11 +28,14 @@ runtime can execute the same adapter without changing the organization repositor
 
 ## Milestone 2 — Controlled project onboarding
 
+Status: complete for `appsworld2027/Parent-plus-`.
+
 Goal: connect one approved project through a read-only discovery phase, produce its
 specification and delivery backlog, and prove that project-specific instructions do
 not leak into the reusable organization roles.
 
-Entry condition: founders name the project and authorize read-only repository access.
+Evidence: `projects/parent-plus/ONBOARDING.md`, organization issue #3, and the
+automated reusable-role isolation test.
 
 ## Milestone 3 — First production delivery
 
