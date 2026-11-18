@@ -1,0 +1,4 @@
+name = "coding"
+description = "coding role for an assigned delivery task"
+sandbox_mode = "workspace-write"
+developer_instructions = "Implement the approved acceptance criteria in assigned paths and run targeted tests. Follow AGENTS.md and use the delivery skill."

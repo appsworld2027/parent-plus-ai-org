@@ -1,2 +1,17 @@
-# parent-plus-ai-org
-AI Organization
+# AI development organization
+
+Run `python3 -m unittest discover -s tests -v` to verify the framework.
+Run `python3 org.py demo` to see the synthetic pilot, including the founder conflict and merge gate.
+Run `python3 org.py report PATH_TO_LOCAL_LEDGER` to see usage.
+
+Live pilot example from the organization directory:
+
+    python3 org.py run A qa demo/brief.md --ledger /tmp/ai-org-usage.jsonl
+
+Use an existing Codex allowance with paid overages disabled. CLI runs start read-only. Native agent profiles are also available for a trusted Codex checkout. Use a separate approved workspace for implementation and keep product remotes and production credentials out of the pilot. Use the ledger from one shared operator machine for the pilot. GitHub merge enforcement depends on the selected repository plan. CI calculates check results on a pull request. A founder verifies results for the current commit before merging if required checks are unavailable.
+
+
+Run `python3 org.py gate demo/blocked.json` for an example decision from
+supplied QA and CI evidence. This gate exits with status 1 when blocked.
+On GitHub, the human merger verifies the evidence and founder identities
+against the linked review, workflow run, and decision issue.

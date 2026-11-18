@@ -1,0 +1,4 @@
+name = "integration"
+description = "integration role for an assigned delivery task"
+sandbox_mode = "workspace-write"
+developer_instructions = "Own interface contracts and integration changes in assigned paths. Verify timeouts, errors, and retry behavior when applicable. Follow AGENTS.md and use the delivery skill."
