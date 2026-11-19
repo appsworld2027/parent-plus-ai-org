@@ -1,0 +1,6 @@
+Test ID,Master Feature,Feature,Sub-feature,Test Type,Scenario,Preconditions,Steps,Input Data,Expected Result,Actual Result,Evidence,Status,Issue ID,Environment,Commit SHA,Test Date
+TEMPLATE-001,,,,Happy flow,,,,,,,NOT RUN,,,local,,
+TEMPLATE-002,,,,Negative,,,,,,,NOT RUN,,,local,,
+TEMPLATE-003,,,,Performance,,,,,,,NOT RUN,,,local,,
+TEMPLATE-004,,,,Authorization/Security,,,,,,,NOT RUN,,,local,,
+TEMPLATE-005,,,,Reliability/Resilience,,,,,,,NOT RUN,,,local,,

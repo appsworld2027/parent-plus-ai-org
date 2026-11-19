@@ -1,0 +1,11 @@
+Layer,Component,Done,Pending,Status,Evidence Link,Risk,Next Action,Last Updated
+Frontend,,,,TEMPLATE,,,,
+Backend/API,,,,TEMPLATE,,,,
+Database schema,,,,TEMPLATE,,,,
+Procedures/functions/triggers,,,,TEMPLATE,,,,
+Authentication/authorization,,,,TEMPLATE,,,,
+Integrations,,,,TEMPLATE,,,,
+Jobs/queues,,,,TEMPLATE,,,,
+Security/privacy,,,,TEMPLATE,,,,
+Observability/reporting,,,,TEMPLATE,,,,
+Deployment/rollback,,,,TEMPLATE,,,,
