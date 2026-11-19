@@ -23,6 +23,11 @@ jobs:
         with: {node-version: 20}
       - name: Generate inventory
         run: node scripts/feature-inventory.mjs target-parent-plus
+      - name: Route inventory signals
+        env:
+          INVENTORY_PATH: evidence/feature-inventory.json
+          ROUTING_PATH: evidence/inventory-routing.json
+        run: node scripts/route-inventory.mjs
       - name: Create deduplicated inventory issue
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -33,4 +38,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: parent-plus-feature-inventory
-          path: evidence/feature-inventory.json
+          path: evidence/
