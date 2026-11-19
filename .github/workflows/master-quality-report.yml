@@ -1,0 +1,19 @@
+name: Quality Report
+on:
+  pull_request:
+  schedule:
+    - cron: '27 4 * * *'
+  workflow_dispatch:
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 20}
+      - name: Generate founder quality report
+        run: node scripts/quality-report.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: founder-quality-report
+          path: evidence/QUALITY-REPORT.md
