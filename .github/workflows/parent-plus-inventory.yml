@@ -6,6 +6,7 @@ on:
 permissions:
   contents: read
   actions: read
+  issues: write
 jobs:
   inventory:
     runs-on: ubuntu-latest
@@ -22,6 +23,12 @@ jobs:
         with: {node-version: 20}
       - name: Generate inventory
         run: node scripts/feature-inventory.mjs target-parent-plus
+      - name: Create deduplicated inventory issue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_REPOSITORY: appsworld2027/Parent-plus-
+          INVENTORY_PATH: evidence/feature-inventory.json
+        run: node scripts/open-inventory-issue.mjs
       - name: Publish inventory artifact
         uses: actions/upload-artifact@v4
         with:
