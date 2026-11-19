@@ -1,0 +1,14 @@
+name: AI Organization adapter enforcement
+on: [pull_request, workflow_dispatch]
+jobs:
+  adapter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate product adapter
+        run: |
+          test -f .ai-org/manifest.json || { echo 'Missing AppsWorld AI Organization adapter'; exit 1; }
+          node -e "const m=require('./.ai-org/manifest.json'); if(m.organization!=='appsworld') process.exit(1); if(!m.adapterVersion) process.exit(1); if(!Array.isArray(m.protectedActions)||m.protectedActions.length<4) process.exit(1);"
+          test -f testing/test-matrix.csv || { echo 'Missing test matrix'; exit 1; }
+          test -f product/product-requirements.csv || { echo 'Missing product requirements sheet'; exit 1; }
+          test -f architecture/technical-status.csv || { echo 'Missing technical status sheet'; exit 1; }
