@@ -23,3 +23,7 @@ Example response contract:
 ```
 
 The Codex/Claude conversation remains the founder interface: the agent invokes this adapter, waits for the backend result, reads generated evidence, and summarizes the outcome without redirecting the founder to a workflow form.
+
+## Callable conversation tool
+
+This repository includes an MCP stdio server in `scripts/founder-mcp-server.mjs` and a Claude-compatible `.mcp.json`. When the connected Codex/Claude runtime loads repository MCP servers, call `appsworld_founder_flow` with a natural founder request mapped to `action=discover`. The tool delegates to the same audited adapter and returns the workflow evidence in the conversation. If the tool is not listed by the runtime, the session has not loaded the repository MCP configuration and must report that limitation rather than claiming agent execution.
