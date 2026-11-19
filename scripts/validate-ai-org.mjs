@@ -43,6 +43,11 @@ for (const gate of ["writing-plans", "test-driven-development", "verification-be
   if (!oneTeam.includes(gate)) fail(`One-team workflow is missing ${gate}`);
 }
 
+const prQa = readFileSync(at(".ai/cezar/workflows/pr-independent-qa.yaml"), "utf8");
+for (const gate of ["npm run check", "ai-workspace/pilots/parentplus-ai-pilot/feedback.test.mjs", "No recognized deterministic project quality command"]) {
+  if (!prQa.includes(gate)) fail(`PR QA workflow is missing portable gate ${gate}`);
+}
+
 const automations = JSON.parse(readFileSync(at(".ai/automation-templates.json")));
 if (automations.automations?.length !== 2) fail("Expected two portable automations");
 

@@ -52,7 +52,9 @@ the schedule only after confirming the cockpit timezone.
 
 - `one-team-delivery`: PM → Database → Integration → TDD Coding → checks → QA → gate.
 - `two-team-delivery`: CPTO dispatches at most two PM teams and requires cross-team QA.
-- `pr-independent-qa`: checks a new PR head without modifying or merging it.
+- `pr-independent-qa`: checks a new PR head without modifying or merging it. Its
+  gate recognizes the Parent Plus pilot test, then a project's `npm run check`,
+  then `npm run ai:verify`, and fails closed when none exists.
 - `daily-founder-report`: reports delivery, decisions, quality, usage and missing data.
 
 ## Portable automations

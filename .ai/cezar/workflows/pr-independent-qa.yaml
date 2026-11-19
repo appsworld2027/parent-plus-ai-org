@@ -8,4 +8,14 @@ steps:
     prompt: "Review the pull request represented by this task. Inspect the exact diff, requirement coverage, regressions, security, data and API compatibility. Do not modify code or merge. Report actionable findings with file and line evidence. {{task}}"
   - id: checks
     name: Deterministic quality gate
-    command: "npm run ai:verify"
+    command: >
+      if test -f ai-workspace/pilots/parentplus-ai-pilot/feedback.test.mjs; then
+        node --test ai-workspace/pilots/parentplus-ai-pilot/feedback.test.mjs;
+      elif npm run | grep -qE '^  check'; then
+        npm run check;
+      elif npm run | grep -qE '^  ai:verify'; then
+        npm run ai:verify;
+      else
+        echo 'No recognized deterministic project quality command' >&2;
+        exit 2;
+      fi
