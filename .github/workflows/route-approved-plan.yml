@@ -1,0 +1,46 @@
+name: Route approved plan to PMs and specialists
+
+on:
+  workflow_dispatch:
+    inputs:
+      idea_id:
+        description: 'IDEA-ID with an approved product plan'
+        required: true
+        type: string
+      product_repo:
+        description: 'Product repository owner/name'
+        required: true
+        default: 'appsworld2027/Parent-plus-'
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  route:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 20}
+      - name: Create issue bundle
+        run: node scripts/create-issues-from-plan.mjs "${{ inputs.idea_id }}"
+      - name: Create product issues when token is available
+        env:
+          PARENT_PLUS_TOKEN: ${{ secrets.PARENT_PLUS_TOKEN }}
+          PRODUCT_REPO: ${{ inputs.product_repo }}
+        run: |
+          if [ -z "${PARENT_PLUS_TOKEN:-}" ]; then
+            echo 'PARENT_PLUS_TOKEN is not configured; issue bundle was generated but no remote issues were created.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          export GH_TOKEN="$PARENT_PLUS_TOKEN"
+          node -e "const fs=require('fs'); const b=JSON.parse(fs.readFileSync('orchestration/issue-bundles/${{ inputs.idea_id }}.json')); for(const i of b.issues) fs.writeFileSync('/tmp/issue-'+i.featureId.replace(/[^A-Za-z0-9_-]/g,'_')+'.md',i.body);"
+          node -e "const fs=require('fs'); const b=JSON.parse(fs.readFileSync('orchestration/issue-bundles/${{ inputs.idea_id }}.json')); for(const i of b.issues) { const f='/tmp/issue-'+i.featureId.replace(/[^A-Za-z0-9_-]/g,'_')+'.md'; require('child_process').execFileSync('gh',['issue','create','--repo',process.env.PRODUCT_REPO,'--title',i.title,'--body-file',f],{stdio:'inherit'}); }"
+      - name: Commit routing record
+        run: |
+          git config user.name 'appsworld-ai-org'
+          git config user.email 'ai-org@appsworld.local'
+          git add orchestration/issue-bundles orchestration/task-events.jsonl
+          git commit -m "routing: create PM and specialist issue bundle for ${{ inputs.idea_id }}"
+          git push
