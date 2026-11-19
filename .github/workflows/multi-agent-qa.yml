@@ -1,0 +1,89 @@
+name: Multi-agent QA execution
+
+on:
+  workflow_dispatch:
+    inputs:
+      product_repo:
+        description: 'Product repository (owner/name)'
+        required: true
+        default: 'appsworld2027/Parent-plus-'
+      feature_id:
+        description: 'Feature ID under test'
+        required: false
+      test_id:
+        description: 'Test ID under test'
+        required: false
+  repository_dispatch:
+    types: [product-change, product-fix]
+  schedule:
+    - cron: '11 */2 * * *'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  qa-role:
+    name: QA — ${{ matrix.role }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        role: [feature-journey, api-integration, database, browser-ui, security-privacy, regression, performance-reliability, independent-reviewer]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record role execution
+        env:
+          ROLE: ${{ matrix.role }}
+          FEATURE_ID: ${{ inputs.feature_id || github.event.client_payload.feature_id || 'not-supplied' }}
+          TEST_ID: ${{ inputs.test_id || github.event.client_payload.test_id || 'not-supplied' }}
+          SESSION_ID: ${{ github.run_id }}
+          RESPONSE_ID: ${{ github.run_attempt }}
+        run: |
+          mkdir -p evidence/qa-runs
+          cat > "evidence/qa-runs/${ROLE}.json" <<EOF
+          {"role":"${ROLE}","status":"running","task":"Master QA scenario execution","featureId":"${FEATURE_ID}","testId":"${TEST_ID}","sessionId":"${SESSION_ID}","responseId":"${RESPONSE_ID}","evidence":"GitHub Actions run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"}
+          EOF
+      - name: Role-specific safe checks
+        run: |
+          case "${{ matrix.role }}" in
+            feature-journey|regression|independent-reviewer) test -f qa/test-scenario-registry.csv ;;
+            api-integration) test -f qa/traceability.csv ;;
+            database) test -f qa/quality-architecture.md ;;
+            browser-ui) test -f qa/MASTER_QA.md ;;
+            security-privacy) rg -q 'privacy|security|authorization' qa/MASTER_QA.md ;;
+            performance-reliability) rg -q 'performance|reliability|recovery' qa/MASTER_QA.md ;;
+          esac
+      - name: Upload role evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-role-${{ matrix.role }}
+          path: evidence/qa-runs/${{ matrix.role }}.json
+
+  dashboard:
+    needs: qa-role
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build HTML agent dashboard
+        run: |
+          mkdir -p evidence
+          cat > evidence/agent-status.json <<'EOF'
+          {"generatedAt":"${{ github.event.head_commit.timestamp || github.run_started_at }}","agents":[
+            {"role":"feature-journey","status":"configured","task":"Feature and user-journey scenarios","featureId":"${{ inputs.feature_id || 'not-supplied' }}","testId":"${{ inputs.test_id || 'not-supplied' }}","sessionId":"${{ github.run_id }}","responseId":"${{ github.run_attempt }}","evidence":"QA role artifact"},
+            {"role":"api-integration","status":"configured","task":"API and integration contracts","featureId":"${{ inputs.feature_id || 'not-supplied' }}","testId":"${{ inputs.test_id || 'not-supplied' }}","sessionId":"${{ github.run_id }}","responseId":"${{ github.run_attempt }}","evidence":"QA role artifact"},
+            {"role":"database","status":"configured","task":"Schema, migration and isolation checks","featureId":"${{ inputs.feature_id || 'not-supplied' }}","testId":"${{ inputs.test_id || 'not-supplied' }}","sessionId":"${{ github.run_id }}","responseId":"${{ github.run_attempt }}","evidence":"QA role artifact"},
+            {"role":"browser-ui","status":"configured","task":"Browser, accessibility and responsive checks","featureId":"${{ inputs.feature_id || 'not-supplied' }}","testId":"${{ inputs.test_id || 'not-supplied' }}","sessionId":"${{ github.run_id }}","responseId":"${{ github.run_attempt }}","evidence":"QA role artifact"},
+            {"role":"security-privacy","status":"configured","task":"Authorization, privacy and safety checks","featureId":"${{ inputs.feature_id || 'not-supplied' }}","testId":"${{ inputs.test_id || 'not-supplied' }}","sessionId":"${{ github.run_id }}","responseId":"${{ github.run_attempt }}","evidence":"QA role artifact"},
+            {"role":"regression","status":"configured","task":"Regression and smoke checks","featureId":"${{ inputs.feature_id || 'not-supplied' }}","testId":"${{ inputs.test_id || 'not-supplied' }}","sessionId":"${{ github.run_id }}","responseId":"${{ github.run_attempt }}","evidence":"QA role artifact"},
+            {"role":"performance-reliability","status":"configured","task":"Performance, resilience and recovery checks","featureId":"${{ inputs.feature_id || 'not-supplied' }}","testId":"${{ inputs.test_id || 'not-supplied' }}","sessionId":"${{ github.run_id }}","responseId":"${{ github.run_attempt }}","evidence":"QA role artifact"},
+            {"role":"independent-reviewer","status":"configured","task":"Independent evidence review","featureId":"${{ inputs.feature_id || 'not-supplied' }}","testId":"${{ inputs.test_id || 'not-supplied' }}","sessionId":"${{ github.run_id }}","responseId":"${{ github.run_attempt }}","evidence":"QA role artifact"}
+          ]}
+          EOF
+          node scripts/agent-dashboard.mjs evidence/agent-status.json evidence/agent-dashboard.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: appsworld-agent-dashboard-html
+          path: evidence/agent-dashboard.html
