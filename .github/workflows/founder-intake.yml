@@ -1,0 +1,47 @@
+name: Founder idea intake and AI PM discovery
+
+on:
+  workflow_dispatch:
+    inputs:
+      idea:
+        description: 'Founder product idea or next feature'
+        required: true
+        type: string
+      session_id:
+        description: 'Codex Session ID, if available'
+        required: false
+        type: string
+      response_id:
+        description: 'Codex Response ID, if available'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  discovery:
+    name: AI CPTO discovery
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 20}
+      - name: Create idea and task record
+        env:
+          IDEA: ${{ inputs.idea }}
+          SESSION_ID: ${{ inputs.session_id }}
+          RESPONSE_ID: ${{ inputs.response_id }}
+        run: node scripts/intake-idea.mjs "$IDEA"
+      - name: Publish discovery summary
+        run: |
+          echo '## AI CPTO discovery started' >> "$GITHUB_STEP_SUMMARY"
+          echo 'The idea is now in Discovery. The generated record contains the open questions and assigned logical roles.' >> "$GITHUB_STEP_SUMMARY"
+          cat evidence/ideas/*.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Commit auditable intake record
+        run: |
+          git config user.name 'appsworld-ai-org'
+          git config user.email 'ai-org@appsworld.local'
+          git add evidence/ideas orchestration/task-events.jsonl
+          git commit -m 'chore: record founder idea intake' || echo 'No new intake record'
+          git push
