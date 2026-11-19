@@ -14,4 +14,12 @@ test --feature_id=PP-... --test_id=PP-T-...
 status
 ```
 
-The adapter records a conversation ID and preserves optional Codex Session/Response IDs. A dispatch result is not a completed task; the agent must poll the run, inspect evidence, and report the actual outcome.
+The adapter records a conversation ID and preserves optional Codex Session/Response IDs. By default it now waits (with a bounded timeout) for the dispatched workflow, polls its GitHub run, and returns JSON containing the run ID, URL, conclusion, job-level blockers and evidence link. Use `--wait=false` for fire-and-forget or `--timeoutMs=300000` for a longer bounded wait. A timeout is reported as `pending`, never as success.
+
+Example response contract:
+
+```json
+{"status":"completed","runId":123,"conclusion":"success","url":"https://github.com/.../actions/runs/123","blockers":[],"evidence":{"workflowRun":"https://github.com/.../actions/runs/123"}}
+```
+
+The Codex/Claude conversation remains the founder interface: the agent invokes this adapter, waits for the backend result, reads generated evidence, and summarizes the outcome without redirecting the founder to a workflow form.
