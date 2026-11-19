@@ -1,0 +1,19 @@
+{
+  "organization": "appsworld",
+  "updatedAt": null,
+  "agents": [
+    {"agentId":"cpto","role":"AI CPTO/Product Manager","team":"product","status":"idle","currentTaskId":null},
+    {"agentId":"pm-a","role":"AI Project Manager A","team":"experience","status":"idle","currentTaskId":null},
+    {"agentId":"pm-b","role":"AI Project Manager B","team":"platform","status":"idle","currentTaskId":null},
+    {"agentId":"ux","role":"UX/UI Designer","team":"experience","status":"idle","currentTaskId":null},
+    {"agentId":"frontend","role":"Frontend Engineer","team":"experience","status":"idle","currentTaskId":null},
+    {"agentId":"backend","role":"Backend Engineer","team":"platform","status":"idle","currentTaskId":null},
+    {"agentId":"database","role":"Database Architect","team":"platform","status":"idle","currentTaskId":null},
+    {"agentId":"integration","role":"Integration Engineer","team":"shared","status":"idle","currentTaskId":null},
+    {"agentId":"qa","role":"QA Engineer","team":"shared","status":"idle","currentTaskId":null},
+    {"agentId":"security","role":"Security/Architecture Reviewer","team":"governance","status":"idle","currentTaskId":null},
+    {"agentId":"release","role":"CI/CD and Release Agent","team":"operations","status":"idle","currentTaskId":null},
+    {"agentId":"knowledge","role":"Documentation and Knowledge Agent","team":"shared","status":"idle","currentTaskId":null},
+    {"agentId":"cost","role":"Cost and Progress Monitor","team":"operations","status":"idle","currentTaskId":null}
+  ]
+}
