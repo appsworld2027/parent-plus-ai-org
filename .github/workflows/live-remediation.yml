@@ -1,0 +1,44 @@
+name: Live Cezar remediation
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Parent Plus issue number
+        required: true
+        type: string
+      role:
+        description: Specialist role
+        required: true
+        type: choice
+        options: [Database, Integration, Coding, QA, Product-Manager]
+permissions:
+  contents: read
+jobs:
+  runner:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout Parent Plus in isolation
+        uses: actions/checkout@v4
+        with:
+          repository: appsworld2027/Parent-plus-
+          path: parent-plus
+      - name: Verify runner prerequisites
+        env:
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$CODEX_API_KEY" || { echo 'CODEX_API_KEY is not configured; live runner is BLOCKED, not passed.'; exit 78; }
+          node --version
+          test -f parent-plus/.ai-org/manifest.json
+      - name: Install Cezar
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Run isolated Cezar remediation
+        env:
+          CODEX_API_KEY: ${{ secrets.CODEX_API_KEY }}
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          ROLE: ${{ inputs.role }}
+        run: |
+          CEZ_HOME="$PWD/.ai/cezar/.runtime" CEZ_AGENT_TMPDIR=0 CEZ_NO_BANNER=1 \
+            npx cezar-run --repo parent-plus run --workflow pr-independent-qa \
+            "Remediate Parent Plus issue #${ISSUE_NUMBER} as ${ROLE}. Work only in the isolated workspace. Inspect exact evidence, implement only justified changes, run comprehensive tests, update CSV/XLSX evidence, and do not merge or deploy." 
