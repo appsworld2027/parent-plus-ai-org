@@ -1,0 +1,59 @@
+{
+  "ideaId": "IDEA-20261119-e997b50a",
+  "featureId": "IDEA-20261119-e997b50a-F01",
+  "state": "Decision Required",
+  "createdAt": "2026-11-19T10:16:16.888Z",
+  "problem": "Improve the Parent Plus coach invitation flow so parents can safely connect to the correct child with less confusion.",
+  "users": [
+    "Primary product user",
+    "Internal operator"
+  ],
+  "desiredOutcome": "Complete the requested user outcome with measurable acceptance criteria",
+  "journeys": [
+    "User starts the feature",
+    "User completes the primary outcome",
+    "User recovers from an error"
+  ],
+  "scopeIn": [
+    "Primary happy path",
+    "Validation and authorization",
+    "Automated regression coverage"
+  ],
+  "scopeOut": [
+    "Unapproved adjacent features",
+    "Production changes before release approval"
+  ],
+  "risks": [
+    "Privacy and authorization boundaries",
+    "Data migration compatibility",
+    "Incomplete test evidence"
+  ],
+  "recommendation": "Proceed with a small vertical slice after founder approval; keep production and destructive changes gated.",
+  "openDecisions": [
+    "Who are the users and primary journey?",
+    "What is explicitly in and out of scope?",
+    "What privacy, security, performance and budget constraints apply?"
+  ],
+  "approvalOptions": [
+    "Approve recommended approach",
+    "Request changes",
+    "Defer decision"
+  ],
+  "assignedRoles": [
+    "cpto",
+    "pm-a",
+    "pm-b",
+    "ux",
+    "frontend",
+    "backend",
+    "database",
+    "integration",
+    "qa",
+    "security",
+    "release",
+    "knowledge",
+    "cost"
+  ],
+  "sessionId": "",
+  "responseId": ""
+}
