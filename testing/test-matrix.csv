@@ -4,3 +4,6 @@ TEMPLATE-002,,,,Negative,,,,,,,NOT RUN,,,local,,
 TEMPLATE-003,,,,Performance,,,,,,,NOT RUN,,,local,,
 TEMPLATE-004,,,,Authorization/Security,,,,,,,NOT RUN,,,local,,
 TEMPLATE-005,,,,Reliability/Resilience,,,,,,,NOT RUN,,,local,,
+AUTO-001,AI organization,Quality controls,Retry loop,Regression,Run organization verification,Dependencies installed,npm run ai:verify,12 unit tests + validator,All pass,All pass,local command output,PASS,,local,c0a99a5429db0cdda52dd6528cf00d1b18665c92,2026-11-19
+AUTO-002,AI organization,Quality controls,Retry loop,Resilience,Run quality loop with passing command,Node available,node scripts/quality-loop.mjs ...,Exit 0 + evidence JSON,Exit 0 + evidence JSON,Pass recorded,evidence/quality-loop.json,PASS,,local,c0a99a5429db0cdda52dd6528cf00d1b18665c92,2026-11-19
+AUTO-003,AI organization,Inventory,Feature scan,Integration,Generate feature inventory,Repository checkout,node scripts/feature-inventory.mjs .,Inventory JSON generated,Inventory JSON generated,Pass recorded,evidence/feature-inventory.json,PASS,,local,c0a99a5429db0cdda52dd6528cf00d1b18665c92,2026-11-19
