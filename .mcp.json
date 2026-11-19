@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "appsworld-ai-org": {
+      "command": "node",
+      "args": ["scripts/founder-mcp-server.mjs"]
+    }
+  }
+}
