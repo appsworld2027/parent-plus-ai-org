@@ -1,0 +1,12 @@
+{
+  "command": "node -e \"process.exit(0)\"",
+  "retries": 2,
+  "success": true,
+  "attempts": [
+    {
+      "attempt": 1,
+      "started": "2026-11-19T04:16:14.149Z",
+      "exitCode": 0
+    }
+  ]
+}
