@@ -3,7 +3,9 @@ on:
   issues:
     types: [opened]
 permissions:
+  contents: write
   issues: write
+  pull-requests: write
 jobs:
   route:
     if: contains(github.event.issue.body, '<!-- autonomous-inventory -->')
@@ -21,3 +23,26 @@ jobs:
               /prd|product|roadmap|requirement|founder/i.test(body) ? 'Product Manager' : 'Coding';
             const checklist = `## Autonomous role routing\n\n**Assigned role:** ${role}\n\n### Required execution\n- Read the exact evidence artifact and affected files.\n- Write or update the product and technical acceptance criteria.\n- Implement in an isolated branch only.\n- Run happy, negative, edge, security, performance, regression, and recovery tests.\n- Update the founder-readable CSV/XLSX test matrix.\n- Open a PR with exact evidence links.\n\nProtected actions (production, destructive changes, paid services, credentials, legal/privacy decisions) remain gated.`;
             await github.rest.issues.createComment({owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number, body: checklist});
+      - name: Prepare isolated remediation branch and draft PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/appsworld2027/Parent-plus-.git" target-parent-plus
+          cd target-parent-plus
+          branch="ai/remediation/issue-${{ github.event.issue.number }}"
+          git checkout -b "$branch"
+          mkdir -p ai-workspace/remediation
+          cat > "ai-workspace/remediation/issue-${{ github.event.issue.number }}.md" <<'EOF'
+          # Autonomous remediation plan
+
+          Source issue: ${{ github.event.issue.html_url }}
+
+          This isolated PR is a preparation artifact. The routed specialist must inspect the evidence, add implementation changes only when justified, run the complete scenario matrix, and update the founder-readable CSV/XLSX artifacts before requesting merge.
+          EOF
+          git config user.name 'appsworld-ai-org[bot]'
+          git config user.email 'ai-org-bot@appsworld.invalid'
+          git add ai-workspace/remediation
+          git commit -m "Prepare remediation for issue #${{ github.event.issue.number }}"
+          git push origin "$branch"
+          gh pr create --repo appsworld2027/Parent-plus- --base main --head "$branch" --draft --title "[AI remediation] Issue #${{ github.event.issue.number }}" --body "Prepared automatically from ${{ github.event.issue.html_url }}. Role: ${role:-Coding}. This draft remains isolated until specialist tests and evidence are complete."
