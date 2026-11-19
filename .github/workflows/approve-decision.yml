@@ -1,0 +1,38 @@
+name: Founder decision gate
+
+on:
+  workflow_dispatch:
+    inputs:
+      idea_id:
+        description: 'IDEA-ID whose decision brief is approved'
+        required: true
+        type: string
+      decision:
+        description: 'approve, changes, or defer'
+        required: true
+        default: approve
+        type: choice
+        options: [approve, changes, defer]
+
+permissions:
+  contents: write
+
+jobs:
+  decision:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record founder decision
+        run: |
+          mkdir -p evidence/decisions
+          cat > "evidence/decisions/${{ inputs.idea_id }}.json" <<EOF
+          {"ideaId":"${{ inputs.idea_id }}","decision":"${{ inputs.decision }}","recordedAt":"$(date -u +%Y-%m-%dT%H:%M:%SZ)","recordedBy":"founder-workflow"}
+          EOF
+          echo '{"event":"founder-decision","ideaId":"${{ inputs.idea_id }}","decision":"${{ inputs.decision }}"}' >> orchestration/task-events.jsonl
+      - name: Commit decision
+        run: |
+          git config user.name 'appsworld-ai-org'
+          git config user.email 'ai-org@appsworld.local'
+          git add evidence/decisions orchestration/task-events.jsonl
+          git commit -m "governance: record founder decision for ${{ inputs.idea_id }}"
+          git push
