@@ -1,0 +1,46 @@
+name: Prepare routed remediation
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Parent Plus inventory issue number
+        required: true
+        type: string
+      role:
+        description: Routed role
+        required: true
+        type: choice
+        options: [Database, Integration, Coding, QA, Product-Manager]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: appsworld2027/Parent-plus-
+          path: target-parent-plus
+      - name: Prepare role-specific plan
+        env:
+          ISSUE_NUMBER: ${{ inputs.issue_number }}
+          ROLE: ${{ inputs.role }}
+        run: |
+          set -euo pipefail
+          mkdir -p target-parent-plus/ai-workspace/remediation
+          cat > "target-parent-plus/ai-workspace/remediation/issue-${ISSUE_NUMBER}.md" <<EOF
+          # Routed remediation plan
+          Issue: https://github.com/appsworld2027/Parent-plus-/issues/${ISSUE_NUMBER}
+          Role: ${ROLE}
+
+          Required flow: inspect evidence → confirm acceptance criteria → implement in isolation → run happy, negative, edge, security, performance, regression and recovery tests → update CSV/XLSX evidence → open a draft PR.
+
+          Protected actions remain gated: production, destructive changes, paid services, credentials, and legal/privacy decisions.
+          EOF
+      - name: Upload remediation plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: routed-remediation-${{ inputs.issue_number }}
+          path: target-parent-plus/ai-workspace/remediation/
