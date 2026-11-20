@@ -1,4 +1,4 @@
-# Reusable "resume paused work" sweep. When a Claude or Codex subscription secret exists, find open
+# Reusable "resume paused work" sweep. When a Claude, Codex or free-engine (NVIDIA NIM) secret exists, find open
 # issues/PRs at an agent stage whose latest comment is the AI Org pause notice, and re-dispatch them.
 name: Agent resume
 
@@ -14,6 +14,8 @@ on:
         required: false
       CODEX_AUTH_JSON:
         required: false
+      NVIDIA_NIM_API_KEY:
+        required: false
 
 jobs:
   resume:
@@ -21,7 +23,7 @@ jobs:
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
-      HAS_ENGINE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.CODEX_AUTH_JSON != '' }}
+      HAS_ENGINE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.CODEX_AUTH_JSON != '' || secrets.NVIDIA_NIM_API_KEY != '' }}
       WORKFLOW: ${{ inputs.dispatch_workflow }}
     steps:
       - name: Re-dispatch paused items
