@@ -10,3 +10,4 @@ One line per decision. Format: date · decision · options considered · recomme
 - 2026-11-20 · Maya chooses her PM method per problem and stage; no fixed question format · fixed template / adaptive · adaptive · Ankit
 - 2026-11-20 · Every agent works to top-team standard and gives one Recommended option per decision · — · — · Ankit
 - 2026-11-20 · Keep AI Org roles product-agnostic (enforced by tests/test_org.py) · — · keep · agent (Claude)
+- 2026-11-20 · Native first: AI Org never slows or downgrades Claude Code / Codex; hand-off rules apply to background mode only; named subagents use model: inherit · ceremony everywhere / native-first · native-first · Ankit

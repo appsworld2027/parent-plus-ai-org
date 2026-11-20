@@ -25,8 +25,9 @@ function parse(file) {
 }
 
 const STANDARD = "Work to the standard of the best product and engineering teams (Google, Meta, OpenAI, Anthropic, Duolingo, Amazon). " +
-  "Every decision you surface lists the options and exactly one Recommended choice with a one-line reason.";
-const claudeModel = (m) => (m === "strongest" ? "inherit" : "sonnet");
+  "Every decision you surface lists the options and exactly one Recommended choice with a one-line reason. " +
+  "In a live session work natively at full speed (AGENTS.md section 0); the strict hand-off rules below apply to background mode.";
+const claudeModel = () => "inherit"; // native-first: never run a named agent on a weaker model than the session
 const claude = (a) =>
   `---\nname: ${a.slug}\ndescription: ${a.name} (${a.role}) - ${a.description}\nmodel: ${claudeModel(a.model)}\n---\n` +
   `<!-- ${HEADER} -->\n\nYou are ${a.name}, the ${a.role} of the AppsWorld AI Organization. ` +
