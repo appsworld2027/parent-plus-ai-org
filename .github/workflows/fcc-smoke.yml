@@ -1,0 +1,79 @@
+# Smoke test: run Free Claude Code (FCC) inside a GitHub runner with free NVIDIA NIM models and
+# check that Claude Code can use tools through it. Uses the NVIDIA_NIM_API_KEY secret. Manual only.
+name: FCC smoke
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        model:
+          - nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b
+          - nvidia_nim/mistralai/mistral-large-4-1t-a52b
+          - nvidia_nim/moonshotai/kimi-k3.1-pro
+    env:
+      NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+      MODEL: ${{ matrix.model }}
+      HTTP_READ_TIMEOUT: "600"
+      FCC_OPEN_BROWSER: "false"
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install uv, FCC and Claude Code
+        run: |
+          set -euo pipefail
+          curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$PATH"
+          uv tool install free-claude-code >/dev/null
+          npm install -g @anthropic-ai/claude-code >/dev/null
+          echo "SMOKE|$MODEL|versions|fcc $(fcc-server --version 2>&1 | tail -1) | claude $(claude --version)"
+
+      - name: Start FCC server
+        run: |
+          set -uo pipefail
+          mkdir -p "$HOME/.fcc"
+          printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$NVIDIA_NIM_API_KEY" "$MODEL" > "$HOME/.fcc/.env"
+          chmod 600 "$HOME/.fcc/.env"
+          nohup fcc-server > /tmp/fcc.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -s -o /dev/null http://127.0.0.1:8082/v1/models; then echo "SMOKE|$MODEL|server|up after ${i}s"; exit 0; fi
+            sleep 1
+          done
+          echo "SMOKE|$MODEL|server|DID NOT START"; tail -40 /tmp/fcc.log; exit 1
+
+      - name: Direct Anthropic-format request through FCC
+        run: |
+          set -uo pipefail
+          out=$(curl -s -o /tmp/m.json -w "%{http_code} %{time_total}" --max-time 600 http://127.0.0.1:8082/v1/messages \
+            -H "Content-Type: application/json" -H "x-api-key: freecc" -H "anthropic-version: 2023-06-01" \
+            -d '{"model":"claude-sonnet-4-5","max_tokens":400,"messages":[{"role":"user","content":"Reply with exactly: FCC OK"}]}')
+          reply=$(jq -r '[.content[]? | select(.type=="text") | .text] | join(" ")' /tmp/m.json 2>/dev/null | head -c 60)
+          echo "SMOKE|$MODEL|messages-api|HTTP ${out% *}|${out#* }s|reply: ${reply}"
+
+      - name: Claude Code tool use through FCC
+        env:
+          ANTHROPIC_BASE_URL: http://127.0.0.1:8082
+          ANTHROPIC_AUTH_TOKEN: freecc
+          API_TIMEOUT_MS: "600000"
+          DISABLE_AUTOUPDATER: "1"
+        run: |
+          set -uo pipefail
+          mkdir -p /tmp/work && cd /tmp/work && git init -q
+          start=$(date +%s)
+          timeout 1500 claude -p "Create a file named proof.txt containing exactly the text FCC TOOL OK. Then run the shell command: cat proof.txt" \
+            --allowedTools "Bash,Write,Read,Edit" --max-turns 8 --output-format text > /tmp/claude.out 2>&1; rc=$?
+          secs=$(( $(date +%s) - start ))
+          if grep -q "FCC TOOL OK" proof.txt 2>/dev/null; then result=PASS; else result=FAIL; fi
+          echo "SMOKE|$MODEL|claude-code-tools|$result|exit $rc|${secs}s|$(tr '\n' ' ' < /tmp/claude.out | head -c 160)"
+          if [ "$result" = FAIL ]; then echo "--- fcc log tail"; tail -30 /tmp/fcc.log; fi
