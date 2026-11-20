@@ -1,0 +1,39 @@
+# Reusable "resume paused work" sweep. When a Claude or Codex subscription secret exists, find open
+# issues/PRs at an agent stage whose latest comment is the AI Org pause notice, and re-dispatch them.
+name: Agent resume
+
+on:
+  workflow_call:
+    inputs:
+      dispatch_workflow:
+        required: false
+        type: string
+        default: ai-agents.yml
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: false
+      CODEX_AUTH_JSON:
+        required: false
+
+jobs:
+  resume:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HAS_ENGINE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.CODEX_AUTH_JSON != '' }}
+      WORKFLOW: ${{ inputs.dispatch_workflow }}
+    steps:
+      - name: Re-dispatch paused items
+        run: |
+          set -euo pipefail
+          if [ "$HAS_ENGINE" != "true" ]; then echo "No engine connected - nothing to resume." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          count=0
+          for n in $(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --jq '.[] | select([.labels[].name] | any(. == "ai:discovery" or . == "ai:plan" or . == "ai:build" or . == "ai:qa" or . == "ai:review" or . == "ai:fix")) | .number'); do
+            last=$(gh api "repos/$GITHUB_REPOSITORY/issues/$n/comments?per_page=100" --jq 'last | .body // ""')
+            if printf '%s' "$last" | grep -q 'ai-org:paused'; then
+              gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" -f number="$n"
+              echo "Resumed #$n" | tee -a "$GITHUB_STEP_SUMMARY"; count=$((count+1))
+            fi
+          done
+          echo "Resumed $count paused item(s)." | tee -a "$GITHUB_STEP_SUMMARY"
