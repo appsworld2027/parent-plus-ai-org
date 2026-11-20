@@ -1,0 +1,48 @@
+# Measures how fast free NVIDIA NIM models respond from a GitHub Actions runner,
+# using the NVIDIA_NIM_API_KEY repo secret (no key pasting). Results go to the run summary.
+name: NIM probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      calls:
+        description: Calls per model (back to back)
+        required: false
+        default: "3"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        model:
+          - moonshotai/kimi-k3.1-pro
+          - z-ai/glm-5.3-flash
+          - nvidia/nemotron-3-ultra-550b-a55b
+          - mistralai/mistral-large-4-1t-a52b
+          - minimaxai/minimax-m3.1-flash
+          - nvidia/nemotron-3.5-lightning-30b-a3b
+    env:
+      NIM_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+      MODEL: ${{ matrix.model }}
+      CALLS: ${{ inputs.calls }}
+    steps:
+      - name: Probe
+        run: |
+          set -uo pipefail
+          if [ -z "$NIM_KEY" ]; then echo "PROBE|$MODEL|no NVIDIA_NIM_API_KEY secret"; exit 1; fi
+          for i in $(seq 1 "$CALLS"); do
+            body=$(jq -nc --arg m "$MODEL" --arg c "Reply with exactly: OK $i" '{model:$m,messages:[{role:"user",content:$c}],max_tokens:400,stream:true}')
+            out=$(curl -sN -o /tmp/p.txt -w "%{http_code} %{time_starttransfer} %{time_total}" --max-time 300 \
+              https://integrate.api.nvidia.com/v1/chat/completions \
+              -H "Authorization: Bearer $NIM_KEY" -H "Content-Type: application/json" -d "$body")
+            read -r code first total <<<"$out"
+            reply=$(grep -o '"content":"[^"]*"' /tmp/p.txt | sed 's/"content":"//;s/"$//' | tr -d '\n' | head -c 30)
+            line="PROBE|$MODEL|call $i|$(date -u +%H:%M:%S)Z|HTTP $code|first byte ${first}s|total ${total}s|reply: ${reply}"
+            echo "$line"; echo "- \`$MODEL\` call $i — HTTP $code, first byte ${first}s, total ${total}s, reply: ${reply}" >> "$GITHUB_STEP_SUMMARY"
+          done
