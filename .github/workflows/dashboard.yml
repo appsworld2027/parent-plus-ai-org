@@ -1,0 +1,53 @@
+name: Founder dashboard
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+  issues:
+    types: [opened, closed, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: founder-dashboard
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build dashboard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AI_ORG_REPO: ${{ github.repository }}
+          ENGINE_CLAUDE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+          ENGINE_CODEX: ${{ secrets.CODEX_AUTH_JSON != '' }}
+        run: node scripts/build-dashboard.mjs
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
