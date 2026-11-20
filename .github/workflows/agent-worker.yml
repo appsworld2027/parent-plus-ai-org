@@ -1,6 +1,7 @@
 # Reusable agent worker. Called by each repo's ai-agents.yml when an ai:* stage label is added
 # (or by workflow_dispatch to chain agent -> agent). The router decides: skip, pause (no
-# subscription connected) or run the chosen engine (Claude Code or Codex) as the named agent.
+# engine connected) or run the chosen engine (Claude Code, Codex, or the free engine = Claude Code
+# through Free Claude Code on free NVIDIA NIM models) as the named agent.
 name: Agent worker
 
 on:
@@ -24,6 +25,8 @@ on:
       CLAUDE_CODE_OAUTH_TOKEN:
         required: false
       CODEX_AUTH_JSON:
+        required: false
+      NVIDIA_NIM_API_KEY:
         required: false
 
 jobs:
@@ -70,6 +73,7 @@ jobs:
           IS_PR: ${{ steps.item.outputs.is_pr }}
           ENGINE_CLAUDE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
           ENGINE_CODEX: ${{ secrets.CODEX_AUTH_JSON != '' }}
+          ENGINE_FREE: ${{ secrets.NVIDIA_NIM_API_KEY != '' }}
         run: |
           set -euo pipefail
           PRFLAG=""; [ "$IS_PR" = "true" ] && PRFLAG="--pr"
@@ -79,7 +83,7 @@ jobs:
             echo '```json'; cat /tmp/route.json; echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Pause (no subscription connected)
+      - name: Pause (no engine connected)
         if: steps.router.outputs.action == 'pause'
         env:
           PAUSE_COMMENT: ${{ steps.router.outputs.pause_comment }}
@@ -100,6 +104,41 @@ jobs:
           github_token: ${{ github.token }}
           prompt: ${{ steps.router.outputs.prompt }}
           claude_args: --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch"
+
+      - name: Run agent with the free engine (Claude Code via FCC + NVIDIA NIM)
+        if: steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'free'
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          FREE_MODEL: ${{ steps.router.outputs.free_model }}
+          PROMPT: ${{ steps.router.outputs.prompt }}
+          AGENT_NAME: ${{ steps.router.outputs.agent_name }}
+        run: |
+          set -uo pipefail
+          curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null
+          export PATH="$HOME/.local/bin:$PATH"
+          uv tool install free-claude-code >/dev/null
+          npm install -g @anthropic-ai/claude-code >/dev/null
+          mkdir -p "$HOME/.fcc"
+          printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$NVIDIA_NIM_API_KEY" "$FREE_MODEL" > "$HOME/.fcc/.env"
+          chmod 600 "$HOME/.fcc/.env"
+          nohup fcc-server > /tmp/fcc.log 2>&1 &
+          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8082/v1/models && break; sleep 1; done
+          git config user.name "$AGENT_NAME (AppsWorld AI Org)"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -f .ai-org/manifest.json ] && jq -e '.governance.autoMerge == false' .ai-org/manifest.json >/dev/null; then
+            PROMPT="$PROMPT
+          7. This repository forbids agents from merging. Never run gh pr merge or enable auto-merge here; open the PR and stop."
+          fi
+          start=$(date +%s)
+          ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
+            timeout 3000 claude -p "$PROMPT" --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch" --max-turns 80 --output-format text > /tmp/agent.out 2>&1
+          rc=$?
+          {
+            echo "### Free engine run — $AGENT_NAME on \`$FREE_MODEL\` — exit $rc in $(( $(date +%s) - start ))s"
+            echo '```'; tail -c 3000 /tmp/agent.out; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          tail -c 3000 /tmp/agent.out
+          exit $rc
 
       - name: Run agent with Codex (experimental until verified with a ChatGPT subscription)
         if: steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'codex'

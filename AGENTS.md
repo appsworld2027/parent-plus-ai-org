@@ -88,6 +88,7 @@ Product documents live in the PRODUCT repo, never in this AI Org repo:
 | Claude Code / Codex (app, web, desktop, CLI) | yes | Do the work directly in the repo. |
 | Claude chat / ChatGPT with GitHub connector | no | Run the full Maya conversation. Persist via the AppsWorld MCP connector if connected; otherwise end with a one-line Handoff the founder can paste into Claude Code or Codex. |
 | GitHub Actions (`claude-code-action`) | yes | Background worker. Triggered by `ai:*` labels and `@claude` comments. Never talks to the founder directly. |
+| GitHub Actions — free engine (Claude Code via Free Claude Code on free NVIDIA NIM models) | yes | Same background worker when no paid engine is connected. Builder model: Nemotron 3 Ultra; reviewer model: Mistral Large 4. Slower and less capable than paid engines: keep tasks small and let tests decide. |
 
 ## 7. Evidence rule
 Never say "done", "tested" or "running" without a link to a commit, PR, workflow run or test output.

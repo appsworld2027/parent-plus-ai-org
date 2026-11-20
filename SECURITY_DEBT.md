@@ -15,6 +15,7 @@ Founder decision (2026-11-20): agents get unrestricted access for speed. Risks a
 | S7 | ChatGPT login file (`auth.json`) stored as a secret for the Codex worker; OpenAI advises against this on public repos; refresh write-back needs a token with secrets write access | Zero-budget requirement | Make repos private or switch to an API key |
 | S8 | Personal email `spngmm@gmail.com` visible in public commit history | Already published | Use GitHub noreply emails (done for new commits from 2026-11-20) |
 | S9 | Historic commits authored by the shared identity "Anuman" — unclear which founder made them | Historic | `Requested-by:` trailers and per-founder identities (in place from 2026-11-20) |
+| S10 | Free engine sends prompts and repo content to NVIDIA NIM (free tier: evaluation/prototyping terms) through Free Claude Code, a third-party AGPL proxy installed unpinned from PyPI on every run | Zero-budget requirement; repos are public anyway | Pin the FCC version; move to a paid engine or a self-hosted model |
 
 ## Known v1 reliability defects (from the 2026-11-19 audit)
 | # | Defect | Fix |

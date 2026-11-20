@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
 const TOKEN = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "";
 const ORG_REPO = process.env.AI_ORG_REPO || "appsworld2027/parent-plus-ai-org";
-const engines = { Claude: process.env.ENGINE_CLAUDE === "true", Codex: process.env.ENGINE_CODEX === "true" };
+const engines = { Claude: process.env.ENGINE_CLAUDE === "true", Codex: process.env.ENGINE_CODEX === "true", "Free (NVIDIA NIM via FCC)": process.env.ENGINE_FREE === "true" };
 const projects = JSON.parse(readFileSync("org/projects.json", "utf8")).projects;
 
 const STAGES = [
@@ -83,7 +83,7 @@ const runRows = results.flatMap((r) => r.runs.map((x) => ({ ...x, repo: r.repo }
   }).join("");
 const evRows = events().map((e) => `<tr><td>${esc(e.timestamp || e.ts || e.time || e.createdAt || "")}</td><td>${esc(e.agent || e.role || "")}</td><td>${esc(e.event || e.type || e.status || "")}</td><td>${esc(e.summary || e.message || e.title || [e.ideaId || e.issue, e.state].filter(Boolean).join(" · ") || JSON.stringify(e).slice(0, 160))}</td></tr>`).join("");
 const errors = results.filter((r) => r.error).map((r) => `<p class="err">Could not read ${esc(r.repo)}: ${esc(r.error)}</p>`).join("");
-const engineChips = Object.entries(engines).map(([n, on]) => `<span class="chip ${on ? "on" : "off"}">${n} engine: ${on ? "connected" : "not connected — agents pause until a subscription is added"}</span>`).join(" ");
+const engineChips = Object.entries(engines).map(([n, on]) => `<span class="chip ${on ? "on" : "off"}">${n} engine: ${on ? "connected" : "not connected"}</span>`).join(" ");
 const testLinks = projects.map((p) => p.testUrl ? `<a href="${esc(p.testUrl)}">Test ${esc(p.name)}</a>` : `<span class="muted">${esc(p.name)}: test link not set yet</span>`).join(" · ");
 
 const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">

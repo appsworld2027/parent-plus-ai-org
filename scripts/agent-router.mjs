@@ -2,7 +2,7 @@
 // Decides which agent (and engine) should act on an issue/PR, based on its ai:* stage label.
 // Pure logic + a small CLI used by .github/workflows/agent-worker.yml.
 // CLI: node agent-router.mjs --labels "ai:build,engine:codex" [--pr] [--body-file f] [--number N] [--repo o/r]
-//      env ENGINE_CLAUDE / ENGINE_CODEX = "true" when that subscription secret exists.
+//      env ENGINE_CLAUDE / ENGINE_CODEX / ENGINE_FREE = "true" when that engine's secret exists.
 import { readFileSync, appendFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -19,6 +19,18 @@ export const STAGE_ROLE = {
 const NO_AGENT = ["ai:founder-decision", "ai:founder-test", "ai:blocked"];
 const STAGE_ORDER = [...NO_AGENT, ...Object.keys(STAGE_ROLE)];
 
+// Engine preference when no engine:* label is set: paid subscriptions first, then the free engine.
+export const ENGINES = ["claude", "codex", "free"];
+
+// Free engine = Claude Code through Free Claude Code (FCC) on free NVIDIA NIM models.
+// Measured 2026-11-20 from GitHub runners: Nemotron 3 Ultra and Mistral Large 4 answer in ~1s and pass
+// Claude Code tool use; Kimi K3.1 Pro passes but queues 20-90s per call.
+export const FREE_MODELS = {
+  builder: "nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b",
+  reviewer: "nvidia_nim/mistralai/mistral-large-4-1t-a52b",
+};
+const REVIEW_ROLES = ["quinn-qa", "rex-reviewer"];
+
 export function agentInfo(slug, dir = AGENTS_DIR) {
   const raw = readFileSync(`${dir}${slug}.md`, "utf8");
   const meta = Object.fromEntries(raw.split("\n---")[0].split("\n").filter((l) => l.includes(":")).map((l) => {
@@ -27,7 +39,7 @@ export function agentInfo(slug, dir = AGENTS_DIR) {
   return { slug, name: meta.name, role: meta.role, model: meta.model };
 }
 
-export function route({ labels = [], body = "", isPR = false, engines = { claude: false, codex: false } }) {
+export function route({ labels = [], body = "", isPR = false, engines = { claude: false, codex: false, free: false } }) {
   const stage = STAGE_ORDER.find((s) => labels.includes(s));
   if (!stage) return { action: "skip", reason: "no ai:* stage label" };
   if (NO_AGENT.includes(stage)) return { action: "skip", stage, reason: `${stage} waits for a founder or a project manager` };
@@ -39,15 +51,18 @@ export function route({ labels = [], body = "", isPR = false, engines = { claude
     if (owner === "ravi") role = "ravi-integration";
   }
 
-  const wanted = labels.includes("engine:codex") ? "codex" : labels.includes("engine:claude") ? "claude" : null;
-  let preferred = wanted || "claude";
-  // Independence: QA and review prefer the engine that did NOT author the PR.
-  if ((stage === "ai:qa" || stage === "ai:review") && isPR && wanted) preferred = wanted === "claude" ? "codex" : "claude";
-  const other = preferred === "claude" ? "codex" : "claude";
-  const engine = engines[preferred] ? preferred : engines[other] ? other : null;
+  const wanted = ENGINES.find((e) => labels.includes(`engine:${e}`)) || null;
+  let preferred = wanted || ENGINES.find((e) => engines[e]) || "claude";
+  // Independence: QA and review prefer an engine that did NOT author the PR.
+  if ((stage === "ai:qa" || stage === "ai:review") && isPR && wanted) {
+    preferred = ENGINES.filter((e) => e !== wanted).find((e) => engines[e]) || wanted;
+  }
+  const engine = engines[preferred] ? preferred : ENGINES.find((e) => engines[e]) || null;
 
-  if (!engine) return { action: "pause", stage, role, reason: "no Claude or Codex subscription is connected" };
-  return { action: "run", stage, role, engine, fallback: engine !== preferred };
+  if (!engine) return { action: "pause", stage, role, reason: "no Claude, Codex or free engine is connected" };
+  const out = { action: "run", stage, role, engine, fallback: engine !== preferred };
+  if (engine === "free") out.free_model = REVIEW_ROLES.includes(role) ? FREE_MODELS.reviewer : FREE_MODELS.builder;
+  return out;
 }
 
 export function buildPrompt({ agent, number, isPR, repo }) {
@@ -67,7 +82,7 @@ export function buildPrompt({ agent, number, isPR, repo }) {
 
 export const PAUSE_MARKER = "<!-- ai-org:paused -->";
 export function pauseComment({ agent, stage }) {
-  return `${PAUSE_MARKER}\n**[${agent.name} — ${agent.role}] Paused.** This item is at \`${stage}\`, but no Claude or Codex subscription is connected yet, so no agent can work on it.\n\nIt will be picked up automatically once a subscription token is added (see FOUNDER_INTERFACE.md). Nothing is lost.`;
+  return `${PAUSE_MARKER}\n**[${agent.name} — ${agent.role}] Paused.** This item is at \`${stage}\`, but no Claude, Codex or free engine is connected yet, so no agent can work on it.\n\nIt will be picked up automatically once an engine secret is added (see FOUNDER_INTERFACE.md). Nothing is lost.`;
 }
 
 // ---- CLI ----
@@ -78,7 +93,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   const isPR = process.argv.includes("--pr");
   const r = route({
     labels, isPR, body: bodyFile && existsSync(bodyFile) ? readFileSync(bodyFile, "utf8") : "",
-    engines: { claude: process.env.ENGINE_CLAUDE === "true", codex: process.env.ENGINE_CODEX === "true" },
+    engines: { claude: process.env.ENGINE_CLAUDE === "true", codex: process.env.ENGINE_CODEX === "true", free: process.env.ENGINE_FREE === "true" },
   });
   const out = { ...r };
   if (r.role) {

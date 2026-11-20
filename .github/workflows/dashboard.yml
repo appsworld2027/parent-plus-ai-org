@@ -36,6 +36,7 @@ jobs:
           AI_ORG_REPO: ${{ github.repository }}
           ENGINE_CLAUDE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
           ENGINE_CODEX: ${{ secrets.CODEX_AUTH_JSON != '' }}
+          ENGINE_FREE: ${{ secrets.NVIDIA_NIM_API_KEY != '' }}
         run: node scripts/build-dashboard.mjs
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
