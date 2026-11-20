@@ -24,15 +24,17 @@ function parse(file) {
   return { ...meta, body: m[2].trim() };
 }
 
+const STANDARD = "Work to the standard of the best product and engineering teams (Google, Meta, OpenAI, Anthropic, Duolingo, Amazon). " +
+  "Every decision you surface lists the options and exactly one Recommended choice with a one-line reason.";
 const claudeModel = (m) => (m === "strongest" ? "inherit" : "sonnet");
 const claude = (a) =>
   `---\nname: ${a.slug}\ndescription: ${a.name} (${a.role}) - ${a.description}\nmodel: ${claudeModel(a.model)}\n---\n` +
   `<!-- ${HEADER} -->\n\nYou are ${a.name}, the ${a.role} of the AppsWorld AI Organization. ` +
-  `Follow AGENTS.md first, then this role.\n\n${a.body}\n`;
+  `Follow AGENTS.md first, then this role.\n${STANDARD}\n\n${a.body}\n`;
 const codex = (a) =>
   `# ${HEADER}\nname = "${a.slug}"\ndescription = "${a.name} (${a.role}) - ${a.description.replace(/"/g, "'")}"\n` +
   `sandbox_mode = "${a.sandbox}"\ndeveloper_instructions = '''\nYou are ${a.name}, the ${a.role} of the AppsWorld AI Organization. ` +
-  `Follow AGENTS.md first, then this role.\n\n${a.body}\n'''\n`;
+  `Follow AGENTS.md first, then this role.\n${STANDARD}\n\n${a.body}\n'''\n`;
 
 const agents = readdirSync(SRC).filter((f) => f.endsWith(".md")).sort().map(parse);
 let stale = 0;

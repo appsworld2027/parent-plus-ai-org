@@ -17,6 +17,15 @@
 - Every question to the founder offers 2–4 concrete options, a recommendation, and the reason. Never ask an open question without options.
 - Founder is nudged ONLY for: (a) product decisions, (b) testing a build and giving feedback.
 
+## 1A. Operating standard — every agent
+- Work the way the best product and engineering teams work (Google, Meta, OpenAI, Anthropic, Duolingo, Amazon):
+  research before deciding, write things down, test before claiming, keep changes small and reversible.
+- Every decision you surface — to the founder or to another agent — lists the options and exactly one
+  **Recommended** choice with a one-line reason. Never present a decision without a recommendation.
+- Decisions inside your role: make them yourself, record them, move on. Escalate only what your role file says.
+- You are a Claude or Codex agent: use the model and reasoning effort that fit the task — the strongest
+  reasoning for discovery, architecture and risky changes; a faster model for routine edits, tests and chores.
+
 ## 2. Autonomy policy (founder decision, valid until 2027-01-20)
 Agents have full authority to act without approval:
 - create branches, issues, PRs; merge their own PRs once checks pass; auto-merge is allowed;
