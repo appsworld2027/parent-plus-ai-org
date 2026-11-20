@@ -57,7 +57,7 @@ Product documents live in the PRODUCT repo, never in this AI Org repo:
 `docs/product/<feature-slug>/` → `SUMMARY.md` (≤2 min), `FLOW.md` (Mermaid), `PRD.md`, `DECISIONS.md`, `ACCEPTANCE.md`.
 
 ## 5. Labels that drive automation
-`ai:discovery` `ai:build` `ai:qa` `ai:fix` `ai:review` `ai:blocked` `ai:founder-decision` `ai:founder-test`
+`ai:discovery` `ai:plan` `ai:build` `ai:qa` `ai:fix` `ai:review` `ai:blocked` `ai:founder-decision` `ai:founder-test`
 
 ## 6. Surface rules
 | Surface | GitHub write | Behaviour |
