@@ -1,5 +1,5 @@
 # Wakes the named AI agents when an ai:* stage label is added to an issue or PR,
-# or when a previous agent dispatches the next stage.
+# when a previous agent dispatches the next stage, or (hourly) to resume paused work.
 name: AI agents
 
 on:
@@ -12,6 +12,8 @@ on:
       number:
         description: Issue or PR number
         required: true
+  schedule:
+    - cron: "17 * * * *"
 
 permissions:
   contents: write
@@ -22,8 +24,13 @@ permissions:
 
 jobs:
   agent:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.label.name, 'ai:')
+    if: github.event_name == 'workflow_dispatch' || ((github.event_name == 'issues' || github.event_name == 'pull_request') && startsWith(github.event.label.name, 'ai:'))
     uses: ./.github/workflows/agent-worker.yml
     with:
       number: ${{ github.event.issue.number || github.event.pull_request.number || inputs.number }}
+    secrets: inherit
+
+  resume:
+    if: github.event_name == 'schedule'
+    uses: ./.github/workflows/agent-resume.yml
     secrets: inherit
