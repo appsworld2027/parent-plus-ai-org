@@ -1,0 +1,129 @@
+# Reusable agent worker. Called by each repo's ai-agents.yml when an ai:* stage label is added
+# (or by workflow_dispatch to chain agent -> agent). The router decides: skip, pause (no
+# subscription connected) or run the chosen engine (Claude Code or Codex) as the named agent.
+name: Agent worker
+
+on:
+  workflow_call:
+    inputs:
+      number:
+        description: Issue or PR number
+        required: true
+        type: string
+      handbook_ref:
+        description: Branch/tag of the AI Org handbook to use
+        required: false
+        type: string
+        default: main
+      dispatch_workflow:
+        description: Caller workflow file to re-dispatch when the stage label changes
+        required: false
+        type: string
+        default: ai-agents.yml
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN:
+        required: false
+      CODEX_AUTH_JSON:
+        required: false
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    concurrency:
+      group: ai-agent-${{ github.repository }}-${{ inputs.number }}
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      NUMBER: ${{ inputs.number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Load AI Org handbook
+        uses: actions/checkout@v4
+        with:
+          repository: appsworld2027/parent-plus-ai-org
+          ref: ${{ inputs.handbook_ref }}
+          path: .ai-org-handbook
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Read item
+        id: item
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER" > /tmp/item.json
+          jq -r '.body // ""' /tmp/item.json > /tmp/body.md
+          echo "labels=$(jq -r '[.labels[].name] | join(",")' /tmp/item.json)" >> "$GITHUB_OUTPUT"
+          echo "is_pr=$(jq -r 'has("pull_request")' /tmp/item.json)" >> "$GITHUB_OUTPUT"
+          echo "stage=$(jq -r '[.labels[].name | select(startswith("ai:"))] | first // ""' /tmp/item.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Route
+        id: router
+        env:
+          LABELS: ${{ steps.item.outputs.labels }}
+          IS_PR: ${{ steps.item.outputs.is_pr }}
+          ENGINE_CLAUDE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
+          ENGINE_CODEX: ${{ secrets.CODEX_AUTH_JSON != '' }}
+        run: |
+          set -euo pipefail
+          PRFLAG=""; [ "$IS_PR" = "true" ] && PRFLAG="--pr"
+          node .ai-org-handbook/scripts/agent-router.mjs --labels "$LABELS" $PRFLAG --body-file /tmp/body.md --number "$NUMBER" --repo "$GITHUB_REPOSITORY" | tee /tmp/route.json
+          {
+            echo "### AI Org router — #$NUMBER"
+            echo '```json'; cat /tmp/route.json; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Pause (no subscription connected)
+        if: steps.router.outputs.action == 'pause'
+        env:
+          PAUSE_COMMENT: ${{ steps.router.outputs.pause_comment }}
+        run: |
+          set -euo pipefail
+          if gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments" --paginate --jq '.[].body' | grep -q 'ai-org:paused'; then
+            echo "Pause comment already present - not posting again."
+          else
+            printf '%s\n' "$PAUSE_COMMENT" > /tmp/pause.md
+            gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/pause.md
+          fi
+
+      - name: Run agent with Claude Code
+        if: steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'claude'
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          github_token: ${{ github.token }}
+          prompt: ${{ steps.router.outputs.prompt }}
+          claude_args: --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch"
+
+      - name: Run agent with Codex (experimental until verified with a ChatGPT subscription)
+        if: steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'codex'
+        env:
+          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+          PROMPT: ${{ steps.router.outputs.prompt }}
+        run: |
+          set -euo pipefail
+          npm install -g @openai/codex >/dev/null
+          export CODEX_HOME="$RUNNER_TEMP/codex-home"; mkdir -p "$CODEX_HOME"
+          printf '%s' "$CODEX_AUTH_JSON" > "$CODEX_HOME/auth.json"; chmod 600 "$CODEX_HOME/auth.json"
+          codex exec --dangerously-bypass-approvals-and-sandbox "$PROMPT"
+          echo "::warning::Codex may have refreshed its login. Saving it back to the CODEX_AUTH_JSON secret needs a bot token (SECURITY_DEBT S7)."
+
+      - name: Chain to the next agent if the stage changed
+        if: steps.router.outputs.action == 'run'
+        env:
+          BEFORE: ${{ steps.item.outputs.stage }}
+          WORKFLOW: ${{ inputs.dispatch_workflow }}
+        run: |
+          set -euo pipefail
+          AFTER=$(gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER" --jq '[.labels[].name | select(startswith("ai:"))] | first // ""')
+          echo "stage before: ${BEFORE:-none}  after: ${AFTER:-none}" | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ -n "$AFTER" ] && [ "$AFTER" != "$BEFORE" ]; then
+            gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" -f number="$NUMBER"
+            echo "Dispatched $WORKFLOW for #$NUMBER ($AFTER)" | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
