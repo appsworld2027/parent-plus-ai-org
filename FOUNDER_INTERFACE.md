@@ -1,45 +1,36 @@
-# AppsWorld Founder Interface — Codex and Claude
+# Founder Interface (v2)
 
-## Non-negotiable operating rule
+How Ankit and Manu work with the AppsWorld AI Organization. Rules live in `AGENTS.md`; this page is the founder's view.
 
-The founder works in Codex or Claude. GitHub Actions is an execution backend, not the founder interface. The founder must not be sent to a workflow to perform routine product work.
+## Your only two touchpoints
+1. **A Claude or Codex/ChatGPT app** (web, desktop or mobile) — to give ideas, make decisions and report test results.
+2. **The product link** (Vercel URL or localhost) — to test what was built.
+You never need to open GitHub, Vercel, Supabase, a terminal or a workflow for routine work.
 
-## Conversation contract
+## Which app does what
+| App | Can it build? | Use it for |
+|---|---|---|
+| Claude Code (app / web / desktop) | Yes — writes to GitHub | Anything: ideas, decisions, feedback, "keep building" |
+| Codex (app / web / desktop) | Yes — writes to GitHub | Same as Claude Code |
+| Claude chat / ChatGPT (Projects) | Talks and plans; saves via the AppsWorld connector if attached | Thinking with Maya on the go; it hands off to Claude Code / Codex when it cannot save |
 
-When a founder describes an idea, the Codex/Claude project agent must:
+## One-time setup per app
+- **Claude Code / Codex:** connect GitHub once and open the product repository. `CLAUDE.md` / `AGENTS.md` load automatically.
+- **Claude chat / ChatGPT:** create a Project named "AppsWorld AI Org", connect GitHub, and paste this as the Project instructions:
 
-1. Acknowledge the outcome and restate the problem in plain language.
-2. Act as the AI CPTO/Product Manager.
-3. Ask only the minimum high-value discovery questions needed to remove ambiguity.
-4. Brainstorm alternatives, risks, users, journeys and success measures.
-5. Recommend the safest, simplest, lowest-cost approach.
-6. Create or update an Idea ID and conversation record.
-7. Prepare a concise decision brief in the AI Organization repository.
-8. Ask the founder for a decision in the same conversation.
-9. After approval, invoke planning, routing, implementation and QA tools silently.
-10. Report progress, blockers, evidence and next decisions back in the same conversation.
+  > You are the AppsWorld AI Organization. Before every reply, read `AGENTS.md`, `playbooks/ai-pm.md` and `org/agents/` in the GitHub repo `appsworld2027/parent-plus-ai-org` (branch `main`), and the product repo listed in `projects/`. Follow them exactly. Start as Maya, the AI Product Manager.
 
-The founder should never need to copy an IDEA-ID into GitHub manually. The adapter may use IDs internally, but it carries them between tools automatically.
+## What you can say (plain language is fine)
+| You say | What happens |
+|---|---|
+| "New idea: …" + optional prototype / screenshots | Maya researches, then asks a few questions with a recommended option each |
+| "I tested it: X works, Y broke" + 1–2 screenshots | Maya files fixes and change requests; you get a one-line confirmation |
+| "What do you need from me?" | Open decisions and test requests, each with a recommendation |
+| "Status?" | A 5-line summary and the dashboard link |
+| "Go with your recommendation" | The agent proceeds with the recommended option |
 
-## Founder approval boundaries
+## What every agent reply looks like
+`[Agent name — role]` · what happened (with evidence links) · what I need from you (options + one Recommended) · what happens next.
 
-Routine technical decisions proceed autonomously. Ask the founder only for product direction, material scope/architecture conflicts, paid services, credentials/secrets, production actions, destructive actions, or legal/privacy/compliance decisions.
-
-## Required response shape
-
-Every response should state what happened, current state, risks, evidence, founder decisions needed, and the next step. Never claim that a role is running unless an execution record or tool result proves it.
-
-## Tool routing
-
-- `discover` → AI PM interview and decision brief
-- `brainstorm` → alternatives, journeys, risks and recommendation
-- `approve` → founder decision record
-- `plan` → PRD, feature map, acceptance criteria and PM workstreams
-- `route` → PM/specialist issue bundle and product tasks
-- `implement` → isolated specialist execution
-- `test` → multi-agent QA and evidence matrix
-- `repair` → bounded remediation loop
-- `status` → HTML dashboard and conversation summary
-- `stage` / `release-review` → founder-visible release decision
-
-If a backend workflow is unavailable, continue the reasoning in Codex/Claude, record the blocked action, and report the exact blocker. Do not redirect the founder to GitHub for routine work.
+## When you will be nudged
+Only for (a) a product decision or (b) a build ready to test. Everything technical is decided by the agents and logged in `governance/decisions/LOG.md`.
