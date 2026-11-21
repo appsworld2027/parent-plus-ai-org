@@ -16,6 +16,8 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
   single-owner rules in role files apply here, because unattended agents need explicit structure.
 - If any AI Org rule would make you slower or lower quality than your native way, use the native way, note it in
   `governance/decisions/LOG.md`, and propose an edit to this handbook.
+- **Native first never skips verification.** In every mode (live or background, any tool, any model) a feature is
+  not done until it meets the Definition of Done in §7A. Native first decides HOW you work, never WHETHER the work is proven.
 
 ## 0B. Session start (lightweight)
 1. This file is loaded automatically (Codex: AGENTS.md; Claude Code: CLAUDE.md imports it). Do not re-read it on every message.
@@ -80,7 +82,7 @@ Product documents live in the PRODUCT repo, never in this AI Org repo:
 `docs/product/<feature-slug>/` → `SUMMARY.md` (≤2 min), `FLOW.md` (Mermaid), `PRD.md`, `DECISIONS.md`, `ACCEPTANCE.md`.
 
 ## 5. Labels that drive automation
-`ai:discovery` `ai:plan` `ai:build` `ai:qa` `ai:fix` `ai:review` `ai:blocked` `ai:founder-decision` `ai:founder-test`
+`ai:discovery` `ai:plan` `ai:contract` `ai:build` `ai:qa` `ai:fix` `ai:review` `ai:blocked` `ai:founder-decision` `ai:founder-test`
 
 ## 6. Surface rules
 | Surface | GitHub write | Behaviour |
@@ -93,6 +95,40 @@ Product documents live in the PRODUCT repo, never in this AI Org repo:
 ## 7. Evidence rule
 Never say "done", "tested" or "running" without a link to a commit, PR, workflow run or test output.
 Status words: planned · running · blocked(reason) · done(evidence-link).
+
+## 7A. Quality system — applies in EVERY mode (live and background)
+Quality comes from this system, not from role names. No agent and no rule above may skip it.
+
+1. **Contract first (founder approval #1).** Before any build, Maya writes the Feature Contract
+   (`playbooks/feature-contract.md`) at `docs/product/<feature-slug>/ACCEPTANCE.md` in the product repo and gets
+   founder approval. No approved contract, no build. For a bug, one AC describing the correct behaviour is enough;
+   skip founder approval only when the correct behaviour is already clear from an approved contract or the prototype.
+2. **Tests before code, by someone else.** Quinn turns every AC into at least one end-to-end test titled with its AC ID,
+   in the product's locked acceptance-test folder, in a contract PR labelled `ai:contract`. The tests must FAIL before
+   the build exists (proof they test something real). The contract PR stays open, red on purpose. Dev's build PR
+   targets the contract branch, not `main` (a stacked PR). Once the build PR is green and reviewed it merges into the
+   contract branch; the combined contract PR then carries the Demo Pack, goes to the founder, and merges to `main`.
+3. **Build loop.** Dev builds in a separate build PR. Loop: change → run the full suite (unit, typecheck, lint,
+   acceptance) → fix → repeat. Do not stop, ask, or report done while anything fails. Claude Code enforces this with
+   the Stop hook in the product repo's `.claude/settings.json`; every other tool follows it as a rule, and CI enforces
+   it on the PR. After 5 fix rounds on the same failure: label `ai:blocked`, record what was tried, stop.
+4. **Locked goalposts.** A build PR must not add, edit or delete locked acceptance tests, skip or disable tests, or
+   lower thresholds. The `contract-lock` CI check fails any build PR that does. A wrong test is fixed only through a
+   new `ai:contract` PR by Quinn (test bug) or an `ai:founder-decision` (behaviour change) — never in the build PR.
+5. **Independent review.** Rex reviews in a fresh context (a different model when available), against the contract,
+   and actively tries to break the feature: unhappy paths, empty and error states, small screens, and side-by-side
+   comparison with the prototype screens. Rex's findings go back to step 3.
+6. **Definition of Done.** ALL of: (a) every AC has a passing acceptance test; (b) all existing tests, typecheck and
+   lint pass in CI; (c) `contract-lock` passes; (d) Rex approved; (e) the preview deployed and was opened successfully;
+   (f) the Demo Pack is posted. Anything less is `running` or `blocked(reason)`, never `done`.
+7. **Demo Pack (founder approval #2).** The PR description follows `.github/pull_request_template.md`: preview link,
+   one line per AC with pass/fail and screenshot, decisions made alone, known gaps, and how to test in 3 steps.
+   The founder receives only a 2-minute summary plus the link, via `ai:founder-test`.
+8. **Escalation rule.** Ask the founder ONLY when (a) a user-visible behaviour is needed that no AC covers, (b) an AC
+   cannot be met as written, or (c) money, privacy, child safety or unrecoverable user data is affected.
+   Everything else: decide, record it in the Demo Pack under "Decisions I made on my own", continue.
+9. **Small slices.** One feature (about 12 ACs or fewer) per contract; one contract per build PR. Split larger phases
+   before building.
 
 ## 8. Usage limits
 Work runs on the founder's subscriptions. Work in small, resumable chunks. If rate-limited:
