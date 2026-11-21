@@ -114,30 +114,42 @@ jobs:
           AGENT_NAME: ${{ steps.router.outputs.agent_name }}
         run: |
           set -uo pipefail
+          mkdir -p /tmp/agent-logs
           curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null
           export PATH="$HOME/.local/bin:$PATH"
           uv tool install free-claude-code >/dev/null
           npm install -g @anthropic-ai/claude-code >/dev/null
-          mkdir -p "$HOME/.fcc"
+          mkdir -p "$HOME/.fcc" "$HOME/.claude"
           printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$NVIDIA_NIM_API_KEY" "$FREE_MODEL" > "$HOME/.fcc/.env"
           chmod 600 "$HOME/.fcc/.env"
-          nohup fcc-server > /tmp/fcc.log 2>&1 &
+          echo '{"includeCoAuthoredBy": false}' > "$HOME/.claude/settings.json"
+          nohup fcc-server > /tmp/agent-logs/fcc.log 2>&1 &
           for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8082/v1/models && break; sleep 1; done
           git config user.name "$AGENT_NAME (AppsWorld AI Org)"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          PROMPT="$PROMPT
+          7. Engine facts: you are running on the model $FREE_MODEL, served free by NVIDIA NIM through Free Claude Code. You are not a Claude model. Whenever you name the model or engine that did the work (comments, commits, PRs), state exactly this.
+          8. Post every comment and PR body with --body-file pointing to a file you wrote first (never inline --body), so code formatting survives.
+          9. Evidence rule: every claim that checks passed must link a CI run or quote the command and its result line."
           if [ -f .ai-org/manifest.json ] && jq -e '.governance.autoMerge == false' .ai-org/manifest.json >/dev/null; then
             PROMPT="$PROMPT
-          7. This repository forbids agents from merging. Never run gh pr merge or enable auto-merge here; open the PR and stop."
+          10. This repository forbids agents from merging. Never run gh pr merge or enable auto-merge here; open the PR and stop."
           fi
           start=$(date +%s)
           ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
-            timeout 3000 claude -p "$PROMPT" --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch" --max-turns 80 --output-format text > /tmp/agent.out 2>&1
+            timeout 3000 claude -p "$PROMPT" --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch" --max-turns 80 \
+            --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr
           rc=$?
+          secs=$(( $(date +%s) - start ))
+          stats=$(jq -r 'select(.type=="result") | "turns=\(.num_turns) subtype=\(.subtype) is_error=\(.is_error)"' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -1)
+          final=$(jq -r 'select(.type=="result") | .result // ""' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -c 3000)
           {
-            echo "### Free engine run — $AGENT_NAME on \`$FREE_MODEL\` — exit $rc in $(( $(date +%s) - start ))s"
-            echo '```'; tail -c 3000 /tmp/agent.out; echo '```'
+            echo "### Free engine run — $AGENT_NAME on \`$FREE_MODEL\` — exit $rc in ${secs}s — ${stats:-no result event}"
+            echo '```'; printf '%s\n' "${final:-<no final message; see agent.jsonl / agent.stderr artifacts>}"; echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
-          tail -c 3000 /tmp/agent.out
+          echo "AGENT_RESULT exit=$rc secs=$secs ${stats:-no-result-event}"
+          printf '%s\n' "$final" | tail -c 3000
+          tail -c 1500 /tmp/agent-logs/agent.stderr
           exit $rc
 
       - name: Run agent with Codex (experimental until verified with a ChatGPT subscription)
@@ -152,6 +164,26 @@ jobs:
           printf '%s' "$CODEX_AUTH_JSON" > "$CODEX_HOME/auth.json"; chmod 600 "$CODEX_HOME/auth.json"
           codex exec --dangerously-bypass-approvals-and-sandbox "$PROMPT"
           echo "::warning::Codex may have refreshed its login. Saving it back to the CODEX_AUTH_JSON secret needs a bot token (SECURITY_DEBT S7)."
+
+      - name: Save agent logs
+        if: always() && steps.router.outputs.action == 'run'
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-logs-${{ inputs.number }}-${{ github.run_attempt }}
+          path: /tmp/agent-logs/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Report a failed run (not retried automatically)
+        if: failure() && steps.router.outputs.action == 'run'
+        env:
+          AGENT_NAME: ${{ steps.router.outputs.agent_name }}
+          AGENT_ROLE: ${{ steps.router.outputs.agent_role }}
+          ENGINE: ${{ steps.router.outputs.engine }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          printf '%s\n' "<!-- ai-org:failed -->" "**[$AGENT_NAME — $AGENT_ROLE] Run failed** on the \`$ENGINE\` engine. Logs: $RUN_URL (artifact \`agent-logs-$NUMBER-${{ github.run_attempt }}\`)." "" "This is **not** retried automatically. To retry, remove and re-add the stage label." > /tmp/failed.md
+          gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/failed.md
 
       - name: Chain to the next agent if the stage changed
         if: steps.router.outputs.action == 'run'
