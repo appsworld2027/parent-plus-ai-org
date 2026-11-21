@@ -16,6 +16,7 @@ Founder decision (2026-11-20): agents get unrestricted access for speed. Risks a
 | S8 | Personal email `spngmm@gmail.com` visible in public commit history | Already published | Use GitHub noreply emails (done for new commits from 2026-11-20) |
 | S9 | Historic commits authored by the shared identity "Anuman" — unclear which founder made them | Historic | `Requested-by:` trailers and per-founder identities (in place from 2026-11-20) |
 | S10 | Free engine sends prompts and repo content to NVIDIA NIM (free tier: evaluation/prototyping terms) through Free Claude Code, a third-party AGPL proxy installed unpinned from PyPI on every run | Zero-budget requirement; repos are public anyway | Pin the FCC version; move to a paid engine or a self-hosted model |
+| S11 | Product repos call the reusable `contract-lock.yml` at `@main`: a bad change to AI Org `main` reaches every product at once | No release process yet; fastest to iterate | Pin callers to a version tag or commit SHA |
 
 ## Known v1 reliability defects (from the 2026-11-19 audit)
 | # | Defect | Fix |
@@ -25,3 +26,4 @@ Founder decision (2026-11-20): agents get unrestricted access for speed. Risks a
 | R3 | "AI PM" brief/plan workflows are fixed templates with no model call | Superseded by Maya (v2) running in Claude Code / Codex |
 | R4 | approve / plan / route workflows have never run | Superseded by the v2 label-driven workers |
 | R5 | Legacy `.codex/agents/{pm,cpto,coding,database,integration,qa}.toml` coexist with v2 agents because `org.py` loads them | Retire `org.py`, then remove the legacy files |
+| R6 | `contract-lock` cannot detect weakened assertions or lowered coverage thresholds | Rex checks this in review; later add an assertion-count / coverage diff check |

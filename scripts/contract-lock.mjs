@@ -1,0 +1,89 @@
+#!/usr/bin/env node
+// contract-lock — enforces AGENTS.md §7A rule 4 ("locked goalposts").
+// A build/fix PR may not touch locked acceptance tests; a contract PR (label ai:contract)
+// may contain only the contract docs and its tests; no PR may skip or focus tests.
+import { execFileSync } from "node:child_process";
+import { appendFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+export const DEFAULT_LOCKED_PATHS = ["tests/acceptance/"];
+export const CONTRACT_DOC_PATHS = ["docs/product/"];
+const SKIP_PATTERNS = [
+  /\b(?:it|test|describe)\.(?:skip|only|fixme|todo)\s*\(/,
+  /\bx(?:it|test|describe)\s*\(/,
+];
+const TEST_FILE = /(\.(test|spec)\.[cm]?[jt]sx?$)|(^|\/)(e2e|tests?|__tests__)\//;
+
+const under = (path, prefixes) => prefixes.some((p) => path.startsWith(p));
+
+// changes: [{ status, path }]; addedLines: { [path]: string[] }; labels: string[]
+export function checkContractLock({ changes, addedLines = {}, labels = [], lockedPaths = DEFAULT_LOCKED_PATHS }) {
+  const isContractPR = labels.includes("ai:contract");
+  const violations = [];
+  for (const { status, path } of changes) {
+    if (!isContractPR && under(path, lockedPaths)) {
+      violations.push(`Locked acceptance test ${status === "D" ? "deleted" : "changed"} in a non-contract PR: ${path}`);
+    }
+    if (isContractPR && !under(path, lockedPaths) && !under(path, CONTRACT_DOC_PATHS)) {
+      violations.push(`Contract PR may only contain the contract (docs/product/) and its tests: ${path}`);
+    }
+  }
+  for (const [path, lines] of Object.entries(addedLines)) {
+    if (!TEST_FILE.test(path) && !under(path, lockedPaths)) continue;
+    for (const line of lines) {
+      if (SKIP_PATTERNS.some((re) => re.test(line))) {
+        violations.push(`Test skipped or focused in ${path}: ${line.trim()}`);
+      }
+    }
+  }
+  return { ok: violations.length === 0, isContractPR, violations };
+}
+
+export function parseNameStatus(text) {
+  const changes = [];
+  for (const raw of text.split("\n")) {
+    if (!raw.trim()) continue;
+    const [status, ...paths] = raw.split("\t");
+    for (const path of paths) changes.push({ status: status[0], path });
+  }
+  return changes;
+}
+
+export function parseAddedLines(diffText) {
+  const added = {};
+  let current = null;
+  for (const line of diffText.split("\n")) {
+    if (line.startsWith("+++ ")) {
+      current = line === "+++ /dev/null" ? null : line.slice(6);
+      if (current) added[current] ??= [];
+    } else if (current && line.startsWith("+")) {
+      added[current].push(line.slice(1));
+    }
+  }
+  return added;
+}
+
+function main() {
+  const base = process.env.BASE_REF || "origin/main";
+  const labels = (process.env.PR_LABELS || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const lockedPaths = (process.env.CONTRACT_LOCK_PATHS || DEFAULT_LOCKED_PATHS.join(","))
+    .split(",").map((s) => s.trim()).filter(Boolean)
+    .map((p) => (p.endsWith("/") ? p : p + "/"));
+  const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  const range = `${base}...HEAD`;
+  const changes = parseNameStatus(git("diff", "--name-status", "--find-renames", range));
+  const addedLines = parseAddedLines(git("diff", "-U0", "--no-color", range));
+  const result = checkContractLock({ changes, addedLines, labels, lockedPaths });
+
+  const header = `contract-lock: ${result.ok ? "PASS" : "FAIL"} (${result.isContractPR ? "contract PR" : "build/fix PR"}; ` +
+    `base ${base}; locked: ${lockedPaths.join(", ")}; ${changes.length} changed files)`;
+  const body = result.violations.map((v) => `- ${v}`).join("\n");
+  console.log(header + (body ? "\n" + body : ""));
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY, `### ${header}\n${body || "No violations."}\n` +
+      (result.ok ? "" : "\nFix: never edit locked tests in a build PR. See AGENTS.md §7A rule 4.\n"));
+  }
+  process.exit(result.ok ? 0 : 1);
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) main();
