@@ -13,7 +13,8 @@ It replaces "the agent remembers what we discussed" with a written, testable agr
 1. Describe what a user can SEE or DO on screen. No technical words (no "API", "table", "endpoint").
 2. One behaviour per AC. If an AC contains "and also", split it.
 3. Be concrete: real numbers, real labels, real messages ("shows 3 items", not "shows the items").
-4. Cover the unhappy paths as ACs too: empty state, error state, loading state, no internet, wrong input.
+4. Cover the unhappy paths as ACs too — MANDATORY for every screen the feature touches: loading, empty, error, offline,
+   permission denied, stale data, very large data, wrong input. A contract without them is not ready (qa-charter.md).
 5. Point to the prototype screen each AC comes from, so nothing is lost from the founder's prototype.
 6. Maximum ~12 ACs per contract. More than that means the feature is too big: split it into smaller features.
 7. Every AC gets a stable ID (`AC-01`, `AC-02`, ...). IDs never change or get reused.

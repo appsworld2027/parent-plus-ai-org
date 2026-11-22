@@ -129,6 +129,9 @@ Quality comes from this system, not from role names. No agent and no rule above 
    Everything else: decide, record it in the Demo Pack under "Decisions I made on my own", continue.
 9. **Small slices.** One feature (about 12 ACs or fewer) per contract; one contract per build PR. Split larger phases
    before building.
+10. **Independent QA lab (all products).** Quinn-Explore owns a product-wide lab per `playbooks/qa-charter.md`: agents generate
+   persona test data, create it through the app's own APIs, run headless journeys and risk probes, and keep the scenario
+   catalogue and traceability current. Founders never prepare test data. Nightly + per PR; failures open `ai:fix`.
 
 ## 8. Usage limits
 Work runs on the founder's subscriptions. Work in small, resumable chunks. If rate-limited:
