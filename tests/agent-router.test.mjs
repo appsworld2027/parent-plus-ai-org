@@ -7,10 +7,10 @@ const freeOnly = { claude: false, codex: false, free: true }, all = { claude: tr
 
 test("no stage label is skipped", () => assert.equal(route({ labels: ["bug"] }).action, "skip"));
 test("founder and blocked stages never run an agent", () => {
-  for (const s of ["ai:founder-decision", "ai:founder-test", "ai:blocked"]) assert.equal(route({ labels: [s, "ai:build"], engines: all }).action, "skip");
+  for (const s of ["ai:founder-decision", "ai:founder-test", "ai:blocked", "ai:release", "ai:delivery", "ai:contract"]) assert.equal(route({ labels: [s, "ai:build"], engines: all }).action, "skip");
 });
 test("stages map to the right agents", () => {
-  const cases = { "ai:discovery": "maya-ai-pm", "ai:plan": "arjun-cpto", "ai:build": "dev-coder", "ai:qa": "quinn-qa", "ai:review": "rex-reviewer", "ai:fix": "dev-coder" };
+  const cases = { "ai:discovery": "maya-ai-pm", "ai:plan": "arjun-cpto", "ai:tests": "quinn-qa", "ai:build": "dev-coder", "ai:qa": "quinn-qa", "ai:review": "rex-reviewer", "ai:fix": "dev-coder" };
   for (const [s, role] of Object.entries(cases)) assert.equal(route({ labels: [s], engines: both }).role, role);
 });
 test("Owner line routes build work to Tara or Ravi", () => {
@@ -50,4 +50,9 @@ test("prompt and pause comment carry the agent identity", () => {
   const p = buildPrompt({ agent, number: 7, isPR: true, repo: "o/r" });
   assert.match(p, /You are Quinn/); assert.match(p, /gh pr view 7/); assert.match(p, /quinn-qa\.md/);
   assert.ok(pauseComment({ agent, stage: "ai:qa" }).startsWith(PAUSE_MARKER));
+});
+
+test("Quinn's prompt points to the QA charter and Maya's to the contract playbook", () => {
+  assert.match(buildPrompt({ agent: agentInfo("quinn-qa"), number: 1, isPR: false, repo: "o/r" }), /qa-charter\.md/);
+  assert.match(buildPrompt({ agent: agentInfo("maya-ai-pm"), number: 1, isPR: false, repo: "o/r" }), /feature-contract\.md/);
 });

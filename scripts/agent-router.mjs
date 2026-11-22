@@ -11,12 +11,14 @@ const AGENTS_DIR = fileURLToPath(new URL("../org/agents/", import.meta.url));
 export const STAGE_ROLE = {
   "ai:discovery": "maya-ai-pm",
   "ai:plan": "arjun-cpto",
+  "ai:tests": "quinn-qa",
   "ai:build": "dev-coder",
   "ai:qa": "quinn-qa",
   "ai:review": "rex-reviewer",
   "ai:fix": "dev-coder",
 };
-const NO_AGENT = ["ai:founder-decision", "ai:founder-test", "ai:blocked"];
+// No agent: founder gates, blocked items, and loop-controller stages (scripts/loop.mjs drives them).
+const NO_AGENT = ["ai:founder-decision", "ai:founder-test", "ai:blocked", "ai:release", "ai:delivery", "ai:contract"];
 const STAGE_ORDER = [...NO_AGENT, ...Object.keys(STAGE_ROLE)];
 
 // Engine preference when no engine:* label is set: paid subscriptions first, then the free engine.
@@ -68,7 +70,7 @@ export function route({ labels = [], body = "", isPR = false, engines = { claude
 export function buildPrompt({ agent, number, isPR, repo }) {
   const kind = isPR ? "pull request" : "issue";
   const cli = isPR ? "gh pr" : "gh issue";
-  const extra = agent.slug === "maya-ai-pm" ? " and `.ai-org-handbook/playbooks/ai-pm.md`" : "";
+  const extra = agent.slug === "maya-ai-pm" ? " and `.ai-org-handbook/playbooks/ai-pm.md` and `.ai-org-handbook/playbooks/feature-contract.md`" : agent.slug === "quinn-qa" ? " and `.ai-org-handbook/playbooks/qa-charter.md`" : "";
   return [
     `You are ${agent.name}, the ${agent.role} of the AppsWorld AI Organization, running as a background worker in GitHub Actions on ${repo}.`,
     `1. Read \`.ai-org-handbook/AGENTS.md\`, then \`.ai-org-handbook/org/agents/${agent.slug}.md\`${extra}. Follow them exactly.`,
