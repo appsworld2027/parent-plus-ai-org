@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 // contract-lock — enforces AGENTS.md §7A rule 4 ("locked goalposts").
 // A build/fix PR may not touch locked acceptance tests; a contract PR (label ai:contract)
-// may contain only the contract docs and its tests; no PR may skip or focus tests.
+// may contain only the contract docs and its tests; a delivery PR (label ai:delivery = contract + merged build,
+// the final stacked PR) may contain app code, but its locked tests must be exactly those of its contract commit
+// and no build commit may have touched them; no PR may skip or focus tests.
 import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -17,10 +19,25 @@ const TEST_FILE = /(\.(test|spec)\.[cm]?[jt]sx?$)|(^|\/)(e2e|tests?|__tests__)\/
 const under = (path, prefixes) => prefixes.some((p) => path.startsWith(p));
 
 // changes: [{ status, path }]; addedLines: { [path]: string[] }; labels: string[]
-export function checkContractLock({ changes, addedLines = {}, labels = [], lockedPaths = DEFAULT_LOCKED_PATHS }) {
-  const isContractPR = labels.includes("ai:contract");
+// commits: [{ sha, files: string[] }] non-merge commits base..HEAD, newest first (delivery PRs only).
+// lockedDrift: locked files that differ between the newest contract commit and HEAD (delivery PRs only).
+export const isContractCommit = (files, lockedPaths) =>
+  files.length > 0 && files.some((f) => under(f, lockedPaths)) && files.every((f) => under(f, lockedPaths) || under(f, CONTRACT_DOC_PATHS));
+export function checkContractLock({ changes, addedLines = {}, labels = [], lockedPaths = DEFAULT_LOCKED_PATHS, commits = [], lockedDrift = [] }) {
+  const isDeliveryPR = labels.includes("ai:delivery");
+  const isContractPR = labels.includes("ai:contract") && !isDeliveryPR;
   const violations = [];
+  if (isDeliveryPR) {
+    const contract = commits.find((c) => isContractCommit(c.files, lockedPaths));
+    if (!contract) violations.push("Delivery PR has no contract commit (only docs/product/ + locked tests) in its history");
+    for (const c of commits) {
+      if (isContractCommit(c.files, lockedPaths)) continue;
+      for (const f of c.files) if (under(f, lockedPaths)) violations.push(`Build commit ${c.sha.slice(0, 7)} changed locked test: ${f}`);
+    }
+    for (const f of lockedDrift) violations.push(`Locked test differs from the approved contract commit: ${f}`);
+  }
   for (const { status, path } of changes) {
+    if (isDeliveryPR) continue;
     if (!isContractPR && under(path, lockedPaths)) {
       violations.push(`Locked acceptance test ${status === "D" ? "deleted" : "changed"} in a non-contract PR: ${path}`);
     }
@@ -36,7 +53,7 @@ export function checkContractLock({ changes, addedLines = {}, labels = [], locke
       }
     }
   }
-  return { ok: violations.length === 0, isContractPR, violations };
+  return { ok: violations.length === 0, isContractPR, isDeliveryPR, violations };
 }
 
 export function parseNameStatus(text) {
@@ -73,9 +90,17 @@ function main() {
   const range = `${base}...HEAD`;
   const changes = parseNameStatus(git("diff", "--name-status", "--find-renames", range));
   const addedLines = parseAddedLines(git("diff", "-U0", "--no-color", range));
-  const result = checkContractLock({ changes, addedLines, labels, lockedPaths });
+  let commits = [], lockedDrift = [];
+  if (labels.includes("ai:delivery")) {
+    const shas = git("log", "--no-merges", "--format=%H", range.replace("...", "..")).split("\n").filter(Boolean);
+    commits = shas.map((sha) => ({ sha, files: git("diff-tree", "--no-commit-id", "--name-only", "-r", sha).split("\n").filter(Boolean) }));
+    const contract = commits.find((c) => isContractCommit(c.files, lockedPaths));
+    if (contract) lockedDrift = git("diff", "--name-only", contract.sha, "HEAD", "--", ...lockedPaths).split("\n").filter(Boolean);
+  }
+  const result = checkContractLock({ changes, addedLines, labels, lockedPaths, commits, lockedDrift });
 
-  const header = `contract-lock: ${result.ok ? "PASS" : "FAIL"} (${result.isContractPR ? "contract PR" : "build/fix PR"}; ` +
+  const kind = result.isDeliveryPR ? "delivery PR" : result.isContractPR ? "contract PR" : "build/fix PR";
+  const header = `contract-lock: ${result.ok ? "PASS" : "FAIL"} (${kind}; ` +
     `base ${base}; locked: ${lockedPaths.join(", ")}; ${changes.length} changed files)`;
   const body = result.violations.map((v) => `- ${v}`).join("\n");
   console.log(header + (body ? "\n" + body : ""));
