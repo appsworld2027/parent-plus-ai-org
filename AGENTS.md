@@ -78,11 +78,18 @@ Founder input → Maya: research + internal brainstorm → options to founder �
 → Quinn: tests → Rex: review → Sam: merge + Vercel preview + dashboard
 → founder tests the link → feedback goes back to Maya → loop.
 
+**Automatic loop (`scripts/loop.mjs`, `playbooks/loop.md`)** — the founder touches only two gates:
+backlog item → Maya: contract (`ai:discovery`) → **founder `/approve`** → Quinn: locked tests (`ai:tests` → `ai:contract`)
+→ Dev builds (`ai:build`) → Quinn ↔ Dev ↔ Rex (`ai:qa`/`ai:fix`/`ai:review`) → loop merges the approved build into the
+feature branch → release checks (`ai:release`) → Demo Pack (`ai:founder-test`) → **founder `/approve`** → shipped to `main`
+→ next backlog item. `/changes <text>` at either gate sends it back. Founders' GitHub usernames live in the product's
+`.ai-org/manifest.json` `governance.founders`; any listed founder's approval is sufficient there.
+
 Product documents live in the PRODUCT repo, never in this AI Org repo:
 `docs/product/<feature-slug>/` → `SUMMARY.md` (≤2 min), `FLOW.md` (Mermaid), `PRD.md`, `DECISIONS.md`, `ACCEPTANCE.md`.
 
 ## 5. Labels that drive automation
-`ai:discovery` `ai:plan` `ai:contract` `ai:delivery` `ai:build` `ai:qa` `ai:fix` `ai:review` `ai:blocked` `ai:founder-decision` `ai:founder-test`
+`ai:discovery` `ai:plan` `ai:tests` `ai:contract` `ai:delivery` `ai:release` `ai:build` `ai:qa` `ai:fix` `ai:review` `ai:blocked` `ai:founder-decision` `ai:founder-test`
 
 ## 6. Surface rules
 | Surface | GitHub write | Behaviour |

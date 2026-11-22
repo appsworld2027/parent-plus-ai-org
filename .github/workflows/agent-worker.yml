@@ -198,3 +198,7 @@ jobs:
             gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" -f number="$NUMBER"
             echo "Dispatched $WORKFLOW for #$NUMBER ($AFTER)" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
+          # Agent pushes made with the workflow token do not trigger CI. Let the loop controller
+          # dispatch CI, run contract-lock and move the outer loop (it ignores unknown modes safely).
+          gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" -f number=0 -f mode=advance 2>/dev/null \
+            && echo "Dispatched loop advance" | tee -a "$GITHUB_STEP_SUMMARY" || echo "Loop advance not available in this repo"

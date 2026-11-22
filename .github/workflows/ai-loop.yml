@@ -1,0 +1,59 @@
+# Reusable AI Org loop controller. Product repos call it from their ai-agents.yml:
+#  - advance: on a schedule and whenever a PR/issue changes, move every item one step (scripts/loop.mjs)
+#  - command: when a founder comments /approve, /changes, /next or /stop
+#  - next:    start the next backlog item when nothing is in flight
+# Deterministic: no model calls, no secrets beyond the workflow token.
+name: AI loop
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: advance | command | next
+        required: true
+        type: string
+      comment_id:
+        description: Founder comment id (mode=command)
+        required: false
+        type: string
+        default: ""
+      handbook_ref:
+        required: false
+        type: string
+        default: main
+
+jobs:
+  loop:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: ai-loop-${{ github.repository }}
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ github.token }}
+      COMMENT_ID: ${{ inputs.comment_id }}
+      MODE: ${{ inputs.mode }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Load AI Org handbook
+        uses: actions/checkout@v5
+        with:
+          repository: appsworld2027/parent-plus-ai-org
+          ref: ${{ inputs.handbook_ref }}
+          path: .ai-org-handbook
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Git identity for local checks
+        run: |
+          git config user.name "Sam (AppsWorld AI Org)"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Run loop controller
+        run: |
+          set -euo pipefail
+          case "$MODE" in advance|command|next) ;; *) echo "bad mode: $MODE"; exit 1;; esac
+          node .ai-org-handbook/scripts/loop.mjs "$MODE" | tee /tmp/loop.log
+          { echo "### AI loop: $MODE"; echo '```'; cat /tmp/loop.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
