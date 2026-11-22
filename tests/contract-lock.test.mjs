@@ -2,7 +2,7 @@
 // Skip/focus samples are split with "+" so contract-lock never flags this file itself.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { checkContractLock, parseNameStatus, parseAddedLines } from "../scripts/contract-lock.mjs";
+import { checkContractLock, parseNameStatus, parseAddedLines, isContractCommit } from "../scripts/contract-lock.mjs";
 
 const M = (path) => ({ status: "M", path });
 
@@ -86,4 +86,44 @@ test("parseAddedLines reads added lines per file and ignores deleted files", () 
     "-old",
   ].join("\n");
   assert.deepEqual(parseAddedLines(diff), { "src/a.test.ts": ["it" + ".only('x', () => {})"] });
+});
+
+// --- delivery PRs (label ai:delivery): contract + merged build, the final stacked PR ---
+const L = ["e2e/acceptance/"];
+const contractCommit = { sha: "c0ffee1", files: ["docs/product/x/ACCEPTANCE.md", "e2e/acceptance/x.spec.ts"] };
+const buildCommit = { sha: "b1d0001", files: ["App.tsx", "src/x.ts"] };
+
+test("delivery PR with contract commit + untouched tests + app code passes", () => {
+  const r = checkContractLock({ labels: ["ai:delivery"], lockedPaths: L, changes: [M("App.tsx"), M("e2e/acceptance/x.spec.ts")], commits: [buildCommit, contractCommit] });
+  assert.equal(r.ok, true);
+  assert.equal(r.isDeliveryPR, true);
+});
+
+test("delivery PR fails if a build commit touched a locked test", () => {
+  const r = checkContractLock({ labels: ["ai:delivery"], lockedPaths: L, changes: [], commits: [{ sha: "bad0001", files: ["src/x.ts", "e2e/acceptance/x.spec.ts"] }, contractCommit] });
+  assert.equal(r.ok, false);
+  assert.match(r.violations[0], /Build commit bad0001 changed locked test/);
+});
+
+test("delivery PR fails if locked tests differ from the contract commit (e.g. changed via a merge)", () => {
+  const r = checkContractLock({ labels: ["ai:delivery"], lockedPaths: L, changes: [], commits: [buildCommit, contractCommit], lockedDrift: ["e2e/acceptance/x.spec.ts"] });
+  assert.equal(r.ok, false);
+  assert.match(r.violations[0], /differs from the approved contract commit/);
+});
+
+test("delivery PR without a contract commit fails", () => {
+  const r = checkContractLock({ labels: ["ai:delivery"], lockedPaths: L, changes: [M("App.tsx")], commits: [buildCommit] });
+  assert.equal(r.ok, false);
+  assert.match(r.violations[0], /no contract commit/);
+});
+
+test("delivery PR still rejects skipped or focused tests", () => {
+  const r = checkContractLock({ labels: ["ai:delivery"], lockedPaths: L, changes: [], commits: [contractCommit], addedLines: { "src/x.test.ts": ["it" + ".only('x', () => {})"] } });
+  assert.equal(r.ok, false);
+});
+
+test("isContractCommit: only contract docs + locked tests, and at least one locked test", () => {
+  assert.equal(isContractCommit(contractCommit.files, L), true);
+  assert.equal(isContractCommit(["docs/product/x/ACCEPTANCE.md"], L), false);
+  assert.equal(isContractCommit(["e2e/acceptance/x.spec.ts", "App.tsx"], L), false);
 });

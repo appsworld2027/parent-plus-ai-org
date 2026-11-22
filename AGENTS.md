@@ -82,7 +82,7 @@ Product documents live in the PRODUCT repo, never in this AI Org repo:
 `docs/product/<feature-slug>/` → `SUMMARY.md` (≤2 min), `FLOW.md` (Mermaid), `PRD.md`, `DECISIONS.md`, `ACCEPTANCE.md`.
 
 ## 5. Labels that drive automation
-`ai:discovery` `ai:plan` `ai:contract` `ai:build` `ai:qa` `ai:fix` `ai:review` `ai:blocked` `ai:founder-decision` `ai:founder-test`
+`ai:discovery` `ai:plan` `ai:contract` `ai:delivery` `ai:build` `ai:qa` `ai:fix` `ai:review` `ai:blocked` `ai:founder-decision` `ai:founder-test`
 
 ## 6. Surface rules
 | Surface | GitHub write | Behaviour |
@@ -107,7 +107,9 @@ Quality comes from this system, not from role names. No agent and no rule above 
    in the product's locked acceptance-test folder, in a contract PR labelled `ai:contract`. The tests must FAIL before
    the build exists (proof they test something real). The contract PR stays open, red on purpose. Dev's build PR
    targets the contract branch, not `main` (a stacked PR). Once the build PR is green and reviewed it merges into the
-   contract branch; the combined contract PR then carries the Demo Pack, goes to the founder, and merges to `main`.
+   contract branch; the combined contract PR is relabelled `ai:delivery` (contract-lock then proves the locked tests are
+   byte-identical to the contract commit and no build commit touched them), carries the Demo Pack, goes to the founder,
+   and merges to `main`.
 3. **Build loop.** Dev builds in a separate build PR. Loop: change → run the full suite (unit, typecheck, lint,
    acceptance) → fix → repeat. Do not stop, ask, or report done while anything fails. Claude Code enforces this with
    the Stop hook in the product repo's `.claude/settings.json`; every other tool follows it as a rule, and CI enforces
