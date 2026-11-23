@@ -83,6 +83,18 @@ jobs:
             echo '```json'; cat /tmp/route.json; echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      # Install the product's dependencies and test browser BEFORE the agent starts, so its time budget goes to the
+      # work itself (2026-11-23: Quinn spent part of a 50-minute run discovering and installing them).
+      - name: Prepare the product workspace (dependencies + test browser)
+        if: steps.router.outputs.action == 'run'
+        continue-on-error: true
+        run: |
+          set -uo pipefail
+          if [ -f package-lock.json ]; then npm ci --no-audit --no-fund >/tmp/prepare.log 2>&1 && echo "npm ci: OK" || { echo "npm ci failed"; tail -20 /tmp/prepare.log; }; fi
+          if [ -f package.json ] && grep -q '"@playwright/test"' package.json; then
+            npx playwright install --with-deps chromium >>/tmp/prepare.log 2>&1 && echo "Playwright chromium: OK" || echo "Playwright install failed"
+          fi
+
       - name: Pause (no engine connected)
         if: steps.router.outputs.action == 'pause'
         env:
@@ -135,6 +147,8 @@ jobs:
             PROMPT="$PROMPT
           10. This repository forbids agents from merging. Never run gh pr merge or enable auto-merge here; open the PR and stop."
           fi
+          [ -d node_modules ] && PROMPT="$PROMPT
+          11. Dependencies (node_modules) and the Playwright Chromium browser are already installed. Do not reinstall them and do not read dependency source code."
           start=$(date +%s)
           ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
             timeout 3000 claude -p "$PROMPT" --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch" --max-turns 80 \
@@ -182,7 +196,7 @@ jobs:
           ENGINE: ${{ steps.router.outputs.engine }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          printf '%s\n' "<!-- ai-org:failed -->" "**[$AGENT_NAME — $AGENT_ROLE] Run failed** on the \`$ENGINE\` engine. Logs: $RUN_URL (artifact \`agent-logs-$NUMBER-${{ github.run_attempt }}\`)." "" "This is **not** retried automatically. To retry, remove and re-add the stage label." > /tmp/failed.md
+          printf '%s\n' "<!-- ai-org:failed -->" "**[$AGENT_NAME — $AGENT_ROLE] Run failed** on the \`$ENGINE\` engine. Logs: $RUN_URL (artifact \`agent-logs-$NUMBER-${{ github.run_attempt }}\`)." "" "This is **not** retried automatically: the AI assistant working with the founder reads the logs, fixes the cause and re-runs it." > /tmp/failed.md
           gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/failed.md
 
       - name: Chain to the next agent if the stage changed

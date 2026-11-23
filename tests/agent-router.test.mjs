@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { route, agentInfo, buildPrompt, pauseComment, PAUSE_MARKER, FREE_MODELS } from "../scripts/agent-router.mjs";
+import { route, agentInfo, buildPrompt, pauseComment, PAUSE_MARKER, FREE_MODELS, testsBrief } from "../scripts/agent-router.mjs";
 
 const both = { claude: true, codex: true, free: false }, none = { claude: false, codex: false, free: false };
 const freeOnly = { claude: false, codex: false, free: true }, all = { claude: true, codex: true, free: true };
@@ -55,4 +55,17 @@ test("prompt and pause comment carry the agent identity", () => {
 test("Quinn's prompt points to the QA charter and Maya's to the contract playbook", () => {
   assert.match(buildPrompt({ agent: agentInfo("quinn-qa"), number: 1, isPR: false, repo: "o/r" }), /qa-charter\.md/);
   assert.match(buildPrompt({ agent: agentInfo("maya-ai-pm"), number: 1, isPR: false, repo: "o/r" }), /feature-contract\.md/);
+});
+test("writing tests uses the builder model; QA and review verdicts keep the reviewer model", () => {
+  assert.equal(route({ labels: ["ai:tests"], engines: freeOnly }).free_model, FREE_MODELS.builder);
+  assert.equal(route({ labels: ["ai:qa"], isPR: true, engines: freeOnly }).free_model, FREE_MODELS.reviewer);
+  assert.equal(route({ labels: ["ai:review"], isPR: true, engines: freeOnly }).free_model, FREE_MODELS.reviewer);
+});
+test("the ai:tests prompt carries the focused brief; other stages do not", () => {
+  const q = agentInfo("quinn-qa");
+  const p = buildPrompt({ agent: q, number: 42, isPR: false, repo: "o/r", stage: "ai:tests" });
+  assert.match(p, /first 15 minutes/); assert.match(p, /Change NOTHING outside the locked folder/); assert.match(p, /Closes #42/);
+  assert.match(p, /node_modules/); assert.match(p, /Never push to `main`/);
+  assert.doesNotMatch(buildPrompt({ agent: q, number: 42, isPR: true, repo: "o/r", stage: "ai:qa" }), /first 15 minutes/);
+  assert.ok(testsBrief(7).includes("#7"));
 });
