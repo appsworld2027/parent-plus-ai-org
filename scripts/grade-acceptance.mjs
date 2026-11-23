@@ -72,6 +72,8 @@ export function classify(r, body, newHooks) {
   if (!locs.length) return ["FAIL", `no locator reached (${r.message.split("\n")[0].slice(0, 120)}) — timed out or failed in setup`];
   const hit = locs.find((l) => newHooks.some((h) => hookInLocator(h, l)));
   if (hit) return ["OK", `red on new hook: ${hit.slice(0, 110)}`];
+  const undeclaredId = locs.map((l) => (l.match(/getByTestId\(['"`]([^'"`]+)/) || [])[1]).find(Boolean);
+  if (undeclaredId) return ["FAIL", `waits for testID "${undeclaredId}" that is not declared in NEW-HOOKS (Dev would not know to build it)`];
   return because ? ["OK", `red on existing UI, explained (RED-BECAUSE): ${locs[0].slice(0, 90)}`]
     : ["FAIL", `fails on existing UI, not a new hook, no RED-BECAUSE (usually a setup mistake): ${locs[0].slice(0, 110)}`];
 }
@@ -90,6 +92,10 @@ export function grade({ spec, report, contract, srcText = "", tscExit = 0 }) {
   if (dup.length) problems.push(`More than one test for ${[...new Set(dup)].join(", ")}.`);
   const rows = results(report).map((r) => { const [verdict, why] = classify(r, bodies[r.id] || "", newHooks); return { ...r, verdict, why }; });
   if (!rows.length) problems.push("The report has no test results (the spec did not run).");
+  const guards = rows.filter((r) => r.status === "passed" && r.verdict === "OK").length;
+  const explained = rows.filter((r) => /RED-BECAUSE/.test(r.why)).length;
+  if (rows.length && guards > Math.max(2, Math.floor(rows.length / 4))) problems.push(`${guards} of ${rows.length} tests already pass today (GUARD). At most a quarter may: the rest must fail until the feature exists.`);
+  if (rows.length && explained > Math.max(2, Math.floor(rows.length / 4))) problems.push(`${explained} of ${rows.length} tests rely on RED-BECAUSE instead of a declared new hook. Declare the new texts/testIDs in NEW-HOOKS.`);
   const bad = rows.filter((r) => r.verdict === "FAIL");
   const pass = problems.length === 0 && bad.length === 0;
   return { pass, problems, warnings, rows, counts: { tests: rows.length, ok: rows.length - bad.length, fail: bad.length, contract: ids.length } };

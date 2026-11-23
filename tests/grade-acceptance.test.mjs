@@ -44,3 +44,12 @@ test("skip/only and duplicate IDs are rejected", () => {
   const g = grade({ spec: s4, contract, report: rep([]) });
   assert.ok(g.problems.some((p) => /Skipped or focused/.test(p))); assert.ok(g.problems.some((p) => /More than one test for AC-01/.test(p)));
 });
+test("closes the RED-BECAUSE / GUARD loophole (seen in the first model trial)", () => {
+  const ids = Array.from({ length: 8 }, (_, i) => `AC-0${i + 1}`);
+  const c8 = "| ID |\n|---|\n" + ids.map((i) => `| ${i} |`).join("\n") + "\n";
+  const s8 = "// NEW-HOOKS: All caught up\n" + ids.map((i, k) => `// ${k < 5 ? "GUARD" : "RED-BECAUSE"}: x\ntest('${i} t', async () => {});`).join("\n");
+  const g = grade({ spec: s8, contract: c8, srcText: "All caught up", report: rep(ids.map((i, k) => [`${i} t`, k < 5 ? "passed" : "failed", "Locator: getByTestId('needs-you-fees-item')"])) });
+  assert.equal(g.pass, false);
+  assert.ok(g.problems.some((p) => /already pass today/.test(p)));
+  assert.ok(g.rows.some((r) => /not declared in NEW-HOOKS/.test(r.why)));
+});

@@ -73,6 +73,7 @@ test("ai:tests brief teaches the fixture/browser/read-failure lessons and requir
   const p = buildPrompt({ agent: agentInfo("quinn-qa"), number: 42, isPR: false, repo: "o/r", stage: "ai:tests" });
   assert.match(p, /DEFAULT state/); assert.match(p, /runs in the browser/); assert.match(p, /READ fail/);
   assert.match(p, /grade-acceptance\.mjs/); assert.match(p, /Acceptance-test gate: PASS/); assert.match(p, /NEW-HOOKS/);
+  assert.match(p, /EXCLUDED/); assert.match(p, /cut off/);
 });
 test("Dev gets a build brief on ai:build/ai:fix issues only", () => {
   const d = agentInfo("dev-coder");
