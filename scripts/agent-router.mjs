@@ -63,11 +63,27 @@ export function route({ labels = [], body = "", isPR = false, engines = { claude
 
   if (!engine) return { action: "pause", stage, role, reason: "no Claude, Codex or free engine is connected" };
   const out = { action: "run", stage, role, engine, fallback: engine !== preferred };
-  if (engine === "free") out.free_model = REVIEW_ROLES.includes(role) ? FREE_MODELS.reviewer : FREE_MODELS.builder;
+  // Writing tests is authoring work: use the faster builder model. Verdicts (ai:qa, ai:review) stay on the reviewer model,
+  // so the code is still judged by a different model than the one that wrote it. (2026-11-23: Quinn on the reviewer model
+  // made 52 tool calls in 50 minutes and timed out on #42; the builder model averaged ~10 s per call on #37.)
+  if (engine === "free") out.free_model = REVIEW_ROLES.includes(role) && stage !== "ai:tests" ? FREE_MODELS.reviewer : FREE_MODELS.builder;
   return out;
 }
 
-export function buildPrompt({ agent, number, isPR, repo }) {
+// Focused brief for the ai:tests stage (writing locked acceptance tests). Product-agnostic: paths come from the
+// product's .ai-org/manifest.json. Written after the first real run explored for 50 minutes and wrote nothing.
+export function testsBrief(number) {
+  return [
+    "## This run: write the locked acceptance tests (stage `ai:tests`) — work in this order",
+    "a. Read ONLY: the approved contract (`docs/product/<slug>/ACCEPTANCE.md` on branch `ai/contract-<slug>`), ONE existing spec in the locked folder (`.ai-org/manifest.json` → `loop.lockedPaths`) as your pattern, and the test-support files that spec imports. Do not read dependency source code (`node_modules`), other PRs or unrelated app screens.",
+    "b. Within your first 15 minutes write `<locked folder>/<slug>.spec.ts`: one test per AC ID, title starting with the ID. Set up data through the test fixtures' existing in-page state exactly as the pattern spec does. Change NOTHING outside the locked folder — contract-lock rejects a contract PR that touches other files; if a fixture lacks something, list it in the PR body for Dev.",
+    "c. Type-check (`npx tsc --noEmit`), then commit and push to the contract branch at once. Never push to `main`.",
+    "d. Run only the new spec, once, with a short timeout (`npx playwright test <spec> --timeout=20000 --reporter=line`). Every test must fail because the feature is missing (element or text not found), not because of a syntax or fixture error. Fix only test bugs, push again.",
+    `e. Open the contract PR from the contract branch to \`main\`: label \`ai:contract\`, body starting \`Closes #${number}\`, a table AC ID → test → failure reason, and any fixture gaps. Then remove \`ai:tests\` from #${number}.`,
+  ].join("\n");
+}
+
+export function buildPrompt({ agent, number, isPR, repo, stage = "" }) {
   const kind = isPR ? "pull request" : "issue";
   const cli = isPR ? "gh pr" : "gh issue";
   const extra = agent.slug === "maya-ai-pm" ? " and `.ai-org-handbook/playbooks/ai-pm.md` and `.ai-org-handbook/playbooks/feature-contract.md`" : agent.slug === "quinn-qa" ? " and `.ai-org-handbook/playbooks/qa-charter.md`" : "";
@@ -79,6 +95,7 @@ export function buildPrompt({ agent, number, isPR, repo }) {
     `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,
     `5. Move the stage label as your role file says (\`${cli} edit ${number} --add-label … --remove-label …\`).`,
     `6. Never print secrets. Never contact the founder except through ai:founder-decision or ai:founder-test issues.`,
+    ...(stage === "ai:tests" ? ["", testsBrief(number)] : []),
   ].join("\n");
 }
 
@@ -101,7 +118,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   if (r.role) {
     const agent = agentInfo(r.role);
     Object.assign(out, { agent_name: agent.name, agent_role: agent.role, model: agent.model });
-    if (r.action === "run") out.prompt = buildPrompt({ agent, number: arg("number"), isPR, repo: arg("repo") });
+    if (r.action === "run") out.prompt = buildPrompt({ agent, number: arg("number"), isPR, repo: arg("repo"), stage: r.stage });
     if (r.action === "pause") out.pause_comment = pauseComment({ agent, stage: r.stage });
   }
   console.log(JSON.stringify({ ...out, prompt: out.prompt ? "(set)" : undefined, pause_comment: out.pause_comment ? "(set)" : undefined }));
