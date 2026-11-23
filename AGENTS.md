@@ -83,7 +83,8 @@ backlog item → Maya: contract (`ai:discovery`) → **founder `/approve`** → 
 → Dev builds (`ai:build`) → Quinn ↔ Dev ↔ Rex (`ai:qa`/`ai:fix`/`ai:review`) → loop merges the approved build into the
 feature branch → release checks (`ai:release`) → Demo Pack (`ai:founder-test`) → **founder `/approve`** → shipped to `main`
 → next backlog item. `/changes <text>` at either gate sends it back. Founders' GitHub usernames live in the product's
-`.ai-org/manifest.json` `governance.founders`; any listed founder's approval is sufficient there.
+`.ai-org/manifest.json` `governance.founders`; any listed founder's approval is sufficient there. Founders never act on
+GitHub: they decide in their AI chat and the assistant posts the command for them. Agents never commit to a product's `main`.
 
 Product documents live in the PRODUCT repo, never in this AI Org repo:
 `docs/product/<feature-slug>/` → `SUMMARY.md` (≤2 min), `FLOW.md` (Mermaid), `PRD.md`, `DECISIONS.md`, `ACCEPTANCE.md`.

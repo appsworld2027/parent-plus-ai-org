@@ -1,7 +1,7 @@
 // Tests for scripts/loop.mjs pure logic (AI Org outer loop). Run: node --test tests/loop.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseCommand, isFounder, latestVerdict, failRounds, checksState, parseAcceptance, nextBacklogItem, slugOfBranch, demoPack, buildIssueBody, fixIssueBody, discoveryIssueBody, MARK } from "../scripts/loop.mjs";
+import { parseCommand, isFounder, latestVerdict, failRounds, checksState, parseAcceptance, nextBacklogItem, slugOfBranch, demoPack, contractState, buildIssueBody, fixIssueBody, discoveryIssueBody, MARK } from "../scripts/loop.mjs";
 
 test("parseCommand reads the first non-empty line only", () => {
   assert.deepEqual(parseCommand("/approve"), { cmd: "approve", text: "" });
@@ -62,6 +62,18 @@ test("demoPack is founder-readable and carries the marker, commands and AC table
   assert.ok(d.startsWith(`<!-- ${MARK.demo} -->`));
   assert.match(d, /@appsworld2027/); assert.match(d, /https:\/\/p\.vercel\.app/);
   assert.match(d, /`\/approve`/); assert.match(d, /`\/changes/); assert.match(d, /\| AC-02 \|/);
+  assert.match(d, /tell your AI assistant/); assert.doesNotMatch(d, /reply on this PR|notification email/);
+  assert.ok(d.indexOf("https://p.vercel.app") < d.indexOf("| AC |"), "the Vercel link comes first");
+});
+test("contractState: ready only when Maya's marker is newer than the founder's last /changes", () => {
+  const F = ["appsworld2027"], who = { login: "appsworld2027" };
+  const ready = (at) => ({ created_at: at, body: `x\n<!-- ${MARK.contractReady} fees -->`, user: { login: "github-actions[bot]" }, author_association: "NONE" });
+  const changes = (at, u = who, a = "OWNER") => ({ created_at: at, body: "/changes fix it", user: u, author_association: a });
+  assert.deepEqual(contractState([], F), { slug: null, ready: false });
+  assert.deepEqual(contractState([ready("2026-11-22T19:00:00Z")], F), { slug: "fees", ready: true });
+  assert.equal(contractState([ready("2026-11-22T19:00:00Z"), changes("2026-11-23T03:47:00Z")], F).ready, false);
+  assert.equal(contractState([ready("2026-11-22T19:00:00Z"), changes("2026-11-23T03:47:00Z"), ready("2026-11-23T03:49:00Z")], F).ready, true);
+  assert.equal(contractState([ready("2026-11-22T19:00:00Z"), changes("2026-11-23T03:47:00Z", { login: "stranger" }, "NONE")], F).ready, true, "non-founders cannot reopen a contract");
 });
 test("issue bodies route to the right agent and keep the hard rules", () => {
   const b = buildIssueBody({ pr: 41, branch: "ai/contract-x", slug: "x" });
@@ -70,4 +82,5 @@ test("issue bodies route to the right agent and keep the hard rules", () => {
   assert.match(f, /Owner: Dev/); assert.match(f, /bigger/); assert.match(f, /NEVER touch `e2e\/acceptance\/`/);
   const d = discoveryIssueBody({ slug: "x", title: "Thing", ref: "M2-1" });
   assert.match(d, /^Owner: Maya/); assert.match(d, /ai-org:contract-ready x/); assert.match(d, /ai:founder-decision/);
+  assert.match(d, /NEVER commit to `main`/);
 });

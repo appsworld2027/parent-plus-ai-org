@@ -18,6 +18,10 @@ Founder decision (2026-11-20): agents get unrestricted access for speed. Risks a
 | S10 | Free engine sends prompts and repo content to NVIDIA NIM (free tier: evaluation/prototyping terms) through Free Claude Code, a third-party AGPL proxy installed unpinned from PyPI on every run | Zero-budget requirement; repos are public anyway | Pin the FCC version; move to a paid engine or a self-hosted model |
 | S11 | Product repos call the reusable `contract-lock.yml` at `@main`: a bad change to AI Org `main` reaches every product at once | No release process yet; fastest to iterate | Pin callers to a version tag or commit SHA |
 
+**2026-11-23 update:** the 11 v1 workflows were retired (Actions audit). This removes S3 (shell injection), R1–R4, and the
+workflows S2's remote MCP could dispatch (`api/mcp.js` itself is still deployed — remove or protect it at review). S4 is
+partly fixed: Parent Plus `main` now accepts changes only through pull requests (no force-push, no deletion).
+
 ## Known v1 reliability defects (from the 2026-11-19 audit)
 | # | Defect | Fix |
 |---|---|---|

@@ -68,18 +68,27 @@ export function nextBacklogItem(md = "", usedSlugs = []) {
   }
   return null;
 }
+// A contract is waiting for the founder when Maya's latest contract-ready marker is newer than the latest founder /changes.
+export function contractState(comments = [], founders = []) {
+  let ready = null, changedAt = "";
+  for (const c of [...comments].sort((a, b) => (a.created_at || "").localeCompare(b.created_at || ""))) {
+    const m = (c.body || "").match(new RegExp(`${MARK.contractReady}\\s+([a-z0-9-]+)`));
+    if (m) ready = { slug: m[1], at: c.created_at || "" };
+    if (parseCommand(c.body || "")?.cmd === "changes" && isFounder(c.user?.login, c.author_association, founders)) changedAt = c.created_at || "";
+  }
+  return { slug: ready?.slug || null, ready: !!ready && ready.at > changedAt };
+}
 export const slugOfBranch = (b = "") => (b.match(/^ai\/contract-(.+)$/) || [])[1] || null;
 export function demoPack({ pr, title, why, acs, preview, founders = [], checksUrl = "" }) {
   const rows = acs.map((a) => `| ${a.id} | ${a.when || "—"} | ${a.then} | ✅ |`).join("\n");
   const steps = acs.slice(0, 3).map((a, i) => `${i + 1}. ${a.given ? `With ${a.given}, ` : ""}${a.when} → you should see ${a.then}`).join("\n");
   return [`<!-- ${MARK.demo} -->`, `## Demo Pack — ${title || `PR #${pr}`}`, "",
-    `${founders.map((f) => `@${f}`).join(" ")} this feature passed every check and is ready for **your test**.`, "",
-    `**What you can do now:** ${why || "see the acceptance table below"}`, "",
-    `**Try it:** ${preview || "the Vercel preview link in the checks on this PR"}`, "", steps, "",
+    `**Test it here:** ${preview || "the Vercel preview link of this PR (your AI assistant sends it to you)"}`, "", steps, "",
+    `${founders.map((f) => `@${f}`).join(" ")} this feature passed every check and is ready for **your test**. **What you can do now:** ${why || "see the table below"}`, "",
     "| AC | When you… | You should see | Automated result |", "|---|---|---|---|", rows, "",
-    "**Your decision — reply on this PR (GitHub app or reply to the notification email):**",
-    "- `/approve` — ship it to production (merges to `main`)",
-    "- `/changes <what to change>` — agents fix it and send a new Demo Pack", "",
+    "**Your decision — tell your AI assistant in chat** (you never need to open GitHub; the assistant posts it here for you):",
+    "- \"approve\" → it posts `/approve`: ship it to production (merges to `main`)",
+    "- \"change: <what to change>\" → it posts `/changes <what to change>`: agents fix it and send a new Demo Pack", "",
     `Evidence: full validation, locked acceptance tests, QA lab and contract-lock passed on the head commit${checksUrl ? ` (${checksUrl})` : ""}.`].join("\n");
 }
 export function buildIssueBody({ pr, branch, slug }) {
@@ -108,9 +117,9 @@ export function discoveryIssueBody(item) {
     "## What Maya does (AI Org playbooks/ai-pm.md + playbooks/feature-contract.md)",
     `1. Research silently (code, prototype in founders/prototypes/, PRD.md, roadmap). Decide what a good PM decides alone.`,
     `2. Write \`docs/product/${item.slug}/ACCEPTANCE.md\` (template: AI Org playbooks/feature-contract.md, incl. loading/empty/error/offline/large-data ACs) and \`SUMMARY.md\` (≤2 min).`,
-    `3. Commit both on branch \`ai/contract-${item.slug}\` (from main) and push. No app code, no tests.`,
+    `3. Commit both on branch \`ai/contract-${item.slug}\` (create it from main the first time; on later rounds \`git fetch origin && git switch ai/contract-${item.slug}\`) and push that branch. NEVER commit to \`main\`. No app code, no tests.`,
     `4. Comment here: 2-minute summary, the AC table, out-of-scope list, any product question with options + one Recommended; end with \`<!-- ${MARK.contractReady} ${item.slug} -->\`.`,
-    "5. Label this issue `ai:founder-decision` and remove `ai:discovery`. The founder replies `/approve` or `/changes <text>`."].join("\n");
+    "5. Label this issue `ai:founder-decision` and remove `ai:discovery`. The founder decides in their AI chat; it posts `/approve` or `/changes <text>` here."].join("\n");
 }
 
 // ---------- IO ----------
@@ -217,7 +226,17 @@ function advanceContract(pr) {
   const n = newIssue(`Build: ${pr.title.replace(/^Contract:\s*/i, "")} (stacked on #${pr.number})`, buildIssueBody({ pr: pr.number, branch: pr.headRefName, slug }), "ai:build");
   comment(pr.number, `<!-- ${MARK.buildFor} ${pr.number} -->\n**[Kiran — Project Manager]** Locked tests are in. Build issue ${n ? `#${n}` : "(opened)"} assigned to Dev.`);
 }
+function advanceDiscovery() {
+  const open = ghj("issue", "list", "--repo", REPO, "--state", "open", "--label", "ai:discovery", "--limit", "50", "--json", "number");
+  for (const { number } of open) {
+    const st = contractState(comments(number), cfg().founders);
+    if (!st.ready) { log(`#${number}: Maya still working on the contract`); continue; }
+    label(number, ["ai:founder-decision"], ["ai:discovery"]);
+    comment(number, `**[Kiran — Project Manager]** Contract \`${st.slug}\` is ready for the founder's decision (\`docs/product/${st.slug}/\` on branch \`ai/contract-${st.slug}\`).`);
+  }
+}
 export function advance() {
+  try { advanceDiscovery(); } catch (e) { log(`discovery: skipped (${e.message.split("\n")[0]})`); }
   const prs = openPRs();
   for (const pr of prs) {
     const L = labelsOf(pr);
@@ -269,15 +288,19 @@ function command() {
       return comment(n, `**[Kiran — Project Manager]** Got it, @${who}. Fix issue ${fx ? `#${fx}` : ""} goes to Dev → Quinn → Rex; a new Demo Pack follows.`);
     }
   }
-  if (!isPR && L.includes("ai:founder-decision")) {
-    const ready = comments(n).map((x) => (x.body || "").match(new RegExp(`${MARK.contractReady}\\s+([a-z0-9-]+)`))).filter(Boolean).at(-1);
+  const all = isPR ? [] : comments(n);
+  if (!isPR && (L.includes("ai:founder-decision") || (L.includes("ai:discovery") && contractState(all.filter((x) => String(x.id) !== String(id)), cfg().founders).ready))) {
+    const ready = all.map((x) => (x.body || "").match(new RegExp(`${MARK.contractReady}\\s+([a-z0-9-]+)`))).filter(Boolean).at(-1);
     if (parsed.cmd === "approve" && ready) {
-      label(n, ["ai:tests"], ["ai:founder-decision"]);
-      comment(n, `**[Kiran — Project Manager]** Contract \`${ready[1]}\` approved by @${who}. Quinn now writes the locked acceptance tests, then Dev builds. Next time you hear from us is the Demo Pack.`);
+      label(n, ["ai:tests"], ["ai:founder-decision", "ai:discovery"]);
+      comment(n, `**[Kiran — Project Manager]** Contract \`${ready[1]}\` approved by @${who}. Quinn: write the locked acceptance tests on branch \`ai/contract-${ready[1]}\` (\`git fetch origin && git switch ai/contract-${ready[1]}\`), then Dev builds. Next time the founder hears from us is the Demo Pack.`);
       return wake(n);
     }
-    if (parsed.cmd === "approve") { label(n, [], ["ai:founder-decision"]); return comment(n, `**[Kiran — Project Manager]** Decision recorded: approved by @${who}.`); }
-    if (parsed.cmd === "changes") { label(n, ["ai:discovery"], ["ai:founder-decision"]); comment(n, `**[Kiran — Project Manager]** @${who} asked for changes — back to Maya:\n\n> ${parsed.text}`); return wake(n); }
+    if (parsed.cmd === "approve") { label(n, [], ["ai:founder-decision", "ai:discovery"]); return comment(n, `**[Kiran — Project Manager]** Decision recorded: approved by @${who}.`); }
+    if (parsed.cmd === "changes") {
+      const slug = ready?.[1], where = slug ? `\n\nMaya: revise \`docs/product/${slug}/\` on branch \`ai/contract-${slug}\` (\`git fetch origin && git switch ai/contract-${slug}\`). Never commit to \`main\`.` : "";
+      label(n, ["ai:discovery"], ["ai:founder-decision"]); comment(n, `**[Kiran — Project Manager]** @${who} asked for changes — back to Maya:\n\n> ${parsed.text.replace(/\n/g, "\n> ")}${where}`); return wake(n);
+    }
   }
   log(`command: /${parsed.cmd} has no action on #${n} (labels: ${L.join(",") || "none"})`);
 }
