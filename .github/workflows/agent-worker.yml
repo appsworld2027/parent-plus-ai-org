@@ -32,7 +32,7 @@ on:
 jobs:
   agent:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 75
     concurrency:
       group: ai-agent-${{ github.repository }}-${{ inputs.number }}
       cancel-in-progress: false
@@ -77,6 +77,10 @@ jobs:
         run: |
           set -euo pipefail
           PRFLAG=""; [ "$IS_PR" = "true" ] && PRFLAG="--pr"
+          # Optional per-stage free model chosen by the product (after a model trial): .ai-org/manifest.json ai.freeModels["ai:tests"]
+          STAGE=$(printf '%s' "$LABELS" | tr ',' '\n' | grep -m1 '^ai:' || true)
+          FREE_MODEL_OVERRIDE=$(jq -r --arg s "$STAGE" '.ai.freeModels[$s] // ""' .ai-org/manifest.json 2>/dev/null || true)
+          export FREE_MODEL_OVERRIDE; [ -n "$FREE_MODEL_OVERRIDE" ] && echo "free model for $STAGE from manifest: $FREE_MODEL_OVERRIDE"
           node .ai-org-handbook/scripts/agent-router.mjs --labels "$LABELS" $PRFLAG --body-file /tmp/body.md --number "$NUMBER" --repo "$GITHUB_REPOSITORY" | tee /tmp/route.json
           {
             echo "### AI Org router — #$NUMBER"
@@ -151,7 +155,7 @@ jobs:
           11. Dependencies (node_modules) and the Playwright Chromium browser are already installed. Do not reinstall them and do not read dependency source code."
           start=$(date +%s)
           ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
-            timeout 3000 claude -p "$PROMPT" --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch" --max-turns 80 \
+            timeout 3000 claude -p "$PROMPT" --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch" --max-turns 150 \
             --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr
           rc=$?
           secs=$(( $(date +%s) - start ))
@@ -178,6 +182,33 @@ jobs:
           printf '%s' "$CODEX_AUTH_JSON" > "$CODEX_HOME/auth.json"; chmod 600 "$CODEX_HOME/auth.json"
           codex exec --dangerously-bypass-approvals-and-sandbox "$PROMPT"
           echo "::warning::Codex may have refreshed its login. Saving it back to the CODEX_AUTH_JSON secret needs a bot token (SECURITY_DEBT S7)."
+
+      # Independent check of Quinn's locked tests: they must be red for the right reason (scripts/grade-acceptance.mjs).
+      # The loop only opens the build when this commit status is green, so broken tests never reach Dev.
+      - name: Acceptance-test gate (ai:tests only)
+        if: always() && steps.router.outputs.action == 'run' && steps.router.outputs.stage == 'ai:tests'
+        run: |
+          set -uo pipefail
+          PR=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --search "Closes #$NUMBER in:body" --json number,headRefName,headRefOid -q '.[0] // empty')
+          [ -n "$PR" ] || { echo "No open contract PR for #$NUMBER yet - nothing to grade"; exit 0; }
+          PRN=$(jq -r .number <<<"$PR"); BR=$(jq -r .headRefName <<<"$PR"); SHA=$(jq -r .headRefOid <<<"$PR")
+          git fetch -q origin "$BR" main && git checkout -q -f --detach "$SHA" && git clean -qfd -e node_modules
+          LOCKED=$(jq -r '.loop.lockedPaths // "e2e/acceptance/"' .ai-org/manifest.json); SLUG=${BR#ai/contract-}
+          SPEC=$(git diff --name-only origin/main...HEAD -- "$LOCKED" | grep -E '\.(spec|test)\.[cm]?[jt]sx?$' | head -1)
+          if [ -z "$SPEC" ]; then printf '### Acceptance-test gate: FAIL\n\nNo new locked spec in %s on %s.\n' "$LOCKED" "$BR" > /tmp/gate.md; g=1
+          else
+            npx tsc --noEmit >/tmp/agent-logs/gate-tsc.txt 2>&1; tsc=$?
+            npx playwright test "$SPEC" --reporter=json --timeout=20000 --workers=2 > /tmp/agent-logs/gate-report.json 2>/tmp/agent-logs/gate-pw.txt || true
+            node .ai-org-handbook/scripts/grade-acceptance.mjs --spec "$SPEC" --report /tmp/agent-logs/gate-report.json \
+              --contract "docs/product/$SLUG/ACCEPTANCE.md" --src src --tsc-exit "$tsc" --md /tmp/gate.md >/dev/null; g=$?
+          fi
+          cat /tmp/gate.md | tee -a "$GITHUB_STEP_SUMMARY"
+          { echo "<!-- ai-org:gate $SHA -->"; echo "**[Acceptance-test gate — automatic, not an agent]** on \`${SHA:0:7}\`"; echo; cat /tmp/gate.md; } > /tmp/gate-comment.md
+          gh pr comment "$PRN" --repo "$GITHUB_REPOSITORY" --body-file /tmp/gate-comment.md >/dev/null
+          STATE=$([ "$g" = 0 ] && echo success || echo failure)
+          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state="$STATE" -f context=acceptance-gate \
+            -f description="$(head -1 /tmp/gate.md | sed 's/^### //' | cut -c1-130)" >/dev/null
+          echo "acceptance-gate = $STATE on ${SHA:0:7}"
 
       - name: Save agent logs
         if: always() && steps.router.outputs.action == 'run'

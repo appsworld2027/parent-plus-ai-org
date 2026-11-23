@@ -13,8 +13,16 @@ import { dirname, join } from "node:path";
 
 export const MARK = {
   contractReady: "ai-org:contract-ready", buildFor: "ai-org:build-for", fixFor: "ai-org:fix-for",
-  demo: "ai-org:demo-pack", shipped: "ai-org:shipped", ciFix: "ai-org:ci-fix", blocked: "ai-org:blocked",
+  demo: "ai-org:demo-pack", shipped: "ai-org:shipped", ciFix: "ai-org:ci-fix", blocked: "ai-org:blocked", gateFail: "ai-org:gate-fail",
 };
+// Acceptance-test gate (scripts/grade-acceptance.mjs, run by the agent worker after Quinn): the build may only start
+// when the locked tests are red for the right reason on the contract PR's head commit.
+export function gateDecision(statuses = [], priorFails = 0, maxRetries = 2) {
+  const s = statuses.find((x) => x.context === "acceptance-gate");
+  if (!s || s.state === "pending") return "wait";
+  if (s.state === "success") return "build";
+  return priorFails < maxRetries ? "retry" : "block";
+}
 const IN_FLIGHT = ["ai:discovery", "ai:tests", "ai:contract", "ai:delivery", "ai:release", "ai:founder-test", "ai:build", "ai:fix", "ai:qa", "ai:review"];
 const INNER = ["ai:build", "ai:fix", "ai:qa", "ai:review", "ai:blocked"];
 const BAD = ["failure", "cancelled", "timed_out", "action_required", "startup_failure", "stale"];
@@ -221,8 +229,22 @@ function advanceRelease(pr) {
   label(pr.number, ["ai:founder-test"], ["ai:release"]);
 }
 function advanceContract(pr) {
-  if (comments(pr.number).some((c) => (c.body || "").includes(`${MARK.buildFor} ${pr.number}`))) return log(`#${pr.number}: build already requested`);
+  const prComments = comments(pr.number);
+  if (prComments.some((c) => (c.body || "").includes(`${MARK.buildFor} ${pr.number}`))) return log(`#${pr.number}: build already requested`);
   const slug = slugOfBranch(pr.headRefName); if (!slug) return;
+  if (cfg().loop.acceptanceGate !== false) {
+    const statuses = api(`commits/${pr.headRefOid}/status`)?.statuses || [];
+    const fails = prComments.filter((c) => (c.body || "").includes(MARK.gateFail)).length;
+    const d = gateDecision(statuses, fails);
+    const issue = referencedIssues(pr.body)[0];
+    if (d === "wait") return log(`#${pr.number}: waiting for the acceptance-test gate on ${pr.headRefOid.slice(0, 7)}`);
+    if (d === "retry" || d === "block") {
+      if (prComments.some((c) => (c.body || "").includes(`${MARK.gateFail} ${pr.headRefOid}`))) return log(`#${pr.number}: gate failure already handled`);
+      comment(pr.number, `<!-- ${MARK.gateFail} ${pr.headRefOid} -->\n**[Kiran — Project Manager]** The locked tests did not pass the acceptance-test gate (see the gate report above). ${d === "retry" ? `Back to Quinn on #${issue} to fix the tests the gate names.` : "Paused for the founder's AI assistant after repeated gate failures."}`);
+      if (issue) { label(issue, [d === "retry" ? "ai:tests" : "ai:blocked"]); if (d === "retry") wake(issue); }
+      return;
+    }
+  }
   const n = newIssue(`Build: ${pr.title.replace(/^Contract:\s*/i, "")} (stacked on #${pr.number})`, buildIssueBody({ pr: pr.number, branch: pr.headRefName, slug }), "ai:build");
   comment(pr.number, `<!-- ${MARK.buildFor} ${pr.number} -->\n**[Kiran — Project Manager]** Locked tests are in. Build issue ${n ? `#${n}` : "(opened)"} assigned to Dev.`);
 }
