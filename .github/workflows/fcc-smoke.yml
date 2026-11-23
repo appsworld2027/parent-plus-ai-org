@@ -25,7 +25,7 @@ jobs:
       HTTP_READ_TIMEOUT: "600"
       FCC_OPEN_BROWSER: "false"
     steps:
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
 

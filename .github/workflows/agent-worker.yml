@@ -40,19 +40,19 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       NUMBER: ${{ inputs.number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
       - name: Load AI Org handbook
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: appsworld2027/parent-plus-ai-org
           ref: ${{ inputs.handbook_ref }}
           path: .ai-org-handbook
           persist-credentials: false
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
 
