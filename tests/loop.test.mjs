@@ -1,7 +1,7 @@
 // Tests for scripts/loop.mjs pure logic (AI Org outer loop). Run: node --test tests/loop.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseCommand, isFounder, latestVerdict, failRounds, checksState, parseAcceptance, nextBacklogItem, slugOfBranch, demoPack, contractState, buildIssueBody, fixIssueBody, discoveryIssueBody, MARK } from "../scripts/loop.mjs";
+import { parseCommand, isFounder, latestVerdict, failRounds, checksState, parseAcceptance, nextBacklogItem, slugOfBranch, demoPack, contractState, gateDecision, buildIssueBody, fixIssueBody, discoveryIssueBody, MARK } from "../scripts/loop.mjs";
 
 test("parseCommand reads the first non-empty line only", () => {
   assert.deepEqual(parseCommand("/approve"), { cmd: "approve", text: "" });
@@ -83,4 +83,11 @@ test("issue bodies route to the right agent and keep the hard rules", () => {
   const d = discoveryIssueBody({ slug: "x", title: "Thing", ref: "M2-1" });
   assert.match(d, /^Owner: Maya/); assert.match(d, /ai-org:contract-ready x/); assert.match(d, /ai:founder-decision/);
   assert.match(d, /NEVER commit to `main`/);
+});
+test("gateDecision: build only on a green acceptance gate; retry twice, then block", () => {
+  assert.equal(gateDecision([]), "wait");
+  assert.equal(gateDecision([{ context: "acceptance-gate", state: "pending" }]), "wait");
+  assert.equal(gateDecision([{ context: "ci", state: "failure" }, { context: "acceptance-gate", state: "success" }]), "build");
+  assert.equal(gateDecision([{ context: "acceptance-gate", state: "failure" }], 0), "retry");
+  assert.equal(gateDecision([{ context: "acceptance-gate", state: "failure" }], 2), "block");
 });

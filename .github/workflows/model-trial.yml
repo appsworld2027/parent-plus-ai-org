@@ -1,0 +1,184 @@
+# Model trial: give several free NVIDIA NIM models the SAME real job and grade the result the same way.
+# Job: write locked acceptance tests for an approved Feature Contract (stage ai:tests) using the AI Org brief,
+# on a throw-away copy of the contract branch (nothing is pushed). Grade with scripts/grade-acceptance.mjs.
+# Entries "ref:<sha>" grade an existing spec from that product commit instead of running a model (controls).
+# Results: run summary, an artifact per entry, and one public issue in this repo with the comparison table.
+name: Model trial
+
+on:
+  workflow_dispatch:
+    inputs:
+      product_repo:
+        description: Product repository (owner/name)
+        required: true
+        type: string
+        default: appsworld2027/Parent-plus-
+      base_ref:
+        description: Commit on that branch BEFORE locked tests existed (the models start from here)
+        required: true
+        type: string
+      slug:
+        description: Feature slug (docs/product/<slug>/ACCEPTANCE.md)
+        required: true
+        type: string
+      models:
+        description: JSON list of nvidia_nim/... model ids
+        required: false
+        type: string
+        default: '["nvidia_nim/moonshotai/kimi-k3.1-pro","nvidia_nim/z-ai/glm-5.3-flash","nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b","nvidia_nim/mistralai/mistral-large-4-1t-a52b"]'
+      controls:
+        description: JSON list of "ref:<product sha>" specs to grade as controls
+        required: false
+        type: string
+        default: '[]'
+      minutes:
+        description: Time budget per model (minutes)
+        required: false
+        type: number
+        default: 45
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      entries: ${{ steps.p.outputs.entries }}
+    steps:
+      - id: p
+        env:
+          MODELS: ${{ inputs.models }}
+          CONTROLS: ${{ inputs.controls }}
+        run: echo "entries=$(jq -cn --argjson a "$MODELS" --argjson b "$CONTROLS" '$a + $b')" >> "$GITHUB_OUTPUT"
+
+  trial:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        model: ${{ fromJSON(needs.plan.outputs.entries) }}
+    env:
+      MODEL: ${{ matrix.model }}
+      SLUG: ${{ inputs.slug }}
+      MINUTES: ${{ inputs.minutes }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          repository: ${{ inputs.product_repo }}
+          ref: ${{ inputs.base_ref }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Load AI Org handbook
+        uses: actions/checkout@v5
+        with:
+          repository: appsworld2027/parent-plus-ai-org
+          ref: main
+          path: .ai-org-handbook
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Prepare workspace (same as the agent worker)
+        run: |
+          set -uo pipefail
+          npm ci --no-audit --no-fund >/tmp/prepare.log 2>&1 || { tail -20 /tmp/prepare.log; exit 1; }
+          npx playwright install --with-deps chromium >>/tmp/prepare.log 2>&1
+          git config user.name "Model trial"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Control - take an existing spec from a product commit
+        if: startsWith(matrix.model, 'ref:')
+        env:
+          PRODUCT_REPO: ${{ inputs.product_repo }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/agent-logs; REF="${MODEL#ref:}"; LOCKED=$(jq -r '.loop.lockedPaths // "e2e/acceptance/"' .ai-org/manifest.json)
+          git fetch -q --depth 1 "https://github.com/$PRODUCT_REPO.git" "$REF"
+          for f in $(git ls-tree -r --name-only FETCH_HEAD "$LOCKED"); do git show "FETCH_HEAD:$f" > "$f"; done
+          echo "rc=control secs=0" > /tmp/agent-logs/run.txt; git status --short
+      - name: Run the model on the ai:tests brief (no GitHub access, no push)
+        if: ${{ !startsWith(matrix.model, 'ref:') }}
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: |
+          set -uo pipefail
+          mkdir -p /tmp/agent-logs
+          curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null
+          export PATH="$HOME/.local/bin:$PATH"
+          uv tool install free-claude-code >/dev/null
+          npm install -g @anthropic-ai/claude-code >/dev/null
+          mkdir -p "$HOME/.fcc" "$HOME/.claude"
+          printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$NVIDIA_NIM_API_KEY" "$MODEL" > "$HOME/.fcc/.env"
+          chmod 600 "$HOME/.fcc/.env"
+          echo '{"includeCoAuthoredBy": false}' > "$HOME/.claude/settings.json"
+          nohup fcc-server > /tmp/agent-logs/fcc.log 2>&1 &
+          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8082/v1/models && break; sleep 1; done
+          BRIEF=$(node -e "import('./.ai-org-handbook/scripts/agent-router.mjs').then(m=>process.stdout.write(m.testsBrief('TRIAL')))")
+          PROMPT="You are Quinn, the QA Specialist of the AppsWorld AI Organization. Read .ai-org-handbook/org/agents/quinn-qa.md and .ai-org-handbook/playbooks/qa-charter.md.
+          This is an offline trial: there is no GitHub access. The contract branch is already checked out (it is the current directory). Do steps a-d of the brief below; skip every push, pull request and label step. Your result is the spec file you leave in the working tree plus /tmp/gate.md.
+          Slug: $SLUG. Contract: docs/product/$SLUG/ACCEPTANCE.md. Dependencies and Playwright Chromium are installed; do not reinstall them or read node_modules.
+          $BRIEF"
+          start=$(date +%s)
+          ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
+            timeout $(( MINUTES * 60 )) claude -p "$PROMPT" --allowedTools "Bash,Read,Edit,Write,Glob,Grep" --max-turns 120 \
+            --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr
+          echo "rc=$? secs=$(( $(date +%s) - start ))" > /tmp/agent-logs/run.txt
+          cat /tmp/agent-logs/run.txt
+      - name: Grade independently (same gate for every model)
+        if: always()
+        run: |
+          set -uo pipefail
+          SPEC=$(git status --porcelain --untracked-files=all | awk '{print $2}' | grep -E '\.(spec|test)\.[cm]?[jt]sx?$' | head -1)
+          rcsecs=$(cat /tmp/agent-logs/run.txt 2>/dev/null | tr '\n' ' ')
+          turns=$(jq -r 'select(.type=="result") | .num_turns' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -1)
+          calls=$(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") | .name' /tmp/agent-logs/agent.jsonl 2>/dev/null | wc -l)
+          if [ -z "$SPEC" ]; then
+            line="TRIAL|$MODEL|NO SPEC WRITTEN|$rcsecs|turns ${turns:-none}|tool calls $calls"
+          else
+            cp "$SPEC" /tmp/agent-logs/spec.ts
+            npx tsc --noEmit >/tmp/agent-logs/tsc.txt 2>&1; tsc=$?
+            npx playwright test "$SPEC" --reporter=json --timeout=20000 --workers=2 > /tmp/agent-logs/acc.json 2>/tmp/agent-logs/pw.stderr || true
+            node .ai-org-handbook/scripts/grade-acceptance.mjs --spec "$SPEC" --report /tmp/agent-logs/acc.json \
+              --contract "docs/product/$SLUG/ACCEPTANCE.md" --src src --tsc-exit "$tsc" --md /tmp/agent-logs/gate.md >/dev/null; g=$?
+            head=$(head -1 /tmp/agent-logs/gate.md | sed 's/^### //')
+            selfclaim=$( [ -f /tmp/gate.md ] && head -1 /tmp/gate.md | grep -o 'PASS\|FAIL' || echo "none")
+            line="TRIAL|$MODEL|${head}|tsc exit $tsc|model's own gate claim: $selfclaim|$rcsecs|turns ${turns:-none}|tool calls $calls"
+            { echo "#### $MODEL"; cat /tmp/agent-logs/gate.md; echo; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "$line"; echo "- $line" >> "$GITHUB_STEP_SUMMARY"; echo "$line" > /tmp/agent-logs/line.txt
+      - name: Save trial evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trial-${{ strategy.job-index }}
+          path: /tmp/agent-logs/
+          retention-days: 14
+
+  report:
+    needs: trial
+    if: always()
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: trial-*
+          path: trials
+      - name: Publish one comparison issue (readable without logging in)
+        env:
+          SLUG: ${{ inputs.slug }}
+          BASE: ${{ inputs.base_ref }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -uo pipefail
+          {
+            echo "<!-- model-trial $SLUG -->"
+            echo "Model trial for \`$SLUG\` (models start from product commit \`$BASE\`, same brief, same time budget, graded by \`scripts/grade-acceptance.mjs\`). Run: $RUN_URL"
+            echo; echo '```'; cat trials/*/line.txt 2>/dev/null | sed -E 's/nvapi-[A-Za-z0-9_-]+/nvapi-REDACTED/g'; echo '```'
+            for d in trials/*; do [ -f "$d/gate.md" ] && { echo; echo "<details><summary>$(cut -d'|' -f2 "$d/line.txt")</summary>"; echo; cat "$d/gate.md"; echo; echo "</details>"; }; done
+          } > /tmp/report.md
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "Model trial: $SLUG (run ${{ github.run_id }})" --body-file /tmp/report.md

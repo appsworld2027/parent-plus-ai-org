@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { route, agentInfo, buildPrompt, pauseComment, PAUSE_MARKER, FREE_MODELS, testsBrief } from "../scripts/agent-router.mjs";
+import { route, agentInfo, buildPrompt, pauseComment, PAUSE_MARKER, FREE_MODELS, testsBrief, buildBrief } from "../scripts/agent-router.mjs";
 
 const both = { claude: true, codex: true, free: false }, none = { claude: false, codex: false, free: false };
 const freeOnly = { claude: false, codex: false, free: true }, all = { claude: true, codex: true, free: true };
@@ -64,8 +64,24 @@ test("writing tests uses the builder model; QA and review verdicts keep the revi
 test("the ai:tests prompt carries the focused brief; other stages do not", () => {
   const q = agentInfo("quinn-qa");
   const p = buildPrompt({ agent: q, number: 42, isPR: false, repo: "o/r", stage: "ai:tests" });
-  assert.match(p, /first 15 minutes/); assert.match(p, /Change NOTHING outside the locked folder/); assert.match(p, /Closes #42/);
+  assert.match(p, /first version/); assert.match(p, /Change NOTHING outside the locked folder/); assert.match(p, /Closes #42/);
   assert.match(p, /node_modules/); assert.match(p, /Never push to `main`/);
-  assert.doesNotMatch(buildPrompt({ agent: q, number: 42, isPR: true, repo: "o/r", stage: "ai:qa" }), /first 15 minutes/);
+  assert.doesNotMatch(buildPrompt({ agent: q, number: 42, isPR: true, repo: "o/r", stage: "ai:qa" }), /first version/);
   assert.ok(testsBrief(7).includes("#7"));
+});
+test("ai:tests brief teaches the fixture/browser/read-failure lessons and requires the gate", () => {
+  const p = buildPrompt({ agent: agentInfo("quinn-qa"), number: 42, isPR: false, repo: "o/r", stage: "ai:tests" });
+  assert.match(p, /DEFAULT state/); assert.match(p, /runs in the browser/); assert.match(p, /READ fail/);
+  assert.match(p, /grade-acceptance\.mjs/); assert.match(p, /Acceptance-test gate: PASS/); assert.match(p, /NEW-HOOKS/);
+});
+test("Dev gets a build brief on ai:build/ai:fix issues only", () => {
+  const d = agentInfo("dev-coder");
+  assert.match(buildPrompt({ agent: d, number: 46, isPR: false, repo: "o/r", stage: "ai:build" }), /Run the locked spec once BEFORE/);
+  assert.match(buildPrompt({ agent: d, number: 46, isPR: false, repo: "o/r", stage: "ai:fix" }), /35 minutes/);
+  assert.doesNotMatch(buildPrompt({ agent: agentInfo("quinn-qa"), number: 46, isPR: true, repo: "o/r", stage: "ai:qa" }), /BEFORE changing code/);
+  assert.ok(buildBrief(9).includes("#9"));
+});
+test("an explicit free model overrides the stage default", () => {
+  assert.equal(route({ labels: ["ai:tests"], engines: freeOnly, freeModel: "nvidia_nim/moonshotai/kimi-k3.1-pro" }).free_model, "nvidia_nim/moonshotai/kimi-k3.1-pro");
+  assert.equal(route({ labels: ["ai:tests"], engines: freeOnly }).free_model, FREE_MODELS.builder);
 });

@@ -14,5 +14,6 @@ Work to the standard of the best product and engineering teams (Google, Meta, Op
 **Steps:** check out the PR → run full lint, typecheck and test suites → add missing tests for any uncovered `AC-` ID → smoke-test the Vercel preview when available → comment a QA report table: AC ID · test · command · result.
 **Pass:** label `ai:review`. **Fail:** label `ai:fix` with repro steps and the failing AC ID.
 **Independence:** never QA a PR you authored; prefer the other engine (Codex QAs Claude's work and vice versa).
-**Never:** report "passed" without command output in the comment.
+**Gate:** locked tests are only done when `scripts/grade-acceptance.mjs` prints `Acceptance-test gate: PASS` (every test red at a new hook the spec declares, or a declared GUARD / RED-BECAUSE). The worker re-runs the gate independently; the build never starts on a failing gate.
+**Never:** report "passed" without command output in the comment · claim a gate result the gate did not print.
 '''

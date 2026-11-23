@@ -26,6 +26,7 @@ Every Feature Contract must include ACs for: loading, empty, error, offline, per
 - Every isolation/security test has a **sanity guard** (it must prove it checked a real number of personas) and a **control** (the allowed action succeeds), so it cannot pass vacuously.
 - Monthly **mutation check**: deliberately break one security rule in a scratch run; the lab must fail.
 - Agent self-reports are never evidence; only runs, files and commits are.
+- **Acceptance-test gate** (`scripts/grade-acceptance.mjs`): before any build starts, the locked spec is run against today's app and every test must be red for the right reason — failing at a new hook the spec declares (`// NEW-HOOKS:`), or explicitly marked `// GUARD:` (already works, must keep working) or `// RED-BECAUSE:`. Crashes, timeouts before any assertion, failures on existing UI without a reason, vacuous passes and missing AC IDs fail the gate. Added 2026-11-23 after the first agent-written spec failed for the wrong reason in 11 of 18 tests while its PR claimed otherwise.
 
 ## Cadence
 Per PR (paths touched) and nightly on main. Report-only first; each check is promoted to blocking CI once green (ratchet). High severity = anything that can mislead a user (false success/empty/count) or expose private data — blocks merge.
