@@ -187,6 +187,7 @@ jobs:
       # The loop only opens the build when this commit status is green, so broken tests never reach Dev.
       - name: Acceptance-test gate (ai:tests only)
         if: always() && steps.router.outputs.action == 'run' && steps.router.outputs.stage == 'ai:tests'
+        shell: bash --noprofile --norc {0}
         run: |
           set -uo pipefail
           PR=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --search "Closes #$NUMBER in:body" --json number,headRefName,headRefOid -q '.[0] // empty')

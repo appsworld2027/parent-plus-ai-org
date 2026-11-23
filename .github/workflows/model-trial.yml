@@ -25,7 +25,7 @@ on:
         description: JSON list of nvidia_nim/... model ids
         required: false
         type: string
-        default: '["nvidia_nim/moonshotai/kimi-k3.1-pro","nvidia_nim/z-ai/glm-5.3-flash","nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b","nvidia_nim/mistralai/mistral-large-4-1t-a52b"]'
+        default: '["nvidia_nim/moonshotai/kimi-k3.1-pro","nvidia_nim/z-ai/glm-5.3-flash","nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b","nvidia_nim/mistralai/mistral-large-4-1t-a52b","nvidia_nim/minimaxai/minimax-m3.1-flash"]'
       controls:
         description: JSON list of "ref:<product sha>" specs to grade as controls
         required: false
@@ -35,7 +35,7 @@ on:
         description: Time budget per model (minutes)
         required: false
         type: number
-        default: 45
+        default: 60
 
 permissions:
   contents: read
@@ -56,10 +56,10 @@ jobs:
   trial:
     needs: plan
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 95
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 3 # one shared free API key (~40 requests/min): more in parallel would starve every model
       matrix:
         model: ${{ fromJSON(needs.plan.outputs.entries) }}
     env:
@@ -125,10 +125,12 @@ jobs:
           ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
             timeout $(( MINUTES * 60 )) claude -p "$PROMPT" --allowedTools "Bash,Read,Edit,Write,Glob,Grep" --max-turns 120 \
             --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr
-          echo "rc=$? secs=$(( $(date +%s) - start ))" > /tmp/agent-logs/run.txt
+          rc=$?; echo "rc=$rc secs=$(( $(date +%s) - start ))" > /tmp/agent-logs/run.txt
           cat /tmp/agent-logs/run.txt
+          exit 0 # a time-out is a result to grade, not a broken trial
       - name: Grade independently (same gate for every model)
         if: always()
+        shell: bash --noprofile --norc {0}
         run: |
           set -uo pipefail
           SPEC=$(git status --porcelain --untracked-files=all | awk '{print $2}' | grep -E '\.(spec|test)\.[cm]?[jt]sx?$' | head -1)
@@ -136,7 +138,7 @@ jobs:
           turns=$(jq -r 'select(.type=="result") | .num_turns' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -1)
           calls=$(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") | .name' /tmp/agent-logs/agent.jsonl 2>/dev/null | wc -l)
           if [ -z "$SPEC" ]; then
-            line="TRIAL|$MODEL|NO SPEC WRITTEN|$rcsecs|turns ${turns:-none}|tool calls $calls"
+            line="TRIAL|$MODEL|NO SPEC WRITTEN|$rcsecs(rc=124 means out of time)|turns ${turns:-none}|tool calls $calls"
           else
             cp "$SPEC" /tmp/agent-logs/spec.ts
             npx tsc --noEmit >/tmp/agent-logs/tsc.txt 2>&1; tsc=$?
@@ -149,6 +151,21 @@ jobs:
             { echo "#### $MODEL"; cat /tmp/agent-logs/gate.md; echo; } >> "$GITHUB_STEP_SUMMARY"
           fi
           echo "$line"; echo "- $line" >> "$GITHUB_STEP_SUMMARY"; echo "$line" > /tmp/agent-logs/line.txt
+          if [ -s /tmp/agent-logs/agent.jsonl ]; then
+            {
+              echo "**Run diagnosis (from the model's own log):**"; echo '```'
+              jq -r 'select(.type=="system" and .subtype=="init") | "model as seen by the client: \(.model)"' /tmp/agent-logs/agent.jsonl | head -1
+              echo "result event: $(jq -r 'select(.type=="result") | "\(.subtype) turns=\(.num_turns)"' /tmp/agent-logs/agent.jsonl | tail -1)"
+              echo "reasoning blocks: $(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="thinking") | .type' /tmp/agent-logs/agent.jsonl | wc -l)"
+              echo "tools used: $(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") | .name' /tmp/agent-logs/agent.jsonl | sort | uniq -c | tr '\n' ' ')"
+              echo "test runs: $(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") | .input.command // empty' /tmp/agent-logs/agent.jsonl | grep -c 'playwright\|grade-acceptance')"
+              echo "--- last 6 things it said"
+              jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' /tmp/agent-logs/agent.jsonl | tr '\n' ' ' | grep -o '.\{0,1\}[A-Z][^.!?]\{8,180\}[.!?:]' | tail -6
+              echo "--- engine errors (last 5)"
+              grep -iE 'error|429|timeout|exception|refused' /tmp/agent-logs/fcc.log 2>/dev/null | grep -v ' 200 OK' | tail -5 | sed -E 's/nvapi-[A-Za-z0-9_-]+/nvapi-REDACTED/g' | cut -c1-220
+              echo '```'
+            } > /tmp/agent-logs/diag.md
+          fi
       - name: Save trial evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -179,6 +196,10 @@ jobs:
             echo "<!-- model-trial $SLUG -->"
             echo "Model trial for \`$SLUG\` (models start from product commit \`$BASE\`, same brief, same time budget, graded by \`scripts/grade-acceptance.mjs\`). Run: $RUN_URL"
             echo; echo '```'; cat trials/*/line.txt 2>/dev/null | sed -E 's/nvapi-[A-Za-z0-9_-]+/nvapi-REDACTED/g'; echo '```'
-            for d in trials/*; do [ -f "$d/gate.md" ] && { echo; echo "<details><summary>$(cut -d'|' -f2 "$d/line.txt")</summary>"; echo; cat "$d/gate.md"; echo; echo "</details>"; }; done
+            for d in trials/*; do
+              [ -f "$d/line.txt" ] || continue
+              echo; echo "<details><summary>$(cut -d'|' -f2 "$d/line.txt")</summary>"; echo
+              [ -f "$d/gate.md" ] && cat "$d/gate.md"; echo; [ -f "$d/diag.md" ] && cat "$d/diag.md"; echo; echo "</details>"
+            done
           } > /tmp/report.md
           gh issue create --repo "$GITHUB_REPOSITORY" --title "Model trial: $SLUG (run ${{ github.run_id }})" --body-file /tmp/report.md
