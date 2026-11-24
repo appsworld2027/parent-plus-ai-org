@@ -56,7 +56,7 @@ jobs:
   trial:
     needs: plan
     runs-on: ubuntu-latest
-    timeout-minutes: 95
+    timeout-minutes: 100
     strategy:
       fail-fast: false
       max-parallel: 3 # one shared free API key (~40 requests/min): more in parallel would starve every model
@@ -89,18 +89,21 @@ jobs:
           npm ci --no-audit --no-fund >/tmp/prepare.log 2>&1 || { tail -20 /tmp/prepare.log; exit 1; }
           npx playwright install --with-deps chromium >>/tmp/prepare.log 2>&1
           git config user.name "Model trial"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      - name: Control - take an existing spec from a product commit
-        if: startsWith(matrix.model, 'ref:')
+      - name: Control - take an existing spec from a product commit (or from this repo's trial/controls/)
+        if: startsWith(matrix.model, 'ref:') || startsWith(matrix.model, 'file:')
         env:
           PRODUCT_REPO: ${{ inputs.product_repo }}
         run: |
           set -euo pipefail
-          mkdir -p /tmp/agent-logs; REF="${MODEL#ref:}"; LOCKED=$(jq -r '.loop.lockedPaths // "e2e/acceptance/"' .ai-org/manifest.json)
-          git fetch -q --depth 1 "https://github.com/$PRODUCT_REPO.git" "$REF"
-          for f in $(git ls-tree -r --name-only FETCH_HEAD "$LOCKED"); do git show "FETCH_HEAD:$f" > "$f"; done
+          mkdir -p /tmp/agent-logs; LOCKED=$(jq -r '.loop.lockedPaths // "e2e/acceptance/"' .ai-org/manifest.json)
+          if [ "${MODEL#file:}" != "$MODEL" ]; then cp ".ai-org-handbook/${MODEL#file:}" "${LOCKED}${SLUG}.spec.ts"
+          else
+            REF="${MODEL#ref:}"; git fetch -q --depth 1 "https://github.com/$PRODUCT_REPO.git" "$REF"
+            for f in $(git ls-tree -r --name-only FETCH_HEAD "$LOCKED"); do git show "FETCH_HEAD:$f" > "$f"; done
+          fi
           echo "rc=control secs=0" > /tmp/agent-logs/run.txt; git status --short
       - name: Run the model on the ai:tests brief (no GitHub access, no push)
-        if: ${{ !startsWith(matrix.model, 'ref:') }}
+        if: ${{ !startsWith(matrix.model, 'ref:') && !startsWith(matrix.model, 'file:') }}
         env:
           NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
         run: |
@@ -111,7 +114,14 @@ jobs:
           uv tool install free-claude-code >/dev/null
           npm install -g @anthropic-ai/claude-code >/dev/null
           mkdir -p "$HOME/.fcc" "$HOME/.claude"
+          EFFORT=""; case "$MODEL" in *@*) EFFORT="${MODEL##*@}"; MODEL="${MODEL%@*}";; esac
           printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$NVIDIA_NIM_API_KEY" "$MODEL" > "$HOME/.fcc/.env"
+          if [ -n "$EFFORT" ]; then
+            # FCC setting REASONING_POLICY (free_claude_code/config/settings.py, v6.19.47): off|low|medium|high|xhigh|max
+            # overrides the client and is sent to NVIDIA NIM as reasoning_effort (providers/nvidia_nim/request_options.py).
+            printf 'REASONING_POLICY=%s\n' "$EFFORT" >> "$HOME/.fcc/.env"
+            echo "reasoning effort: $EFFORT (FCC REASONING_POLICY)" | tee /tmp/agent-logs/effort.txt
+          fi
           chmod 600 "$HOME/.fcc/.env"
           echo '{"includeCoAuthoredBy": false}' > "$HOME/.claude/settings.json"
           nohup fcc-server > /tmp/agent-logs/fcc.log 2>&1 &
@@ -131,9 +141,14 @@ jobs:
       - name: Grade independently (same gate for every model)
         if: always()
         shell: bash --noprofile --norc {0}
+        env:
+          BASE_REF: ${{ inputs.base_ref }}
         run: |
           set -uo pipefail
-          SPEC=$(git status --porcelain --untracked-files=all | awk '{print $2}' | grep -E '\.(spec|test)\.[cm]?[jt]sx?$' | head -1)
+          LOCKED=$(jq -r '.loop.lockedPaths // "e2e/acceptance/"' .ai-org/manifest.json)
+          BASE_SHA=$(git rev-parse "$BASE_REF" 2>/dev/null || git rev-list --max-parents=0 HEAD | tail -1)
+          # Anything new or changed in the locked folder since the base commit, committed or not.
+          SPEC=$( { git diff --name-only "$BASE_SHA" -- "$LOCKED"; git ls-files --others --exclude-standard -- "$LOCKED"; } | sort -u | grep -E '\.(spec|test)\.[cm]?[jt]sx?$' | while read -r f; do [ -f "$f" ] && echo "$f"; done | head -1)
           rcsecs=$(cat /tmp/agent-logs/run.txt 2>/dev/null | tr '\n' ' ')
           turns=$(jq -r 'select(.type=="result") | .num_turns' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -1)
           calls=$(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") | .name' /tmp/agent-logs/agent.jsonl 2>/dev/null | wc -l)
@@ -156,7 +171,8 @@ jobs:
               echo "**Run diagnosis (from the model's own log):**"; echo '```'
               jq -r 'select(.type=="system" and .subtype=="init") | "model as seen by the client: \(.model)"' /tmp/agent-logs/agent.jsonl | head -1
               echo "result event: $(jq -r 'select(.type=="result") | "\(.subtype) turns=\(.num_turns)"' /tmp/agent-logs/agent.jsonl | tail -1)"
-              echo "reasoning blocks: $(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="thinking") | .type' /tmp/agent-logs/agent.jsonl | wc -l)"
+              echo "reasoning blocks: $(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="thinking") | .type' /tmp/agent-logs/agent.jsonl | wc -l), characters: $(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="thinking") | .thinking // ""' /tmp/agent-logs/agent.jsonl | wc -c)"
+              grep -m1 'reasoning effort' /tmp/agent-logs/effort.txt 2>/dev/null || echo "reasoning effort: model default"
               echo "tools used: $(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") | .name' /tmp/agent-logs/agent.jsonl | sort | uniq -c | tr '\n' ' ')"
               echo "test runs: $(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") | .input.command // empty' /tmp/agent-logs/agent.jsonl | grep -c 'playwright\|grade-acceptance')"
               echo "--- last 6 things it said"

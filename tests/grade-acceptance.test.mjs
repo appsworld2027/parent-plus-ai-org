@@ -53,3 +53,10 @@ test("closes the RED-BECAUSE / GUARD loophole (seen in the first model trial)", 
   assert.ok(g.problems.some((p) => /already pass today/.test(p)));
   assert.ok(g.rows.some((r) => /not declared in NEW-HOOKS/.test(r.why)));
 });
+test("failure reasons that mention RED-BECAUSE are not counted as RED-BECAUSE uses", () => {
+  const s1 = "// NEW-HOOKS: fees-overdue-row\ntest('AC-01 a', async () => {});\ntest('AC-02 b', async () => {});\ntest('AC-03 c', async () => {});";
+  const g = grade({ spec: s1, contract, report: rep([
+    ["AC-01 a", "failed", "Locator: getByText('All caught up')"], ["AC-02 b", "failed", "Locator: getByText('All caught up')"],
+    ["AC-03 c", "failed", "Locator: getByText('All caught up')"]]) });
+  assert.ok(!g.problems.some((p) => /rely on RED-BECAUSE/.test(p)), g.problems.join(" / "));
+});
