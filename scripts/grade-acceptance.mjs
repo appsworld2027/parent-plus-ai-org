@@ -93,7 +93,7 @@ export function grade({ spec, report, contract, srcText = "", tscExit = 0 }) {
   const rows = results(report).map((r) => { const [verdict, why] = classify(r, bodies[r.id] || "", newHooks); return { ...r, verdict, why }; });
   if (!rows.length) problems.push("The report has no test results (the spec did not run).");
   const guards = rows.filter((r) => r.status === "passed" && r.verdict === "OK").length;
-  const explained = rows.filter((r) => /RED-BECAUSE/.test(r.why)).length;
+  const explained = rows.filter((r) => r.verdict === "OK" && r.why.startsWith("red on existing UI, explained")).length;
   if (rows.length && guards > Math.max(2, Math.floor(rows.length / 4))) problems.push(`${guards} of ${rows.length} tests already pass today (GUARD). At most a quarter may: the rest must fail until the feature exists.`);
   if (rows.length && explained > Math.max(2, Math.floor(rows.length / 4))) problems.push(`${explained} of ${rows.length} tests rely on RED-BECAUSE instead of a declared new hook. Declare the new texts/testIDs in NEW-HOOKS.`);
   const bad = rows.filter((r) => r.verdict === "FAIL");

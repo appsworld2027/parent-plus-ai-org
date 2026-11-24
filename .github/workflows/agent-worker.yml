@@ -136,7 +136,10 @@ jobs:
           uv tool install free-claude-code >/dev/null
           npm install -g @anthropic-ai/claude-code >/dev/null
           mkdir -p "$HOME/.fcc" "$HOME/.claude"
+          # FREE_MODEL may carry a reasoning effort chosen by a model trial: "nvidia_nim/<model>@low" (FCC REASONING_POLICY).
+          EFFORT=""; case "$FREE_MODEL" in *@*) EFFORT="${FREE_MODEL##*@}"; FREE_MODEL="${FREE_MODEL%@*}";; esac
           printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$NVIDIA_NIM_API_KEY" "$FREE_MODEL" > "$HOME/.fcc/.env"
+          [ -n "$EFFORT" ] && printf 'REASONING_POLICY=%s\n' "$EFFORT" >> "$HOME/.fcc/.env" && echo "reasoning effort: $EFFORT"
           chmod 600 "$HOME/.fcc/.env"
           echo '{"includeCoAuthoredBy": false}' > "$HOME/.claude/settings.json"
           nohup fcc-server > /tmp/agent-logs/fcc.log 2>&1 &
