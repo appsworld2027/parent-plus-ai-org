@@ -7,9 +7,13 @@
 import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
+
+// True when this file is the program being run (also through symlinked paths such as a mounted handbook).
+function isMain(url) { try { return !!process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(url)); } catch { return false; } }
 
 export const DEFAULT_LOCKED_PATHS = ["tests/acceptance/"];
-export const CONTRACT_DOC_PATHS = ["docs/product/"];
+export const CONTRACT_DOC_PATHS = ["docs/product/", "docs/ai-memory/"]; // contract docs, handovers, CPTO-approved memory
 const SKIP_PATTERNS = [
   /\b(?:it|test|describe)\.(?:skip|only|fixme|todo)\s*\(/,
   /\bx(?:it|test|describe)\s*\(/,
@@ -111,4 +115,4 @@ function main() {
   process.exit(result.ok ? 0 : 1);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) main();
+if (isMain(import.meta.url)) main();

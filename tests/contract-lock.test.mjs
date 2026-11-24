@@ -127,3 +127,9 @@ test("isContractCommit: only contract docs + locked tests, and at least one lock
   assert.equal(isContractCommit(["docs/product/x/ACCEPTANCE.md"], L), false);
   assert.equal(isContractCommit(["e2e/acceptance/x.spec.ts", "App.tsx"], L), false);
 });
+test("v3: contract PR may carry handover packets and CPTO-approved product memory, but not app code", () => {
+  const ok = checkContractLock({ labels: ["ai:contract"], changes: [M("docs/product/x/handoffs/01-ai-tests-quinn-qa-author.md"), M("docs/ai-memory/TEST_KNOWLEDGE.md"), M("tests/acceptance/x.spec.ts")] });
+  assert.equal(ok.ok, true, ok.violations.join(" / "));
+  const bad = checkContractLock({ labels: ["ai:contract"], changes: [M("docs/ai-memory/LESSONS.md"), M("src/App.tsx")] });
+  assert.equal(bad.ok, false);
+});

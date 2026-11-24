@@ -12,6 +12,10 @@
 import { readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
+
+// True when this file is the program being run (also through symlinked paths such as a mounted handbook).
+function isMain(url) { try { return !!process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(url)); } catch { return false; } }
 
 const CRASH = /ReferenceError|TypeError|SyntaxError|RangeError|is not defined|is not a function|Cannot read propert|page\.evaluate:|Unexpected token|Target page, context or browser has been closed/;
 const strip = (s = "") => s.replace(/\u001b\[[0-9;]*m/g, "");
@@ -107,7 +111,7 @@ export function markdown(g) {
     ...g.rows.map((r) => `| ${r.id} | ${r.status} | ${r.verdict === "OK" ? "✅" : "❌"} | ${r.why.replace(/\|/g, "\\|")} |`)].join("\n");
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   const arg = (n, d) => { const i = process.argv.indexOf(`--${n}`); return i > -1 ? process.argv[i + 1] : d; };
   const src = arg("src", "src");
   let srcText = ""; try { srcText = walk(src).map((f) => readFileSync(f, "utf8")).join("\n"); } catch { /* no src */ }

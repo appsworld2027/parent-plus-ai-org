@@ -1,7 +1,7 @@
 // Tests for scripts/loop.mjs pure logic (AI Org outer loop). Run: node --test tests/loop.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseCommand, isFounder, latestVerdict, failRounds, checksState, parseAcceptance, nextBacklogItem, slugOfBranch, demoPack, contractState, gateDecision, buildIssueBody, fixIssueBody, discoveryIssueBody, MARK } from "../scripts/loop.mjs";
+import { parseCommand, isFounder, latestVerdict, failRounds, checksState, parseAcceptance, nextBacklogItem, slugOfBranch, demoPack, contractState, gateDecision, qaChainStep, gateStatusSince, buildIssueBody, fixIssueBody, discoveryIssueBody, MARK } from "../scripts/loop.mjs";
 
 test("parseCommand reads the first non-empty line only", () => {
   assert.deepEqual(parseCommand("/approve"), { cmd: "approve", text: "" });
@@ -90,4 +90,23 @@ test("gateDecision: build only on a green acceptance gate; retry twice, then blo
   assert.equal(gateDecision([{ context: "ci", state: "failure" }, { context: "acceptance-gate", state: "success" }]), "build");
   assert.equal(gateDecision([{ context: "acceptance-gate", state: "failure" }], 0), "retry");
   assert.equal(gateDecision([{ context: "acceptance-gate", state: "failure" }], 2), "block");
+});
+test("v3 QA chain: challenger, one fix round, CPTO sign-off, then build", () => {
+  const raci = { responsible: "quinn-qa@author", reviewer: "quinn-qa@challenger", accountable: "arjun-cpto" };
+  assert.equal(qaChainStep({ raci: null }), "build");
+  assert.equal(qaChainStep({ raci }), "challenge");
+  assert.equal(qaChainStep({ raci, verdicts: { challenger: "changes" } }), "fix");
+  assert.equal(qaChainStep({ raci, verdicts: { challenger: "changes" }, fixRounds: 1 }), "signoff");
+  assert.equal(qaChainStep({ raci, verdicts: { challenger: "approve" } }), "signoff");
+  assert.equal(qaChainStep({ raci, verdicts: { challenger: "approve", signoff: "approve" } }), "build");
+  assert.equal(qaChainStep({ raci, verdicts: { challenger: "approve", signoff: "changes" }, fixRounds: 0 }), "fix");
+  assert.equal(qaChainStep({ raci, verdicts: { challenger: "changes", signoff: "changes" }, fixRounds: 1 }), "fix");
+  assert.equal(qaChainStep({ raci, verdicts: { challenger: "approve", signoff: "changes" }, fixRounds: 2 }), "block");
+  const st = { b: [{ context: "acceptance-gate", state: "success" }] };
+  assert.deepEqual(gateStatusSince(["a", "b", "c"], (s) => st[s] || []), st.b, "handover commits after the gate do not hide its status");
+});
+test("latestVerdict tells the challenger apart from the author", () => {
+  const cs = [{ created_at: "2026-11-25T01:00:00Z", body: "[Quinn — QA Specialist, challenger]\nVerdict: CHANGES" },
+    { created_at: "2026-11-25T02:00:00Z", body: "[Quinn — QA Specialist]\nVerdict: PASS" }];
+  assert.equal(latestVerdict(cs, "Quinn — QA Specialist, challenger", ""), "changes");
 });
