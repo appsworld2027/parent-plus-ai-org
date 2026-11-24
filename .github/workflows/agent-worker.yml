@@ -32,7 +32,7 @@ on:
 jobs:
   agent:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 95
     concurrency:
       group: ai-agent-${{ github.repository }}-${{ inputs.number }}
       cancel-in-progress: false
@@ -79,7 +79,8 @@ jobs:
           PRFLAG=""; [ "$IS_PR" = "true" ] && PRFLAG="--pr"
           # Optional per-stage free model chosen by the product (after a model trial): .ai-org/manifest.json ai.freeModels["ai:tests"]
           STAGE=$(printf '%s' "$LABELS" | tr ',' '\n' | grep -m1 '^ai:' || true)
-          FREE_MODEL_OVERRIDE=$(jq -r --arg s "$STAGE" '.ai.freeModels[$s] // ""' .ai-org/manifest.json 2>/dev/null || true)
+          SEAT=$(case "$STAGE" in ai:tests) echo author;; ai:tests-review) echo challenger;; ai:tests-signoff) echo accountable;; *) echo "";; esac)
+          FREE_MODEL_OVERRIDE=$(jq -r --arg s "$STAGE" --arg seat "$SEAT" '(.raci["ai:tests"].models[$seat] // .ai.freeModels[$s]) // ""' .ai-org/manifest.json 2>/dev/null || true)
           export FREE_MODEL_OVERRIDE; [ -n "$FREE_MODEL_OVERRIDE" ] && echo "free model for $STAGE from manifest: $FREE_MODEL_OVERRIDE"
           node .ai-org-handbook/scripts/agent-router.mjs --labels "$LABELS" $PRFLAG --body-file /tmp/body.md --number "$NUMBER" --repo "$GITHUB_REPOSITORY" | tee /tmp/route.json
           {
@@ -98,6 +99,39 @@ jobs:
           if [ -f package.json ] && grep -q '"@playwright/test"' package.json; then
             npx playwright install --with-deps chromium >>/tmp/prepare.log 2>&1 && echo "Playwright chromium: OK" || echo "Playwright install failed"
           fi
+
+      # AI Org v3: no agent starts from zero. Build the onboarding pack (role + RACI seat, role lessons, product memory,
+      # contract + every handover so far, why the previous attempt failed, the task) at /tmp/onboarding.md.
+      - name: Onboarding pack
+        if: steps.router.outputs.action == 'run'
+        shell: bash --noprofile --norc {0}
+        env:
+          STAGE: ${{ steps.item.outputs.stage }}
+          ROLE: ${{ steps.router.outputs.role }}
+          SEAT: ${{ steps.router.outputs.seat }}
+        run: |
+          set -uo pipefail
+          mkdir -p /tmp/agent-logs
+          SLUG=$(grep -o 'ai/contract-[a-z0-9-]*' /tmp/body.md | head -1 | sed 's#ai/contract-##')
+          [ -n "$SLUG" ] || SLUG=$(jq -r '.title' /tmp/item.json | grep -o '\[[a-z0-9-]*\]$' | tr -d '[]')
+          FEATURE=""
+          if [ -n "$SLUG" ] && git ls-remote --exit-code --heads origin "ai/contract-$SLUG" >/dev/null 2>&1; then
+            # Read the feature branch in a separate worktree so the agent's own checkout stays clean.
+            git fetch -q origin "ai/contract-$SLUG" && git worktree add -q -f --detach /tmp/feature-wt "origin/ai/contract-$SLUG" && FEATURE="/tmp/feature-wt/docs/product/$SLUG"
+          fi
+          # Trial controls are known-good answers for model trials; agents must never see them.
+          rm -rf .ai-org-handbook/trial
+          # Attempt memory: the most recent failed run on this item, summarised by the worker that failed.
+          # Only failures from the last 24 hours count as "the previous attempt"; older ones are history, not guidance.
+          SINCE=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
+          gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" --jq "[.[] | select(.created_at > \"$SINCE\") | select(.body | contains(\"ai-org:failed\"))] | last | .body // \"\"" > /tmp/attempt.md 2>/dev/null || true
+          printf 'Item #%s, stage %s, seat %s. Read the item: gh issue view %s --comments\n' "$NUMBER" "$STAGE" "${SEAT:-none}" "$NUMBER" > /tmp/task.md
+          node .ai-org-handbook/scripts/onboarding-pack.mjs --role "$ROLE" --stage "$STAGE" --slug "$SLUG" --seat "$SEAT" --feature "$FEATURE" \
+            --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md
+          cp /tmp/onboarding.md /tmp/agent-logs/onboarding.md
+          echo "onboarding pack: $(wc -c < /tmp/onboarding.md) characters for $ROLE ($STAGE, seat ${SEAT:-none}, feature ${SLUG:-none})"
+          echo "slug=$SLUG" >> "$GITHUB_ENV"
+          echo "contract_before=$(git rev-parse -q --verify "origin/ai/contract-$SLUG" 2>/dev/null || true)" >> "$GITHUB_ENV"
 
       - name: Pause (no engine connected)
         if: steps.router.outputs.action == 'pause'
@@ -158,7 +192,7 @@ jobs:
           11. Dependencies (node_modules) and the Playwright Chromium browser are already installed. Do not reinstall them and do not read dependency source code."
           start=$(date +%s)
           ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
-            timeout 3000 claude -p "$PROMPT" --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch" --max-turns 150 \
+            timeout 3600 claude -p "$PROMPT" --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch" --max-turns 150 \
             --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr
           rc=$?
           secs=$(( $(date +%s) - start ))
@@ -214,6 +248,34 @@ jobs:
             -f description="$(head -1 /tmp/gate.md | sed 's/^### //' | cut -c1-130)" >/dev/null
           echo "acceptance-gate = $STATE on ${SHA:0:7}"
 
+      # AI Org v3: the run is only complete with a valid handover packet committed for the next role.
+      - name: Handover check
+        env:
+          STAGE: ${{ steps.item.outputs.stage }}
+        # Pilot scope: the QA chain stages (they all commit to the contract branch). Other stages read packs but are not yet gated.
+        if: steps.router.outputs.action == 'run' && startsWith(steps.router.outputs.stage, 'ai:tests')
+        shell: bash --noprofile --norc {0}
+        run: |
+          set -uo pipefail
+          [ -n "${slug:-}" ] || { echo "no feature slug - handover check skipped"; exit 0; }
+          git fetch -q origin "ai/contract-$slug" 2>/dev/null || { echo "no contract branch - handover check skipped"; exit 0; }
+          FROM=${contract_before:-$GITHUB_SHA}
+          NEW=$(git diff --name-only --diff-filter=A "$FROM" "origin/ai/contract-$slug" -- "docs/product/$slug/handoffs/" 2>/dev/null | sort | tail -1)
+          ok=1
+          if [ -z "$NEW" ]; then echo "::error::No handover packet was committed to docs/product/$slug/handoffs/ by this run"; ok=0
+          else
+            git show "origin/ai/contract-$slug:$NEW" > /tmp/handoff.md
+            node .ai-org-handbook/scripts/handoff.mjs validate /tmp/handoff.md | tee -a "$GITHUB_STEP_SUMMARY" /tmp/agent-logs/handover.txt; [ "${PIPESTATUS[0]}" = 0 ] || ok=0
+          fi
+          if [ "$ok" = 1 ]; then
+            # The stage is done: clear its label even if the agent forgot, so the loop can move on.
+            gh issue edit "$NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "$STAGE" >/dev/null 2>&1 || true
+          else
+            # Context would be lost: stop the chain instead of handing over blind.
+            gh issue edit "$NUMBER" --repo "$GITHUB_REPOSITORY" --add-label ai:blocked >/dev/null 2>&1 || true
+            exit 1
+          fi
+
       - name: Save agent logs
         if: always() && steps.router.outputs.action == 'run'
         uses: actions/upload-artifact@v4
@@ -231,7 +293,13 @@ jobs:
           ENGINE: ${{ steps.router.outputs.engine }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          printf '%s\n' "<!-- ai-org:failed -->" "**[$AGENT_NAME — $AGENT_ROLE] Run failed** on the \`$ENGINE\` engine. Logs: $RUN_URL (artifact \`agent-logs-$NUMBER-${{ github.run_attempt }}\`)." "" "This is **not** retried automatically: the AI assistant working with the founder reads the logs, fixes the cause and re-runs it." > /tmp/failed.md
+          {
+            printf '%s\n' "<!-- ai-org:failed -->" "**[$AGENT_NAME — $AGENT_ROLE] Run failed** on the \`$ENGINE\` engine. Logs: $RUN_URL (artifact \`agent-logs-$NUMBER-${{ github.run_attempt }}\`)." ""
+            echo "**What the next attempt must know (attempt memory):**"; echo '```'
+            grep -h "AGENT_RESULT\|handover INVALID\|^- " /tmp/agent-logs/*.txt 2>/dev/null | head -10
+            jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -c 1200
+            echo '```'; echo; echo "Not retried automatically: Kiran or Arjun decides the retry; the next run reads this note first."
+          } > /tmp/failed.md
           gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/failed.md
 
       - name: Chain to the next agent if the stage changed

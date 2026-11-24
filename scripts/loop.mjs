@@ -9,11 +9,15 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
+
+// True when this file is the program being run (also through symlinked paths such as a mounted handbook).
+function isMain(url) { try { return !!process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(url)); } catch { return false; } }
 
 export const MARK = {
   contractReady: "ai-org:contract-ready", buildFor: "ai-org:build-for", fixFor: "ai-org:fix-for",
-  demo: "ai-org:demo-pack", shipped: "ai-org:shipped", ciFix: "ai-org:ci-fix", blocked: "ai-org:blocked", gateFail: "ai-org:gate-fail",
+  demo: "ai-org:demo-pack", shipped: "ai-org:shipped", ciFix: "ai-org:ci-fix", blocked: "ai-org:blocked", gateFail: "ai-org:gate-fail", qaFix: "ai-org:qa-fix", qaReq: "ai-org:qa-request",
 };
 // Acceptance-test gate (scripts/grade-acceptance.mjs, run by the agent worker after Quinn): the build may only start
 // when the locked tests are red for the right reason on the contract PR's head commit.
@@ -23,7 +27,26 @@ export function gateDecision(statuses = [], priorFails = 0, maxRetries = 2) {
   if (s.state === "success") return "build";
   return priorFails < maxRetries ? "retry" : "block";
 }
-const IN_FLIGHT = ["ai:discovery", "ai:tests", "ai:contract", "ai:delivery", "ai:release", "ai:founder-test", "ai:build", "ai:fix", "ai:qa", "ai:review"];
+// AI Org v3 QA chain (RACI in .ai-org/manifest.json raci["ai:tests"]): after the gate passes, a challenger on a
+// different model reviews, the author gets ONE fix round, then the accountable seat (Arjun, AI CPTO) signs off.
+// verdicts.challenger = latest challenger verdict ever (it reviews once); verdicts.signoff = latest CPTO verdict
+// posted after the last fix round started. At most two fix rounds (one from the challenger, one from the CPTO).
+export function qaChainStep({ raci, verdicts = {}, fixRounds = 0 }) {
+  if (!raci) return "build"; // single-agent stage (pre-v3 behaviour)
+  if (raci.reviewer && !verdicts.challenger) return "challenge";
+  if (verdicts.challenger === "changes" && fixRounds === 0) return "fix";
+  if (raci.accountable && !verdicts.signoff) return "signoff";
+  if (verdicts.signoff === "approve" || !raci.accountable) return "build";
+  if (verdicts.signoff === "changes") return fixRounds < 2 ? "fix" : "block";
+  return "wait";
+}
+// Agents commit handover notes after the tests, so the branch head moves. Gate statuses are looked up on every commit
+// since the locked tests last changed (newest first), never only on the head.
+export function gateStatusSince(commitsNewestFirst = [], statusesOf = () => []) {
+  for (const sha of commitsNewestFirst) { const st = statusesOf(sha); if (st.some((s) => s.context === "acceptance-gate")) return st; }
+  return [];
+}
+const IN_FLIGHT = ["ai:discovery", "ai:tests", "ai:tests-review", "ai:tests-signoff", "ai:contract", "ai:delivery", "ai:release", "ai:founder-test", "ai:build", "ai:fix", "ai:qa", "ai:review"];
 const INNER = ["ai:build", "ai:fix", "ai:qa", "ai:review", "ai:blocked"];
 const BAD = ["failure", "cancelled", "timed_out", "action_required", "startup_failure", "stale"];
 
@@ -41,7 +64,8 @@ export function isFounder(author, association, founders = []) {
 }
 // Latest verdict by an agent (e.g. "Rex") posted after `since` (ISO). Returns "approve" | "changes" | null.
 export function latestVerdict(comments, agent, since) {
-  const mine = comments.filter((c) => (c.created_at || "") > (since || "") && new RegExp(`^\\s*\\[${agent}\\b`, "i").test(c.body || ""))
+  const who = agent.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const mine = comments.filter((c) => (c.created_at || "") > (since || "") && new RegExp(`^\\s*\\**\\[${who}(\\b|\\])`, "i").test(c.body || ""))
     .sort((a, b) => a.created_at.localeCompare(b.created_at));
   const last = mine.at(-1); if (!last) return null;
   const head = last.body.slice(0, 600);
@@ -141,7 +165,7 @@ const api = (path) => ghj("api", `repos/${REPO}/${path}`);
 const log = (...a) => console.log(...a);
 function act(desc, fn) { log(`${DRY ? "[dry-run] would" : "→"} ${desc}`); if (!DRY) return fn(); }
 const manifest = () => existsSync(".ai-org/manifest.json") ? JSON.parse(readFileSync(".ai-org/manifest.json", "utf8")) : {};
-const cfg = () => { const m = manifest(); return { founders: m.governance?.founders || [], loop: { backlog: "docs/product/BACKLOG.md", maxFixRounds: 5, agentsWorkflow: "ai-agents.yml", checksWorkflow: "checks.yml", qaWorkflow: "qa-lab.yml", requiredChecks: ["foundation"], lockedPaths: "e2e/acceptance/", ...(m.loop || {}) } }; };
+const cfg = () => { const m = manifest(); return { founders: m.governance?.founders || [], raci: m.raci || null, loop: { backlog: "docs/product/BACKLOG.md", maxFixRounds: 5, agentsWorkflow: "ai-agents.yml", checksWorkflow: "checks.yml", qaWorkflow: "qa-lab.yml", requiredChecks: ["foundation"], lockedPaths: "e2e/acceptance/", ...(m.loop || {}) } }; };
 const comments = (n) => api(`issues/${n}/comments?per_page=100`) || [];
 const comment = (n, body) => act(`comment on #${n}: ${body.split("\n").find((l) => l && !l.startsWith("<!--")).slice(0, 90)}`, () => gh("api", "-X", "POST", `repos/${REPO}/issues/${n}/comments`, "-f", `body=${body}`));
 const label = (n, add = [], remove = []) => act(`#${n} labels +[${add}] -[${remove}]`, () => {
@@ -230,10 +254,16 @@ function advanceRelease(pr) {
 }
 function advanceContract(pr) {
   const prComments = comments(pr.number);
-  if (prComments.some((c) => (c.body || "").includes(`${MARK.buildFor} ${pr.number}`))) return log(`#${pr.number}: build already requested`);
+  if (prComments.some((c) => new RegExp(`${MARK.buildFor} ${pr.number} [0-9a-f]{7,40}`).test(c.body || "") || ((c.body || "").includes(`${MARK.buildFor} ${pr.number}`) && !cfg().raci?.["ai:tests"]))) return log(`#${pr.number}: build already requested`);
   const slug = slugOfBranch(pr.headRefName); if (!slug) return;
   if (cfg().loop.acceptanceGate !== false) {
-    const statuses = api(`commits/${pr.headRefOid}/status`)?.statuses || [];
+    let commits = [pr.headRefOid];
+    try {
+      run("git", ["fetch", "-q", "origin", pr.headRefName]);
+      const specSha = run("git", ["log", "-1", "--format=%H", `origin/${pr.headRefName}`, "--", cfg().loop.lockedPaths]).trim();
+      if (specSha) commits = run("git", ["rev-list", `${specSha}^..origin/${pr.headRefName}`]).trim().split("\n").filter(Boolean);
+    } catch { /* fall back to the head */ }
+    const statuses = gateStatusSince(commits.slice(0, 30), (sha) => api(`commits/${sha}/status`)?.statuses || []);
     const fails = prComments.filter((c) => (c.body || "").includes(MARK.gateFail)).length;
     const d = gateDecision(statuses, fails);
     const issue = referencedIssues(pr.body)[0];
@@ -245,8 +275,31 @@ function advanceContract(pr) {
       return;
     }
   }
+  const raci = cfg().raci?.["ai:tests"];
+  if (raci) {
+    const issue = referencedIssues(pr.body)[0];
+    const fixes = prComments.filter((c) => (c.body || "").includes(MARK.qaFix));
+    const fixRounds = fixes.length, since = fixes.at(-1)?.created_at || "";
+    const v = {
+      challenger: latestVerdict(prComments, "Quinn — QA Specialist, challenger", ""),
+      signoff: latestVerdict(prComments, "Arjun", since),
+    };
+    const step = qaChainStep({ raci, verdicts: v, fixRounds });
+    const busy = issue ? labelsOf(api(`issues/${issue}`)).find((l) => ["ai:tests", "ai:tests-review", "ai:tests-signoff", "ai:blocked"].includes(l)) : null;
+    if (busy) return log(`#${pr.number}: ${busy} on #${issue}`);
+    const asked = (kind) => prComments.filter((c) => (c.body || "").includes(`${MARK.qaReq} ${kind}`) && (c.created_at || "") > since).length;
+    if ((step === "challenge" && asked("challenge")) || (step === "signoff" && asked("signoff"))) {
+      if (issue) label(issue, ["ai:blocked"]);
+      return comment(pr.number, `**[Kiran — Project Manager]** The ${step === "challenge" ? "challenger" : "CPTO"} run finished without a \`Verdict:\` line. Paused (\`ai:blocked\`) so the chain does not loop.`);
+    }
+    if (step === "challenge") { comment(pr.number, `<!-- ${MARK.qaReq} challenge -->\n**[Kiran — Project Manager]** Gate passed. Quinn (challenger, ${raci.models?.challenger || "second model"}) now reviews these tests on #${issue}.`); label(issue, ["ai:tests-review"]); return wake(issue); }
+    if (step === "fix") { comment(pr.number, `<!-- ${MARK.qaFix} ${pr.headRefOid} -->\n**[Kiran — Project Manager]** Review asked for changes. Back to Quinn (author) on #${issue} for one fix round.`); label(issue, ["ai:tests"]); return wake(issue); }
+    if (step === "signoff") { comment(pr.number, `<!-- ${MARK.qaReq} signoff -->\n**[Kiran — Project Manager]** Review complete. Arjun (AI CPTO) signs off on #${issue}.`); label(issue, ["ai:tests-signoff"]); return wake(issue); }
+    if (step === "block") { label(issue, ["ai:blocked"]); return comment(pr.number, "**[Kiran — Project Manager]** Sign-off still asks for changes after the fix round. Paused for the founder (`ai:blocked`)."); }
+    if (step === "wait") return log(`#${pr.number}: waiting for QA verdicts`);
+  }
   const n = newIssue(`Build: ${pr.title.replace(/^Contract:\s*/i, "")} (stacked on #${pr.number})`, buildIssueBody({ pr: pr.number, branch: pr.headRefName, slug }), "ai:build");
-  comment(pr.number, `<!-- ${MARK.buildFor} ${pr.number} -->\n**[Kiran — Project Manager]** Locked tests are in. Build issue ${n ? `#${n}` : "(opened)"} assigned to Dev.`);
+  comment(pr.number, `<!-- ${MARK.buildFor} ${pr.number} ${pr.headRefOid} -->\n**[Kiran — Project Manager]** Locked tests are in${cfg().raci?.["ai:tests"] ? " and signed off" : ""}. Build issue ${n ? `#${n}` : "(opened)"} assigned to Dev, with the full handover chain in \`docs/product/${slug}/handoffs/\`.`);
 }
 function advanceDiscovery() {
   const open = ghj("issue", "list", "--repo", REPO, "--state", "open", "--label", "ai:discovery", "--limit", "50", "--json", "number");
@@ -327,7 +380,7 @@ function command() {
   log(`command: /${parsed.cmd} has no action on #${n} (labels: ${L.join(",") || "none"})`);
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isMain(import.meta.url)) {
   if (!REPO) { console.error("No repo (GITHUB_REPOSITORY or --repo)"); process.exit(2); }
   const mode = process.argv[2];
   ({ advance, next, command }[mode] || (() => { console.error("usage: loop.mjs advance|next|command [--repo o/r] [--dry-run]"); process.exit(2); }))();

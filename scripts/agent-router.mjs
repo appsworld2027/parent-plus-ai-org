@@ -5,6 +5,10 @@
 //      env ENGINE_CLAUDE / ENGINE_CODEX / ENGINE_FREE = "true" when that engine's secret exists.
 import { readFileSync, appendFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
+
+// True when this file is the program being run (also through symlinked paths such as a mounted handbook).
+function isMain(url) { try { return !!process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(url)); } catch { return false; } }
 
 const AGENTS_DIR = fileURLToPath(new URL("../org/agents/", import.meta.url));
 
@@ -12,11 +16,15 @@ export const STAGE_ROLE = {
   "ai:discovery": "maya-ai-pm",
   "ai:plan": "arjun-cpto",
   "ai:tests": "quinn-qa",
+  "ai:tests-review": "quinn-qa",
+  "ai:tests-signoff": "arjun-cpto",
   "ai:build": "dev-coder",
   "ai:qa": "quinn-qa",
   "ai:review": "rex-reviewer",
   "ai:fix": "dev-coder",
 };
+// Seat per stage (AI Org v3 RACI): the same role can sit in different seats on different models.
+export const STAGE_SEAT = { "ai:tests": "author", "ai:tests-review": "challenger", "ai:tests-signoff": "accountable" };
 // No agent: founder gates, blocked items, and loop-controller stages (scripts/loop.mjs drives them).
 const NO_AGENT = ["ai:founder-decision", "ai:founder-test", "ai:blocked", "ai:release", "ai:delivery", "ai:contract"];
 const STAGE_ORDER = [...NO_AGENT, ...Object.keys(STAGE_ROLE)];
@@ -62,7 +70,7 @@ export function route({ labels = [], body = "", isPR = false, engines = { claude
   const engine = engines[preferred] ? preferred : ENGINES.find((e) => engines[e]) || null;
 
   if (!engine) return { action: "pause", stage, role, reason: "no Claude, Codex or free engine is connected" };
-  const out = { action: "run", stage, role, engine, fallback: engine !== preferred };
+  const out = { action: "run", stage, role, engine, fallback: engine !== preferred, seat: STAGE_SEAT[stage] || "" };
   // Writing tests is authoring work: use the faster builder model. Verdicts (ai:qa, ai:review) stay on the reviewer model,
   // so the code is still judged by a different model than the one that wrote it. (2026-11-23: Quinn on the reviewer model
   // made 52 tool calls in 50 minutes and timed out on #42; the builder model averaged ~10 s per call on #37.)
@@ -86,7 +94,8 @@ export function testsBrief(number) {
     "   Read test output through the gate, not the raw log: long Playwright output is cut off in your tool results, so errors at the end (often the crashes) are invisible to you.",
     "   Start the file with `// NEW-HOOKS: a | b | /regex/` listing every new text, accessible name or testID the feature adds (the things your tests wait for). Put `// GUARD: <why>` above a test that already passes today on purpose, and `// RED-BECAUSE: <why>` above a test that fails on existing UI for a stated reason. Use stable testIDs or accessible names for new UI, and say which ones in the PR so Dev builds them.",
     "d. Run the spec with the gate, not by eye: `npx playwright test <spec> --reporter=json --timeout=20000 > /tmp/acc.json; node .ai-org-handbook/scripts/grade-acceptance.mjs --spec <spec> --report /tmp/acc.json --contract docs/product/<slug>/ACCEPTANCE.md --src src --md /tmp/gate.md`. It must print `Acceptance-test gate: PASS`. If it fails, fix the tests it names (crash, setup mistake, vacuous pass) and run it again. Never claim a result the gate did not print.",
-    `e. Open the contract PR from the contract branch to \`main\`: label \`ai:contract\`, body starting \`Closes #${number}\`, then the full contents of /tmp/gate.md, then any fixture gaps for Dev. Then remove \`ai:tests\` from #${number}.`,
+    `e. Open the contract PR from the contract branch to \`main\` (or update it if it exists): label \`ai:contract\`, body starting \`Closes #${number}\`, then the full contents of /tmp/gate.md, then any fixture gaps for Dev. Then remove \`ai:tests\` from #${number}.`,
+    "f. If the onboarding pack shows a challenger or CPTO verdict of CHANGES, fix every must-fix finding, answer each should-fix finding on the PR (fixed / disagree + why), re-run the gate and record it all in your handover.",
   ].join("\n");
 }
 
@@ -102,6 +111,38 @@ export function buildBrief(number) {
   ].join("\n");
 }
 
+// AI Org v3: every run starts from the onboarding pack and ends with a validated handover packet.
+export function onboardingRules(number) {
+  return [
+    "## Onboarding and handover (every run)",
+    "- FIRST read `/tmp/onboarding.md` completely: your role, RACI seat, role lessons, product memory, the contract, every earlier handover and (on a retry) why the last attempt failed. Do not rediscover what it already tells you.",
+    "- Your first message is the 5-line Understanding: goal · constraints · known traps · what you must not touch · how you will prove it is done.",
+    `- LAST, write your handover to \`docs/product/<slug>/handoffs/NN-<stage>-<role>-<seat>.md\` (NN = next free number) using \`node .ai-org-handbook/scripts/handoff.mjs template <stage> <role>\`; fill every section; check it with \`node .ai-org-handbook/scripts/handoff.mjs validate <file>\`; commit and push it with your work. An invalid or missing handover fails the run.`,
+    "- Put lessons that would help future features under `## Memory proposals` (fact + evidence). Never edit `docs/ai-memory/` directly; Arjun merges approved memory.",
+    `- Hand over through the packet and a comment on #${number}; never write prompts for another agent.`,
+  ].join("\n");
+}
+// Quinn-Challenger: attacks the author's tests on a different model; must not rewrite them.
+export function challengeBrief(number) {
+  return [
+    "## This run: challenge the locked acceptance tests (stage `ai:tests-review`, seat: challenger) — you did NOT write them",
+    "a. Read the contract, the spec on the contract branch, the gate report on the contract PR and the author's handover.",
+    "b. Attack the tests with this checklist, citing test titles and lines: (1) every AC fully checked, including every number, text, order and state the AC names; (2) fixture defaults or setup traps that make a test fail or pass for the wrong reason; (3) tests that would still pass if the feature were built wrong (hard-coded counts, totals not checked, exclusions without a counted control); (4) loading / error / offline / large-data ACs really exercise reads; (5) new hooks declared in NEW-HOOKS match what the tests wait for; (6) anything the contract says that no test checks.",
+    "c. Run the spec once with the gate (same command as the author) to confirm the report.",
+    `d. Comment on the contract PR, starting \`[Quinn — QA Specialist, challenger]\`, with \`Verdict: APPROVE\` or \`Verdict: CHANGES\`, then a table: finding · test · severity (must-fix / should-fix) · evidence. Do NOT edit the spec. Then remove \`ai:tests-review\` from #${number}.`,
+  ].join("\n");
+}
+// Arjun (AI CPTO) signs off — this is the accountable seat, so no step depends on any outside chat.
+export function signoffBrief(number) {
+  return [
+    "## This run: sign off the locked acceptance tests (stage `ai:tests-signoff`, seat: accountable)",
+    "a. Read the contract, the gate report, the challenger's verdict and the author's answers/handover.",
+    "b. Decide each open disagreement on the evidence (run the spec if needed). You may not approve if the gate is not PASS on the head commit or any must-fix finding is unresolved.",
+    "c. Review `## Memory proposals` in all handovers: copy the ones that are true, general and evidenced into `docs/ai-memory/` (or `org/lessons/<role>.md` in the AI Org if product-agnostic, as an issue there), with the evidence link; reject the rest with a reason.",
+    `d. Comment on the contract PR starting \`[Arjun — AI CPTO]\` with \`Verdict: APPROVE\` (the loop then opens the build) or \`Verdict: CHANGES\` (back to the author with exact instructions), or label #${number} \`ai:founder-decision\` with options and one Recommended choice if it changes what users see or costs money. Then remove \`ai:tests-signoff\` from #${number}.`,
+  ].join("\n");
+}
+
 export function buildPrompt({ agent, number, isPR, repo, stage = "" }) {
   const kind = isPR ? "pull request" : "issue";
   const cli = isPR ? "gh pr" : "gh issue";
@@ -114,7 +155,10 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "" }) {
     `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,
     `5. Move the stage label as your role file says (\`${cli} edit ${number} --add-label … --remove-label …\`).`,
     `6. Never print secrets. Never contact the founder except through ai:founder-decision or ai:founder-test issues.`,
+    "", onboardingRules(number),
     ...(stage === "ai:tests" ? ["", testsBrief(number)] : []),
+    ...(stage === "ai:tests-review" ? ["", challengeBrief(number)] : []),
+    ...(stage === "ai:tests-signoff" ? ["", signoffBrief(number)] : []),
     ...((stage === "ai:build" || stage === "ai:fix") && !isPR ? ["", buildBrief(number)] : []),
   ].join("\n");
 }
@@ -125,7 +169,7 @@ export function pauseComment({ agent, stage }) {
 }
 
 // ---- CLI ----
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+if (isMain(import.meta.url)) {
   const arg = (n) => { const i = process.argv.indexOf(`--${n}`); return i > -1 ? process.argv[i + 1] : undefined; };
   const labels = (arg("labels") || "").split(",").map((s) => s.trim()).filter(Boolean);
   const bodyFile = arg("body-file");

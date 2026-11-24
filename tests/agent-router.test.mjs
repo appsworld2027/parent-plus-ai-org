@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { route, agentInfo, buildPrompt, pauseComment, PAUSE_MARKER, FREE_MODELS, testsBrief, buildBrief } from "../scripts/agent-router.mjs";
+import { route, agentInfo, buildPrompt, pauseComment, PAUSE_MARKER, FREE_MODELS, testsBrief, buildBrief, STAGE_SEAT } from "../scripts/agent-router.mjs";
 
 const both = { claude: true, codex: true, free: false }, none = { claude: false, codex: false, free: false };
 const freeOnly = { claude: false, codex: false, free: true }, all = { claude: true, codex: true, free: true };
@@ -10,7 +10,7 @@ test("founder and blocked stages never run an agent", () => {
   for (const s of ["ai:founder-decision", "ai:founder-test", "ai:blocked", "ai:release", "ai:delivery", "ai:contract"]) assert.equal(route({ labels: [s, "ai:build"], engines: all }).action, "skip");
 });
 test("stages map to the right agents", () => {
-  const cases = { "ai:discovery": "maya-ai-pm", "ai:plan": "arjun-cpto", "ai:tests": "quinn-qa", "ai:build": "dev-coder", "ai:qa": "quinn-qa", "ai:review": "rex-reviewer", "ai:fix": "dev-coder" };
+  const cases = { "ai:discovery": "maya-ai-pm", "ai:plan": "arjun-cpto", "ai:tests": "quinn-qa", "ai:tests-review": "quinn-qa", "ai:tests-signoff": "arjun-cpto", "ai:build": "dev-coder", "ai:qa": "quinn-qa", "ai:review": "rex-reviewer", "ai:fix": "dev-coder" };
   for (const [s, role] of Object.entries(cases)) assert.equal(route({ labels: [s], engines: both }).role, role);
 });
 test("Owner line routes build work to Tara or Ravi", () => {
@@ -85,4 +85,15 @@ test("Dev gets a build brief on ai:build/ai:fix issues only", () => {
 test("an explicit free model overrides the stage default", () => {
   assert.equal(route({ labels: ["ai:tests"], engines: freeOnly, freeModel: "nvidia_nim/moonshotai/kimi-k3.1-pro" }).free_model, "nvidia_nim/moonshotai/kimi-k3.1-pro");
   assert.equal(route({ labels: ["ai:tests"], engines: freeOnly }).free_model, FREE_MODELS.builder);
+});
+test("v3: QA stages carry seats, onboarding + handover rules, and the right brief", () => {
+  assert.equal(route({ labels: ["ai:tests-review"], engines: freeOnly }).seat, "challenger");
+  assert.equal(route({ labels: ["ai:tests-signoff"], engines: freeOnly }).seat, "accountable");
+  assert.equal(STAGE_SEAT["ai:tests"], "author");
+  const q = agentInfo("quinn-qa"), a = agentInfo("arjun-cpto");
+  const ch = buildPrompt({ agent: q, number: 42, isPR: false, repo: "o/r", stage: "ai:tests-review" });
+  assert.match(ch, /onboarding\.md/); assert.match(ch, /handoff\.mjs validate/); assert.match(ch, /Do NOT edit the spec/); assert.match(ch, /would still pass if the feature were built wrong/);
+  const so = buildPrompt({ agent: a, number: 42, isPR: false, repo: "o/r", stage: "ai:tests-signoff" });
+  assert.match(so, /Verdict: APPROVE/); assert.match(so, /Memory proposals/); assert.match(so, /ai:founder-decision/);
+  assert.match(buildPrompt({ agent: q, number: 42, isPR: false, repo: "o/r", stage: "ai:tests" }), /challenger or CPTO verdict of CHANGES/);
 });
