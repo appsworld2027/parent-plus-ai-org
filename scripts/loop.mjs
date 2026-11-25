@@ -196,12 +196,9 @@ function gate(branch, sha) {
 }
 function lock(base, head, sha, labels) {
   run("git", ["fetch", "-q", "origin", base, head]);
-  const prev = run("git", ["rev-parse", "HEAD"]).trim();
-  run("git", ["checkout", "-q", "--detach", `origin/${head}`]);
   let ok = true, out = "";
-  try { out = run("node", [join(HERE, "contract-lock.mjs")], { env: { ...process.env, BASE_REF: `origin/${base}`, PR_LABELS: labels.join(","), CONTRACT_LOCK_PATHS: cfg().loop.lockedPaths, GITHUB_STEP_SUMMARY: "" } }); }
+  try { out = run("node", [join(HERE, "contract-lock.mjs")], { env: { ...process.env, BASE_REF: `origin/${base}`, CONTRACT_LOCK_HEAD: sha, PR_LABELS: labels.join(","), CONTRACT_LOCK_PATHS: cfg().loop.lockedPaths, GITHUB_STEP_SUMMARY: "" } }); }
   catch (e) { ok = false; out = (e.stdout || "") + (e.stderr || ""); }
-  run("git", ["checkout", "-q", prev]);
   act(`status contract-lock (loop) = ${ok ? "success" : "failure"} on ${sha.slice(0, 7)}`, () => gh("api", "-X", "POST", `repos/${REPO}/statuses/${sha}`, "-f", `state=${ok ? "success" : "failure"}`, "-f", "context=contract-lock (loop)", "-f", `description=${out.split("\n")[0].slice(0, 130)}`));
   return { ok, out };
 }
