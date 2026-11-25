@@ -73,6 +73,20 @@ export function latestVerdict(comments, agent, since) {
   if (/Verdict:\s*\**\s*(APPROVE|PASS)/i.test(head)) return "approve";
   return null;
 }
+export function hasIndependentApproval(reviews, { head, authorLogin, reviewerIds }) {
+  if (!head || !authorLogin || !Array.isArray(reviewerIds) || !reviewerIds.length) return false;
+  const approvals = new Map();
+  for (const review of [...reviews].sort((a, b) => a.id - b.id)) {
+    const user = review.user;
+    if (!user || user.type !== "User" ||
+        user.login?.toLowerCase() === authorLogin.toLowerCase() || !reviewerIds.includes(user.id)) continue;
+    if (!["APPROVED", "CHANGES_REQUESTED", "DISMISSED"].includes(review.state)) continue;
+    approvals.set(user.id, review);
+  }
+  const latest = [...approvals.values()];
+  return !latest.some((review) => review.state === "CHANGES_REQUESTED") &&
+    latest.some((review) => review.state === "APPROVED" && review.commit_id === head);
+}
 export function failRounds(comments) {
   return comments.filter((c) => /^\s*\[(Quinn|Rex)\b/i.test(c.body || "") && /Verdict:\s*\**\s*(CHANGES|FAIL)/i.test((c.body || "").slice(0, 600))).length;
 }
@@ -180,7 +194,7 @@ function newIssue(title, body, lbl) {
   });
 }
 const labelsOf = (x) => (x.labels || []).map((l) => l.name || l);
-const openPRs = () => ghj("pr", "list", "--repo", REPO, "--state", "open", "--limit", "100", "--json", "number,title,baseRefName,headRefName,headRefOid,labels,body,url");
+const openPRs = () => ghj("pr", "list", "--repo", REPO, "--state", "open", "--limit", "100", "--json", "number,title,baseRefName,headRefName,headRefOid,labels,body,url,author");
 const headDate = (sha) => api(`commits/${sha}`).commit.committer.date;
 function checkRuns(sha) { return (api(`commits/${sha}/check-runs?per_page=100`)?.check_runs || []).map((r) => ({ name: r.name, status: r.status, conclusion: r.conclusion })); }
 function ensureChecks(branch, sha) {
@@ -217,13 +231,16 @@ const referencedIssues = (body = "") => [...new Set([...body.matchAll(/#(\d+)/g)
 function advanceBuildPR(pr) {
   const L = labelsOf(pr), slug = slugOfBranch(pr.baseRefName);
   if (!slug || L.some((l) => INNER.includes(l))) return log(`#${pr.number}: inner loop still running (${L.join(",") || "no label"})`);
-  const since = headDate(pr.headRefOid);
   const all = [...comments(pr.number), ...referencedIssues(pr.body).flatMap((n) => { try { return comments(n); } catch { return []; } })];
   if (failRounds(all) >= cfg().loop.maxFixRounds && !all.some((c) => (c.body || "").includes(MARK.blocked))) {
     label(pr.number, ["ai:blocked"]); return comment(pr.number, `<!-- ${MARK.blocked} -->\n**[Kiran — Project Manager]** ${cfg().loop.maxFixRounds}+ fix rounds without approval. Paused for Arjun/founder: reply \`/changes <direction>\` or \`/stop\`.`);
   }
-  const v = latestVerdict(all, "Rex", since);
-  if (v !== "approve") return log(`#${pr.number}: waiting for Rex approval on ${pr.headRefOid.slice(0, 7)} (${v || "none"})`);
+  const reviewerIds = cfg().loop.independentReviewerIds;
+  if (!Array.isArray(reviewerIds) || !reviewerIds.length) return log(`#${pr.number}: configure independentReviewerIds before automatic build merge`);
+  const reviews = ghj("api", "--paginate", "--slurp", `repos/${REPO}/pulls/${pr.number}/reviews?per_page=100`).flat();
+  if (!hasIndependentApproval(reviews, { head: pr.headRefOid, authorLogin: pr.author?.login, reviewerIds })) {
+    return log(`#${pr.number}: waiting for an authorized GitHub review on ${pr.headRefOid.slice(0, 7)}`);
+  }
   const g = gate(pr.headRefName, pr.headRefOid);
   if (g === "pending") return log(`#${pr.number}: checks pending`);
   if (g === "fail") { label(pr.number, ["ai:fix"]); comment(pr.number, `**[Sam — Release]** CI failed on ${pr.headRefOid.slice(0, 7)} after review. Back to Dev (\`ai:fix\`).`); return wake(pr.number); }

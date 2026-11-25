@@ -1,7 +1,7 @@
 // Tests for scripts/loop.mjs pure logic (AI Org outer loop). Run: node --test tests/loop.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseCommand, isFounder, latestVerdict, failRounds, checksState, parseAcceptance, nextBacklogItem, slugOfBranch, demoPack, contractState, gateDecision, qaChainStep, gateStatusSince, buildIssueBody, fixIssueBody, discoveryIssueBody, MARK } from "../scripts/loop.mjs";
+import { parseCommand, isFounder, latestVerdict, hasIndependentApproval, failRounds, checksState, parseAcceptance, nextBacklogItem, slugOfBranch, demoPack, contractState, gateDecision, qaChainStep, gateStatusSince, buildIssueBody, fixIssueBody, discoveryIssueBody, MARK } from "../scripts/loop.mjs";
 
 test("parseCommand reads the first non-empty line only", () => {
   assert.deepEqual(parseCommand("/approve"), { cmd: "approve", text: "" });
@@ -109,4 +109,16 @@ test("latestVerdict tells the challenger apart from the author", () => {
   const cs = [{ created_at: "2026-11-25T01:00:00Z", body: "[Quinn — QA Specialist, challenger]\nVerdict: CHANGES" },
     { created_at: "2026-11-25T02:00:00Z", body: "[Quinn — QA Specialist]\nVerdict: PASS" }];
   assert.equal(latestVerdict(cs, "Quinn — QA Specialist, challenger", ""), "changes");
+});
+
+test("build approval requires an authorized independent GitHub review of the current head", () => {
+  const options = { head: "current", authorLogin: "Builder", reviewerIds: [12, 14] };
+  const approval = { id: 1, user: { id: 12, login: "Reviewer", type: "User" }, state: "APPROVED", commit_id: "current" };
+  assert.equal(hasIndependentApproval([approval], options), true);
+  assert.equal(hasIndependentApproval([{ ...approval, commit_id: "old" }], options), false);
+  assert.equal(hasIndependentApproval([{ ...approval, user: { ...approval.user, login: "builder" } }], options), false);
+  assert.equal(hasIndependentApproval([{ ...approval, user: { ...approval.user, type: "Bot" } }], options), false);
+  assert.equal(hasIndependentApproval([approval], { ...options, reviewerIds: [] }), false);
+  assert.equal(hasIndependentApproval([approval, { ...approval, id: 2, state: "DISMISSED" }], options), false);
+  assert.equal(hasIndependentApproval([approval, { ...approval, id: 2, user: { id: 14, login: "Other", type: "User" }, state: "CHANGES_REQUESTED" }], options), false);
 });
