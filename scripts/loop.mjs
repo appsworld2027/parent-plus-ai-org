@@ -231,7 +231,7 @@ function advanceBuildPR(pr) {
   if (g === "pending") return log(`#${pr.number}: checks pending`);
   if (g === "fail") { label(pr.number, ["ai:fix"]); comment(pr.number, `**[Sam — Release]** CI failed on ${pr.headRefOid.slice(0, 7)} after review. Back to Dev (\`ai:fix\`).`); return wake(pr.number); }
   if (!lock(pr.baseRefName, pr.headRefName, pr.headRefOid, L).ok) { label(pr.number, ["ai:fix"]); comment(pr.number, "**[Sam — Release]** contract-lock failed: this PR touched locked acceptance tests. Revert those changes (`ai:fix`)."); return wake(pr.number); }
-  act(`merge #${pr.number} into ${pr.baseRefName}`, () => gh("pr", "merge", String(pr.number), "--repo", REPO, "--merge", "--delete-branch"));
+  act(`merge #${pr.number} into ${pr.baseRefName}`, () => gh("pr", "merge", String(pr.number), "--repo", REPO, "--merge", "--match-head-commit", pr.headRefOid, "--delete-branch"));
   const contract = openPRs().find((p) => p.headRefName === pr.baseRefName);
   if (contract) { label(contract.number, ["ai:delivery", "ai:release"], ["ai:contract", "ai:founder-test"]); comment(contract.number, `**[Sam — Release]** Reviewed build #${pr.number} merged into this branch. Running release checks; the Demo Pack follows when everything is green.`); }
 }
@@ -347,9 +347,10 @@ function command() {
   if (isPR && L.includes("ai:founder-test")) {
     const pr = ghj("pr", "view", n, "--repo", REPO, "--json", "number,headRefName,headRefOid,baseRefName,body,title");
     if (parsed.cmd === "approve") {
+      if (pr.baseRefName !== "main") return log(`#${n}: release PR must target main`);
       if (gate(pr.headRefName, pr.headRefOid) !== "success") return comment(n, "**[Sam — Release]** Checks are not green on the latest commit any more, so I did not ship. I'll post a new Demo Pack when they are.");
       if (!lock("main", pr.headRefName, pr.headRefOid, ["ai:delivery"]).ok) return comment(n, "**[Sam — Release]** Delivery lock failed; not shipped.");
-      act(`merge #${n} into main (founder @${who} approved)`, () => gh("pr", "merge", String(n), "--repo", REPO, "--merge", "--delete-branch", "--subject", `Merge PR #${n}: ${pr.title.replace(/^Contract:\s*/i, "")} (approved by @${who})`));
+      act(`merge #${n} into main (founder @${who} approved)`, () => gh("pr", "merge", String(n), "--repo", REPO, "--merge", "--match-head-commit", pr.headRefOid, "--delete-branch", "--subject", `Merge PR #${n}: ${pr.title.replace(/^Contract:\s*/i, "")} (approved by @${who})`));
       label(n, [], ["ai:founder-test", "ai:delivery"]);
       const { checksWorkflow, qaWorkflow } = cfg().loop;
       for (const wf of [checksWorkflow, qaWorkflow]) act(`dispatch ${wf} on main`, () => { try { gh("workflow", "run", wf, "--repo", REPO, "--ref", "main"); } catch { /* optional */ } });
