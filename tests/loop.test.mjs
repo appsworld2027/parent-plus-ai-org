@@ -111,7 +111,7 @@ test("latestVerdict tells the challenger apart from the author", () => {
   assert.equal(latestVerdict(cs, "Quinn — QA Specialist, challenger", ""), "changes");
 });
 
-test("build approval requires an authorized independent GitHub review of the current head", () => {
+test("protected release review requires an authorized independent GitHub review of the current head", () => {
   const options = { head: "current", authorLogin: "Builder", reviewerIds: [12, 14] };
   const approval = { id: 1, user: { id: 12, login: "Reviewer", type: "User" }, state: "APPROVED", commit_id: "current" };
   assert.equal(hasIndependentApproval([approval], options), true);
@@ -121,4 +121,10 @@ test("build approval requires an authorized independent GitHub review of the cur
   assert.equal(hasIndependentApproval([approval], { ...options, reviewerIds: [] }), false);
   assert.equal(hasIndependentApproval([approval, { ...approval, id: 2, state: "DISMISSED" }], options), false);
   assert.equal(hasIndependentApproval([approval, { ...approval, id: 2, user: { id: 14, login: "Other", type: "User" }, state: "CHANGES_REQUESTED" }], options), false);
+});
+
+test("an unrelated GitHub App cannot supply a required Actions result", () => {
+  const run = { name: "foundation", status: "completed", conclusion: "success" };
+  assert.equal(checksState([{ ...run, app: "external-app" }], ["foundation"], "github-actions"), "missing");
+  assert.equal(checksState([{ ...run, app: "github-actions" }], ["foundation"], "github-actions"), "success");
 });
