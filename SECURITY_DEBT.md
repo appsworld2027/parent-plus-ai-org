@@ -7,7 +7,7 @@ Founder decision (2026-11-20): agents get unrestricted access for speed. Risks a
 | # | Risk | Why accepted | Fix at review |
 |---|---|---|---|
 | S1 | AI Org and product repos are public | Free features, simpler setup | Make both repos private |
-| S2 | Remote MCP server (`api/mcp.js` on Vercel) has no authentication and can dispatch workflows; anyone who finds the URL can trigger runs and burn subscription quota | Keeps chat surfaces able to save work | Add a shared-secret or OAuth check, or remove dispatch tools |
+| S2 | Legacy remote MCP dispatch endpoint | Historical compatibility | Retirement returns HTTP 410 without accessing credentials or workflows. Confirm the response on the deployed route after release |
 | S3 | v1 dispatch workflows interpolate `${{ inputs.* }}` directly into shell commands (shell injection) | v1 workflows are legacy | Pass inputs via `env:` and quote them, or delete v1 workflows |
 | S4 | `main` is unprotected; agents merge their own PRs with auto-merge | Founder wants no approval gates | Branch protection with required checks |
 | S5 | Agents may deploy production and set repository secrets | Founder wants no approval gates | Restrict production deploy and secret management to a release workflow |
@@ -19,7 +19,7 @@ Founder decision (2026-11-20): agents get unrestricted access for speed. Risks a
 | S11 | Product repos call the reusable `contract-lock.yml` at `@main`: a bad change to AI Org `main` reaches every product at once | No release process yet; fastest to iterate | Pin callers to a version tag or commit SHA |
 
 **2026-11-23 update:** the 11 v1 workflows were retired (Actions audit). This removes S3 (shell injection), R1–R4, and the
-workflows S2's remote MCP could dispatch (`api/mcp.js` itself is still deployed — remove or protect it at review). S4 is
+workflows S2's remote MCP could dispatch. S4 is
 partly fixed: Parent Plus `main` now accepts changes only through pull requests (no force-push, no deletion).
 
 ## Known v1 reliability defects (from the 2026-11-19 audit)
