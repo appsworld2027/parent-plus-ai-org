@@ -7,7 +7,7 @@ This dashboard tracks development of the AI Organization. The Studio product das
 | Objective | Secure execution → intelligent AI Organization → independently verified product delivery |
 | Pilot | **NO-GO**. Independent readiness and required authorization pending. MM restrictions apply. |
 | Founder inbox | No immediate decision recorded in this batch |
-| Development activity | This draft revision records the interactive sprint batch. Consult automation history for scheduled activity. No scheduled result was recorded when checked. |
+| Development activity | The scheduled 00:30 IST batch acquired the GitHub development lock, verified draft checks, and implemented stop-gate enforcement. Before the batch, all three draft heads had passing CI and zero recorded reviews. See automation history for delivery and later activity. |
 | Schedule | Six triggers at 30-minute intervals, starting 26 November 2026 at 00:30 IST. Preflight skips ineligible work and reuses commit evidence. Local Git lock test passed. Scheduled execution remains unverified. |
 | Resource evidence | No new paid service enabled. Actual tokens, subscription usage, and incremental expenditure unavailable. |
 | Checkpoint | This file on the current draft head. Cross-engine and restart recovery remain unverified. |
@@ -28,7 +28,7 @@ This dashboard tracks development of the AI Organization. The Studio product das
 | Conditional founder escalation | Pending | Distinguish delegated decisions from material or conflicting decisions. |
 | Scoped permissions and credential isolation | Pending | Validate provider and job-level permissions. |
 | Model allocation and resource controls | Partial | Scheduler caps the sprint at six triggers, with a preflight, one materially changed retry, and quota-stop instructions. Token metrics, model selection and worker-side budget enforcement remain open. |
-| Retry, session lifecycle and cross-engine recovery | Pending | Verify persistent execution, checkpoint retrieval, and restart behavior. |
+| Retry, session lifecycle and cross-engine recovery | Partial | Outer-loop discovery and PR progression, explicit approvals, and the resume sweep now respect ai:blocked. Checkpoint recovery across engines and restarts remains open. |
 | Multi-founder synchronization | Pending | Preserve owner restrictions, decisions and attribution. |
 | Independent audit and pilot | Blocked | Needs independent verification and the required authorization. |
 

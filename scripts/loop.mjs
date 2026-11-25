@@ -312,8 +312,10 @@ function advanceContract(pr) {
   comment(pr.number, `<!-- ${MARK.buildFor} ${pr.number} ${pr.headRefOid} -->\n**[Kiran — Project Manager]** Locked tests are in${cfg().raci?.["ai:tests"] ? " and signed off" : ""}. Build issue ${n ? `#${n}` : "(opened)"} assigned to Dev, with the full handover chain in \`docs/product/${slug}/handoffs/\`.`);
 }
 function advanceDiscovery() {
-  const open = ghj("issue", "list", "--repo", REPO, "--state", "open", "--label", "ai:discovery", "--limit", "50", "--json", "number");
-  for (const { number } of open) {
+  const open = ghj("issue", "list", "--repo", REPO, "--state", "open", "--label", "ai:discovery", "--limit", "50", "--json", "number,labels");
+  for (const item of open) {
+    if (labelsOf(item).includes("ai:blocked")) continue;
+    const { number } = item;
     const st = contractState(comments(number), cfg().founders);
     if (!st.ready) { log(`#${number}: Maya still working on the contract`); continue; }
     label(number, ["ai:founder-decision"], ["ai:discovery"]);
@@ -325,6 +327,7 @@ export function advance() {
   const prs = openPRs();
   for (const pr of prs) {
     const L = labelsOf(pr);
+    if (L.includes("ai:blocked")) continue;
     try {
       if (pr.baseRefName.startsWith("ai/contract-")) advanceBuildPR(pr);
       else if (L.includes("ai:release")) advanceRelease(pr);
@@ -354,6 +357,7 @@ function command() {
   const who = c.user.login;
   if (parsed.cmd === "next") return next();
   if (parsed.cmd === "stop") { label(n, ["ai:blocked"]); return comment(n, `**[Kiran — Project Manager]** Stopped by @${who}. Reply \`/changes <direction>\` to resume.`); }
+  if (L.includes("ai:blocked") && parsed.cmd === "approve") return log(`#${n}: blocked; resume work before approving`);
   if (isPR && L.includes("ai:founder-test")) {
     const pr = ghj("pr", "view", n, "--repo", REPO, "--json", "number,headRefName,headRefOid,baseRefName,body,title,author");
     if (parsed.cmd === "approve") {
@@ -376,7 +380,7 @@ function command() {
       return next();
     }
     if (parsed.cmd === "changes") {
-      label(n, [], ["ai:founder-test"]);
+      label(n, [], ["ai:founder-test", "ai:blocked"]);
       const fx = newIssue(`Changes requested on #${n}`, fixIssueBody({ pr: n, branch: pr.headRefName, slug: slugOfBranch(pr.headRefName), text: parsed.text, author: who, n: id }), "ai:fix");
       return comment(n, `**[Kiran — Project Manager]** Got it, @${who}. Fix issue ${fx ? `#${fx}` : ""} goes to Dev → Quinn → Rex; a new Demo Pack follows.`);
     }
@@ -392,7 +396,7 @@ function command() {
     if (parsed.cmd === "approve") { label(n, [], ["ai:founder-decision", "ai:discovery"]); return comment(n, `**[Kiran — Project Manager]** Decision recorded: approved by @${who}.`); }
     if (parsed.cmd === "changes") {
       const slug = ready?.[1], where = slug ? `\n\nMaya: revise \`docs/product/${slug}/\` on branch \`ai/contract-${slug}\` (\`git fetch origin && git switch ai/contract-${slug}\`). Never commit to \`main\`.` : "";
-      label(n, ["ai:discovery"], ["ai:founder-decision"]); comment(n, `**[Kiran — Project Manager]** @${who} asked for changes — back to Maya:\n\n> ${parsed.text.replace(/\n/g, "\n> ")}${where}`); return wake(n);
+      label(n, ["ai:discovery"], ["ai:founder-decision", "ai:blocked"]); comment(n, `**[Kiran — Project Manager]** @${who} asked for changes — back to Maya:\n\n> ${parsed.text.replace(/\n/g, "\n> ")}${where}`); return wake(n);
     }
   }
   log(`command: /${parsed.cmd} has no action on #${n} (labels: ${L.join(",") || "none"})`);
