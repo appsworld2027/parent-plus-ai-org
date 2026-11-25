@@ -18,3 +18,12 @@ The [Founder Operating Charter](../FOUNDER_OPERATING_CHARTER.md) is the policy s
 Fetch current heads and inspect PR checks before writing. Review AI Org `api/mcp.js`, `scripts/loop.mjs` and worker workflows for provenance and release controls, and Studio `public/app.js`, `public/index.html` and `server/status.mjs` for dashboard evidence. Independently verify accepted reviewer identity and head binding, failing-check release refusal, endpoint retirement in an authorized preview, supported model execution and usage reporting, budget exhaustion, and checkpoint recovery after runtime restart. Keep all missing evidence and founder authorization visible in the go/no-go decision.
 
 Actual model token counts, subscription quota and incremental CI expenditure were unavailable in this session. No new paid service was enabled.
+
+## Continuation verified on 26 November 2026 (India time)
+
+The previous assistant turn ended with a final response. No background execution from that turn was verified. A bounded scheduled continuation was created for up to three daily batches. Check its actual run history before treating a batch as active, successful or able to write to GitHub.
+
+- [Studio #9](https://github.com/appsworld2027/ai-org-studio/pull/9) passed CI on the restored executable-mode commit.
+- [Studio #10](https://github.com/appsworld2027/ai-org-studio/pull/10) originally failed the browser layout check because the test expected the old Agents tab label. The dashboard revision aligns the check with the new label and adds the Daily Founder Brief. Verify fresh browser CI.
+- The retired endpoint returned HTTP 410 for GET and POST in a local loopback server. An authorized hosted preview check remains pending.
+- The central AI Org caller now explicitly maps three engine secrets and limits the resume job's GitHub token to issue and PR reads and Actions writes. The agent job retains its previous token permissions. Review this workflow in an authorized non-production run before reporting operational hardening. Parent Plus workflow and MM ownership rules remain in force.
