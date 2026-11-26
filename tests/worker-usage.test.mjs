@@ -10,7 +10,7 @@ test("exports adapter model and measured fields from the result, without transcr
   const report = workerUsage(events.map(JSON.stringify).join("\n") + "\n{", { agent_name: "Maya", free_model: "configured" });
   assert.equal(report.rows.length, 1);
   assert.deepEqual(report.rows[0], {
-    engine: "github:nvidia", role: "Maya", model: "served", modelSource: "adapter",
+    engine: "github:groq", role: "Maya", model: "served", modelSource: "adapter",
     requestedModel: "configured", input: 12, output: 0, cache: null, cost: null,
   });
   assert.doesNotMatch(JSON.stringify(report), /fictional/);
