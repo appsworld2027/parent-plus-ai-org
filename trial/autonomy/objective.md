@@ -604,4 +604,6 @@ Test AC-06 does:
 
 The bug: when switching to "slow" scenario then changing child, the code keeps showing the previous child's cards during loading instead of clearing them immediately.
 
+The fix: add `clearFeedback()` at the START of `loadFeedback()`, right after `showRetry(false);` and BEFORE the `try` block, so cards clear immediately when loading begins (especially for the "slow" scenario with its 600ms delay).
+
 Write waitlist.mjs as plain text. The first line must be exactly ===BEFORE===, followed by a short unique verbatim source snippet, retaining its indentation. Then write a line exactly ===AFTER===, followed by its minimal JavaScript replacement, retaining indentation. End with a line exactly ===END===. Do not escape quotes, add Markdown fences, or emit the full document. The runner applies just this replacement to the verified base.
