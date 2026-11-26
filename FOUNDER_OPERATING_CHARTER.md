@@ -10,7 +10,7 @@ Agents own routine engineering, verification, troubleshooting, authorized tool o
 
 Proceed when intent is clear. Record reasonable assumptions within delegated scope. Escalate material product choices, conflicting founder decisions, provider-enforced access blockers, additional expenditure and consequential actions outside delegated authority. Offer concrete options and one recommendation. Handle engineering failures through bounded diagnosis, changed approaches and specialist or CPTO escalation.
 
-Use acceptance criteria, locked acceptance tests verified to fail for the intended reason, independent QA and review, and release evidence tied to the exact commit. Routine authorized releases should proceed only after all critical release checks pass. Until the controller and protections enforce this flow, use existing verified release gates. Preserve founder intervention and emergency stop commands. Confirm deployment separately from merge before reporting a release.
+Use acceptance criteria, locked acceptance tests verified to fail for the intended reason, independent QA and review, and release evidence tied to the exact commit. Human approval is required only at protected merge, release, or other authorized governance boundaries; routine development and independent AI review proceed autonomously. Production deployment requires the applicable authorized release approval and passing critical checks. Until the controller and protections enforce this flow, use existing verified release gates. Preserve founder intervention and emergency stop commands. Confirm deployment separately from merge before reporting a release.
 
 ## Models and continuity
 

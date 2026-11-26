@@ -14,6 +14,9 @@ test("repository sources declare the governance and operating-standard precedenc
   assert.match(charter, /authoritative governance source/);
   assert.match(charter, /higher-priority platform instructions/i);
   assert.match(charter, /explicit founder decisions/);
+  assert.match(charter, /Human approval is required only at protected merge, release/);
+  assert.match(agents, /merge only when required protected-branch checks and human approvals are satisfied/);
+  assert.match(agents, /production deployment requires the applicable authorized release approval/);
   assert.match(agents, /Founder Operating Charter is the canonical AI Org governance policy/);
   assert.match(agents, /PERSONAL_OPERATING_STANDARD\.md/);
   assert.match(claude, /@AGENTS\.md/);

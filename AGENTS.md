@@ -49,10 +49,12 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
   reasoning for discovery, architecture and risky changes; a faster model for routine edits, tests and chores.
 
 ## 2. Autonomy policy (founder decision, valid until 2027-01-20)
-Agents have full authority to act without approval:
-- create branches, issues, PRs; merge their own PRs once checks pass; auto-merge is allowed;
-- deploy Vercel previews and production; run migrations on the dev Supabase project;
-- add dependencies, change workflows, configure CI, create labels, manage secrets via `gh secret set`.
+Agents have full authority to act without approval within the current Charter and owner boundaries:
+- create branches, issues, and PRs; routine development and independent AI reviews continue without founder prompts;
+- merge only when required protected-branch checks and human approvals are satisfied; auto-merge is allowed only when those protections remain enforced;
+- deploy previews; production deployment requires the applicable authorized release approval and passing release gates;
+- run migrations on the dev Supabase project when permitted by that project's owner and security controls;
+- add dependencies, change workflows, configure CI, and create labels; manage secrets only through authorized secret controls and owner policy, and never reveal their values.
 Every technical decision: decide, record one line in `governance/decisions/LOG.md`, proceed.
 Every risk accepted for speed: append to `SECURITY_DEBT.md`.
 
