@@ -4,7 +4,7 @@ Applies to every product. Product-specific suites live in the product repo (`qa/
 
 ## Two QA roles (never the builder)
 - **Quinn-Contract** — writes locked acceptance tests from the founder-approved Feature Contract before code exists.
-- **Quinn-Explore** — owns the product-wide lab: generates test data, runs journeys and risk probes, keeps the scenario catalogue and traceability current, opens `ai:fix` issues. Uses the strongest available model.
+- **Quinn-Explore** — owns the product-wide lab: generates test data, runs journeys and risk probes, keeps the scenario catalogue and traceability current, opens `ai:fix` issues. Uses the best model allowed by AGENTS.md §1C.
 
 ## Test data — agents prepare it, founders never do
 1. Deterministic persona generator (fixed seed) covering every user type in the PRD, including edge personas: empty accounts, busy accounts, archived/ended/future records, unverified identities, multilingual/emoji/HTML names, siblings, multi-provider families.

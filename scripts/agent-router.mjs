@@ -42,6 +42,8 @@ export const FREE_MODELS = {
   builder: "nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b",
   reviewer: "nvidia_nim/mistralai/mistral-large-4-1t-a52b",
 };
+// One line, NVIDIA only, optional effort suffix: the worker writes this value into the proxy's .env file.
+const FREE_OVERRIDE = /^nvidia_nim\/[A-Za-z0-9._\/-]+(@(off|low|medium|high|xhigh|max))?$/;
 const REVIEW_ROLES = ["quinn-qa", "rex-reviewer"];
 
 export function agentInfo(slug, dir = AGENTS_DIR) {
@@ -52,7 +54,7 @@ export function agentInfo(slug, dir = AGENTS_DIR) {
   return { slug, name: meta.name, role: meta.role, model: meta.model };
 }
 
-export function route({ labels = [], body = "", isPR = false, engines = { claude: false, codex: false, free: false }, freeModel = "", allowed = ALLOWED_ENGINES }) {
+export function route({ labels = [], body = "", isPR = false, engines = { claude: false, codex: false, free: false }, freeModel = "", allowed = ALLOWED_ENGINES, supervisedTrial = false }) {
   engines = Object.fromEntries(ENGINES.map((e) => [e, allowed.includes(e) && !!engines[e]]));
   const stage = STAGE_ORDER.find((s) => labels.includes(s));
   if (!stage) return { action: "skip", reason: "no ai:* stage label" };
@@ -74,13 +76,16 @@ export function route({ labels = [], body = "", isPR = false, engines = { claude
   const engine = engines[preferred] ? preferred : ENGINES.find((e) => engines[e]) || null;
 
   if (!engine) return { action: "pause", stage, role, reason: "no allowed engine is connected (free models only)" };
+  // Testing only (founder decision 2026-11-26): the free endpoints run only in a supervised trial on synthetic data.
+  // No workflow sets this flag today, so background, chained and resumed runs pause.
+  if (engine === "free" && !supervisedTrial) return { action: "pause", stage, role, reason: "free engine is limited to supervised synthetic-data trials" };
   const out = { action: "run", stage, role, engine, fallback: engine !== preferred, seat: STAGE_SEAT[stage] || "" };
   // Writing tests is authoring work: use the faster builder model. Verdicts (ai:qa, ai:review) stay on the reviewer model,
   // so the code is still judged by a different model than the one that wrote it. (2026-11-23: Quinn on the reviewer model
   // made 52 tool calls in 50 minutes and timed out on #42; the builder model averaged ~10 s per call on #37.)
   if (engine === "free") out.free_model = REVIEW_ROLES.includes(role) && stage !== "ai:tests" ? FREE_MODELS.reviewer : FREE_MODELS.builder;
   // Overrides are limited to the NVIDIA free endpoints, so a product setting cannot route to a billed provider.
-  if (engine === "free" && freeModel.startsWith("nvidia_nim/")) out.free_model = freeModel; // explicit override (model trials, manifest choice)
+  if (engine === "free" && FREE_OVERRIDE.test(freeModel)) out.free_model = freeModel; // explicit override (model trials, manifest choice)
   return out;
 }
 
@@ -177,7 +182,7 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "" }) {
 
 export const PAUSE_MARKER = "<!-- ai-org:paused -->";
 export function pauseComment({ agent, stage }) {
-  return `${PAUSE_MARKER}\n**[${agent.name} — ${agent.role}] Paused.** This item is at \`${stage}\`, but the free engine is not connected, so no agent can work on it. Paid engines are switched off by founder decision.\n\nIt will be picked up automatically once the free engine key is added (see FOUNDER_INTERFACE.md). Nothing is lost.`;
+  return `${PAUSE_MARKER}\n**[${agent.name} — ${agent.role}] Paused.** This item is at \`${stage}\`, but background agents are paused. Paid engines are switched off, and the free engine is limited to supervised trials on synthetic data (founder decision).\n\nIt stays paused until the founder records that this use is permitted and the rule is changed. Nothing is lost.`;
 }
 
 // ---- CLI ----
@@ -188,7 +193,7 @@ if (isMain(import.meta.url)) {
   const isPR = process.argv.includes("--pr");
   const r = route({
     labels, isPR, body: bodyFile && existsSync(bodyFile) ? readFileSync(bodyFile, "utf8") : "",
-    freeModel: process.env.FREE_MODEL_OVERRIDE || "", engines: { claude: process.env.ENGINE_CLAUDE === "true", codex: process.env.ENGINE_CODEX === "true", free: process.env.ENGINE_FREE === "true" },
+    freeModel: process.env.FREE_MODEL_OVERRIDE || "", supervisedTrial: process.env.SUPERVISED_SYNTHETIC_TRIAL === "1", engines: { claude: process.env.ENGINE_CLAUDE === "true", codex: process.env.ENGINE_CODEX === "true", free: process.env.ENGINE_FREE === "true" },
   });
   const out = { ...r };
   if (r.role) {

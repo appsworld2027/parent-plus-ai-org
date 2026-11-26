@@ -46,7 +46,7 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
 - Every decision you surface — to the founder or to another agent — lists the options and exactly one
   **Recommended** choice with a one-line reason. Never present a decision without a recommendation.
 - Decisions inside your role: make them yourself, record them, move on. Escalate only what your role file says.
-- You are a Claude or Codex agent: use the model and reasoning effort that fit the task — the strongest
+- Whatever model you are: use the model and reasoning effort that fit the task — the strongest
   reasoning for discovery, architecture and risky changes; a faster model for routine edits, tests and chores.
 
 ## 1B. Autonomous execution — no task-level approvals (founder decision, 2026-11-26)
@@ -57,10 +57,12 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
 - Report these choices afterwards in the milestone summary. Do not send reminders asking whether to continue.
 - Ask only for: a material product or strategy change · new spend · an irreversible, destructive or privacy/security risk ·
   conflicting founder directions · a sign-in or consent that only a human can give. Ask once and continue unaffected work.
+- The "Needs the founder" list in §2 and the escalation rule in §7A.8 still apply in full.
 - This rule does **not** bypass anything enforced elsewhere: tool and platform permission prompts, sandbox settings,
   the unattended switches and protected paths, a product repo's owner rules, and the existing feature-contract and
   release gates in `scripts/loop.mjs`. Those change only through their own reviewed change.
-  The release gate stays until a founder-only feature switch, production checks and rollback are proven.
+  The release gate stays. Even after a founder-only feature switch, production checks and rollback are proven, removing
+  it needs a founder decision and a reviewed change.
 - Never take a Recommended option for an item in the "ask only for" list.
 
 ## 1C. Model routing — fit the model to the task
@@ -74,6 +76,8 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
 - NVIDIA's API trial terms limit free access to testing and evaluation, not production use. **Testing only (founder
   decision, 2026-11-26):** use it only for supervised trials on synthetic data. Do not use it to build or ship a real
   product feature until the founder records that this use is permitted.
+- In code: the router pauses every background run unless `SUPERVISED_SYNTHETIC_TRIAL=1`. No workflow sets it, so
+  unattended work is paused. Where other sections describe background agents or subscription engines, this section wins.
 - The tier table below is a task-difficulty guide. Its Claude and Codex settings apply only when the founder is working in
   those tools; on the free engine the router picks the model.
 
@@ -116,7 +120,7 @@ Every risk accepted for speed: append to `SECURITY_DEBT.md`.
 Still forbidden (these destroy work; they are not security gates):
 - force-push or rewrite history on `main`; delete branches, repos, files or data you did not create;
 - print, commit or paste secret values anywhere (chat, logs, files);
-- sign up for or spend on any paid service (budget = founder's existing Claude/ChatGPT subscriptions only) — this is a founder decision;
+- sign up for or spend on any paid service (no new spend; AI Org agents currently use free models only, §1C) — this is a founder decision;
 - change the production Supabase project before the founder declares launch;
 - turn the switches on or off, or edit the protected paths (above).
 
@@ -161,8 +165,8 @@ Product documents live in the PRODUCT repo, never in this AI Org repo:
 |---|---|---|
 | Claude Code / Codex (app, web, desktop, CLI) | yes | Do the work directly in the repo. |
 | Claude chat / ChatGPT with GitHub connector | no | Run the full Maya conversation. Persist via the AppsWorld MCP connector if connected; otherwise end with a one-line Handoff the founder can paste into Claude Code or Codex. |
-| GitHub Actions (`claude-code-action`) | yes | Background worker. Triggered by `ai:*` labels and `@claude` comments. Never talks to the founder directly. |
-| GitHub Actions — free engine (Claude Code via Free Claude Code on free NVIDIA NIM models) | yes | The only background engine for now (§1C). Builder model: Nemotron 3 Ultra; reviewer model: Mistral Large 4. Slower and less capable than paid engines: keep tasks small and let tests decide. |
+| GitHub Actions (`claude-code-action`) | yes | Switched off (§1C). Background worker. Triggered by `ai:*` labels and `@claude` comments. Never talks to the founder directly. |
+| GitHub Actions — free engine (Claude Code via Free Claude Code on free NVIDIA NIM models) | yes | The only permitted background engine, in supervised trials only (§1C). Builder model: Nemotron 3 Ultra; reviewer model: Mistral Large 4. Slower and less capable than paid engines: keep tasks small and let tests decide. |
 
 ## 7. Evidence rule
 Never say "done", "tested" or "running" without a link to a commit, PR, workflow run or test output.
@@ -208,7 +212,7 @@ Quality comes from this system, not from role names. No agent and no rule above 
    catalogue and traceability current. Founders never prepare test data. Nightly + per PR; failures open `ai:fix`.
 
 ## 8. Usage limits
-Work runs on the founder's subscriptions. Work in small, resumable chunks. If rate-limited:
+Background work is limited by §1C. Work in small, resumable chunks. If rate-limited:
 log `paused: usage limit` to `orchestration/task-events.jsonl` and resume next window. Never fail silently.
 
 ## 9. Legacy (v1)

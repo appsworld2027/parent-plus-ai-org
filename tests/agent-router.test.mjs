@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { route as policyRoute, ENGINES, ALLOWED_ENGINES, agentInfo, buildPrompt, pauseComment, PAUSE_MARKER, FREE_MODELS, testsBrief, buildBrief, STAGE_SEAT } from "../scripts/agent-router.mjs";
 
 // Engine-selection mechanics are tested with every engine allowed; the free-only policy is tested at the end.
-const route = (a) => policyRoute({ allowed: ENGINES, ...a });
+const route = (a) => policyRoute({ allowed: ENGINES, supervisedTrial: true, ...a });
 const both = { claude: true, codex: true, free: false }, none = { claude: false, codex: false, free: false };
 const freeOnly = { claude: false, codex: false, free: true }, all = { claude: true, codex: true, free: true };
 
@@ -103,10 +103,18 @@ test("v3: QA stages carry seats, onboarding + handover rules, and the right brie
 test("policy: paid engines never run, even when connected or labelled", () => {
   assert.deepEqual(ALLOWED_ENGINES, ["free"]);
   for (const labels of [["ai:build"], ["ai:build", "engine:claude"], ["ai:review", "engine:codex"]]) {
-    assert.equal(policyRoute({ labels, isPR: true, engines: all }).engine, "free");
+    assert.equal(policyRoute({ labels, isPR: true, engines: all, supervisedTrial: true }).engine, "free");
     assert.equal(policyRoute({ labels, isPR: true, engines: both }).action, "pause");
   }
 });
 test("policy: a model override cannot leave the NVIDIA free endpoints", () => {
-  assert.equal(policyRoute({ labels: ["ai:build"], engines: freeOnly, freeModel: "openrouter/vendor/paid-model" }).free_model, FREE_MODELS.builder);
+  for (const freeModel of ["openrouter/vendor/paid-model", "nvidia_nim/a/b\nMODEL=open_router/x/y", "nvidia_nim/a/b OPENROUTER_API_KEY=k"])
+    assert.equal(policyRoute({ labels: ["ai:build"], engines: freeOnly, freeModel, supervisedTrial: true }).free_model, FREE_MODELS.builder);
+});
+
+test("policy: without a supervised synthetic-data trial, every background stage pauses", () => {
+  for (const s of ["ai:discovery", "ai:plan", "ai:tests", "ai:tests-review", "ai:tests-signoff", "ai:build", "ai:qa", "ai:review", "ai:fix"]) {
+    const r = policyRoute({ labels: [s], engines: all, freeModel: "nvidia_nim/moonshotai/kimi-k3.1-pro@medium" });
+    assert.equal(r.action, "pause", s); assert.equal(r.free_model, undefined);
+  }
 });
