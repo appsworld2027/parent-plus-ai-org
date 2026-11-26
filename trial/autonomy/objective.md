@@ -2,7 +2,7 @@ Patch the exact candidate below, SHA-256 c56efa7d798951da4e20f880192d44ed64b1860
 
 Run 45804492343 passed all nine locked browser checks. Rex found that renderFeedback uses a display string such as "22 Nov 2026" as the HTML time element's dateTime value. Keep the visible date exactly the same, and make dateTime a valid calendar date such as "2026-11-22". Use deterministic conversion of the fixed English date format. Preserve all behavior including the previous-child loading fix.
 
-Write waitlist.mjs as raw JSON with exactly two string fields, "before" and "after". "before" is a short unique verbatim source snippet; "after" is its minimal replacement. The runner applies just this replacement to the verified base. Do not emit Markdown fences or the full document.
+Write waitlist.mjs as plain text. The first line must be exactly ===BEFORE===, followed by a short unique verbatim source snippet, retaining its indentation. Then write a line exactly ===AFTER===, followed by its minimal JavaScript replacement, retaining indentation. End with a line exactly ===END===. Do not escape quotes, add Markdown fences, or emit the full document. The runner applies just this replacement to the verified base.
 
 Candidate:
 <!DOCTYPE html>

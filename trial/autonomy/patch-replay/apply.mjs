@@ -8,11 +8,11 @@ export function applyModelPatch(candidate) {
     throw new Error("Patch base does not match the failed candidate");
   }
 
-  const patch = JSON.parse(readFileSync(candidate, "utf8"));
-  const { before, after } = patch;
-  if (Object.keys(patch).length !== 2 || typeof before !== "string" ||
-      typeof after !== "string" || !before || before === after ||
-      before.length > 500 || after.length > 650) {
+  const output = readFileSync(candidate, "utf8");
+  const match = /^===BEFORE===\n([\s\S]+?)\n===AFTER===\n([\s\S]+?)\n===END===\n?$/.exec(output);
+  if (!match) throw new Error("Expected one delimited source replacement");
+  const [, before, after] = match;
+  if (before === after || before.length > 500 || after.length > 650) {
     throw new Error("Expected one bounded source replacement");
   }
   const start = base.indexOf(before);
@@ -20,6 +20,6 @@ export function applyModelPatch(candidate) {
     throw new Error("Patch anchor must occur exactly once");
   }
 
-  console.log("Dev source replacement:", JSON.stringify(patch));
+  console.log("Dev source replacement:", JSON.stringify({ before, after }));
   writeFileSync(candidate, base.slice(0, start) + after + base.slice(start + before.length));
 }
