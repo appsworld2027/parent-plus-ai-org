@@ -22,6 +22,7 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Dev autonomously implements the fictional waitlist
         id: build
+        continue-on-error: true
         env:
           NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
         run: |
@@ -29,16 +30,15 @@ jobs:
           [ -n "$NVIDIA_NIM_API_KEY" ]
           mkdir -p "$HOME/.fcc" "$RUNNER_TEMP/pilot" "$RUNNER_TEMP/evidence"
           umask 077
-          printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b\nFCC_OPEN_BROWSER=false\n' "$NVIDIA_NIM_API_KEY" > "$HOME/.fcc/.env"
+          printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b\nFCC_OPEN_BROWSER=false\nREASONING_POLICY=low\n' "$NVIDIA_NIM_API_KEY" > "$HOME/.fcc/.env"
           fcc-server > "$RUNNER_TEMP/adapter.log" 2>&1 &
           echo "$!" > "$RUNNER_TEMP/adapter.pid"
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8082/v1/models >/dev/null 2>&1 && break; sleep 1; done
-          prompt="$(cat org/agents/dev-coder.md trial/autonomy/objective.md)"
+          prompt="$(printf 'You are Dev, the AI Org coding specialist. This is an isolated exercise. Write the one deliverable with the Write tool immediately, then give the short handover. The external evaluator runs all tests.\n'; cat trial/autonomy/objective.md)"
           cd "$RUNNER_TEMP/pilot"
           printf '%s\n' "$prompt" | env -u NVIDIA_NIM_API_KEY ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc DISABLE_AUTOUPDATER=1 \
-            timeout 300 claude -p --permission-mode acceptEdits --allowedTools "Read,Write,Edit,Glob,Grep" --max-turns 12 --output-format stream-json --verbose > "$RUNNER_TEMP/build.jsonl"
+            timeout 300 claude -p --permission-mode acceptEdits --allowedTools "Read,Write,Edit,Glob,Grep" --max-turns 16 --output-format stream-json --verbose > "$RUNNER_TEMP/build.jsonl"
       - name: Run the prewritten acceptance checks
-        if: always() && steps.build.outcome == 'success'
         run: |
           set -euo pipefail
           git show "$GITHUB_SHA:trial/autonomy/acceptance.mjs" > "$RUNNER_TEMP/acceptance.mjs"
@@ -52,7 +52,7 @@ jobs:
           kill "$(cat "$RUNNER_TEMP/adapter.pid")" || true
           sleep 2
           umask 077
-          printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=nvidia_nim/mistralai/mistral-large-4-1t-a52b\nFCC_OPEN_BROWSER=false\n' "$NVIDIA_NIM_API_KEY" > "$HOME/.fcc/.env"
+          printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=nvidia_nim/mistralai/mistral-large-4-1t-a52b\nFCC_OPEN_BROWSER=false\nREASONING_POLICY=low\n' "$NVIDIA_NIM_API_KEY" > "$HOME/.fcc/.env"
           fcc-server > "$RUNNER_TEMP/review-adapter.log" 2>&1 &
           for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8082/v1/models >/dev/null 2>&1 && break; sleep 1; done
           prompt="$(cat org/agents/rex-reviewer.md trial/autonomy/objective.md; printf '\nReview the source below. Do not edit. Give PASS or CHANGES and specific observations about correctness, maintainability and remaining gaps.\n'; cat "$RUNNER_TEMP/evidence/waitlist.mjs")"
@@ -63,6 +63,10 @@ jobs:
         if: always()
         run: |
           mkdir -p "$RUNNER_TEMP/evidence"
+          if [ -s "$RUNNER_TEMP/build.jsonl" ]; then
+            echo "Builder tool calls:"
+            jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") | .name' "$RUNNER_TEMP/build.jsonl" | sort | uniq -c || true
+          fi
           for role in build review; do
             if [ -s "$RUNNER_TEMP/$role.jsonl" ]; then
               jq -c 'select(.type=="result") | {subtype,is_error,num_turns,duration_ms,modelUsage,result}' "$RUNNER_TEMP/$role.jsonl" | tee "$RUNNER_TEMP/evidence/$role.jsonl" || true
