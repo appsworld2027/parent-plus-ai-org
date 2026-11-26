@@ -181,6 +181,8 @@ const run = (cmd, args, opts = {}) => execFileSync(cmd, args, { encoding: "utf8"
 const gh = (...a) => run("gh", a);
 const ghj = (...a) => JSON.parse(gh(...a) || "null");
 const api = (path) => ghj("api", `repos/${REPO}/${path}`);
+const apiItems = (path, query) => gh("api", "--paginate", `repos/${REPO}/${path}`, "--jq", query)
+  .split("\n").filter(Boolean).map((line) => JSON.parse(line));
 const log = (...a) => console.log(...a);
 function act(desc, fn) { log(`${DRY ? "[dry-run] would" : "→"} ${desc}`); if (!DRY) return fn(); }
 const manifest = () => existsSync(".ai-org/manifest.json") ? JSON.parse(readFileSync(".ai-org/manifest.json", "utf8")) : {};
@@ -216,8 +218,8 @@ function gate(branch, sha) {
   if (overall === "fail") return "fail";
   if (!workflow || workflow.status !== "completed") return "pending";
   if (workflow.conclusion !== "success") return "fail";
-  const path = `repos/${REPO}/actions/runs/${workflow.id}/attempts/${workflow.run_attempt}/jobs?per_page=100`;
-  const jobs = ghj("api", "--paginate", "--slurp", path).flatMap((page) => page.jobs);
+  const path = `actions/runs/${workflow.id}/attempts/${workflow.run_attempt}/jobs?per_page=100`;
+  const jobs = apiItems(path, ".jobs[]");
   const required = checksState(jobs, requiredChecks);
   if (required === "missing") return "pending";
   return required === "success" ? overall : required;
@@ -378,7 +380,7 @@ function command() {
       if (pr.baseRefName !== "main") return log(`#${n}: release PR must target main`);
       const reviewerIds = cfg().loop.independentReviewerIds;
       if (reviewerIds !== undefined) {
-        const reviews = ghj("api", "--paginate", "--slurp", `repos/${REPO}/pulls/${n}/reviews?per_page=100`).flat();
+        const reviews = apiItems(`pulls/${n}/reviews?per_page=100`, ".[]");
         if (!hasIndependentApproval(reviews, { head: pr.headRefOid, authorLogin: pr.author?.login, reviewerIds })) {
           return log(`#${n}: waiting for authorized release review on ${pr.headRefOid.slice(0, 7)}`);
         }
