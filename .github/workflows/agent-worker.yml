@@ -31,6 +31,9 @@ on:
 
 jobs:
   agent:
+    # Founder decision 2026-11-26: unattended agents are OFF while the Codex step bypasses approvals and sandbox.
+    # They run only if the calling repo sets the Actions variable UNATTENDED_AGENTS=on.
+    if: vars.UNATTENDED_AGENTS == 'on'
     runs-on: ubuntu-latest
     timeout-minutes: 95
     concurrency:

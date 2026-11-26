@@ -44,6 +44,9 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
 
 ## 2. Autonomy policy (founder decision, valid until 2027-01-20)
 A product repo's own owner rules on branches, merges, releases and data take precedence over this section.
+**Unattended agents are off** (founder decision, 2026-11-26) until the agent worker no longer bypasses approvals and sandbox
+and that fix is reviewed. Live sessions with a founder are unaffected. The switch is the `UNATTENDED_AGENTS` Actions variable;
+turning it on is a founder decision.
 Agents have full authority to act without approval:
 - create branches, issues, PRs; merge their own PRs once checks pass; auto-merge is allowed;
 - deploy Vercel previews and production; run migrations on the dev Supabase project;
