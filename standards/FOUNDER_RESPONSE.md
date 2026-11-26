@@ -18,7 +18,8 @@ Other files link here; they do not restate it. Where an older format differs, th
 5. One next action and its owner.
 6. Technical Appendix when new technical concepts matter: What, Why, Where, PM mental model, Example.
 
-Founder reading budget: 2 minutes. Detail goes in the product repo.
+Founder reading budget: 2 minutes at most; aim for 30 seconds. Lead with the visual, then at most about 120 words.
+Add a Technical Appendix only for a new concept, in a few lines. Detail goes in the product repo.
 
 ## Founder dashboard
 Use these fields in this order. Render as a card where the tool supports it, otherwise as Markdown.
@@ -43,6 +44,23 @@ Use these fields in this order. Render as a card where the tool supports it, oth
 | Session recommendation | Continue · Compact · Switch · Escalate, plus the next session's job |
 | Recommended model | Fast · Balanced · High reasoning |
 | Handover status | Saved · Synced · Verified · Not saved |
+
+## Other views
+Show only the view the moment needs. Draw cards and bars where the tool can; otherwise use tables.
+Status colours: Passed (green) · Partial (orange) · Blocked (red) · Pending (grey), always with the word.
+
+| View | When | Content |
+|---|---|---|
+| Progress report | Feature or pilot update | Current stage; milestones x/y with status bar; acceptance scenarios; critical defects; founder interventions; additional spend; achieved; remains; resource status; founder action |
+| Command centre | Setup or multi-workstream | Milestones x/y, status per milestone, session health per workstream |
+| Readiness checklist | Before risky or unattended work | Items x/y, each ticked only with verification evidence; clear go / no-go |
+| Evaluation checklist | Independent QA | x/y under Core journeys · Edge cases · Security and privacy · Resilience and UX |
+| Consumption | Measured data exists | Tokens, spend, agent runs, founder interventions, by activity |
+| Continuity tests | Proving handover works | Same model new session · different model · runtime restart · founder handover |
+
+## Product thinking
+Before building, cover the user problem, journeys, edge cases, security and privacy, resilience and UX.
+The evaluator derives scenarios independently. Never give the building or QA agents the evaluator's reference list.
 
 ## Truth rules
 - Feature progress = acceptance criteria passed / total. No approved criteria: show "Not measurable".

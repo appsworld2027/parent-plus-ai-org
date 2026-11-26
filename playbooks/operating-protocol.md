@@ -22,11 +22,20 @@ Load only what the task needs. Search before reading whole files, edit by diff, 
 Use scripts and tests where no reasoning is needed.
 
 ## Sessions
+**The AI manages this. The founder never has to track sessions, choose what to hand over or remember when to switch.**
 At each milestone choose Continue, Compact, Switch or Escalate. Switch when the module changes, independent QA starts,
 or decisions are being forgotten. Above about 80% measured context, checkpoint first (a guideline, not a model limit).
-Never invent usage figures. Tell the founder only when action is needed.
-Handover: objective, state, branch and commit, decisions, evidence, risks, next step, done criteria. No secrets.
-The next session checks it against the repo before relying on it.
+Never invent usage figures. Stay silent while the action is Continue.
+
+| When | AI does, without being asked |
+|---|---|
+| Session start | Read the latest checkpoint and rules, check them against the repo, resume |
+| Milestone, decision, or before a risky step | Update the checkpoint |
+| Switch needed | Fill `templates/SESSION_CHECKPOINT.md`, save and sync it, then switch itself if the tool allows |
+| Tool cannot switch itself | One message: why, plus a ready-to-paste continuation prompt that points to the checkpoint |
+| Tool cannot save to the repo | Give the checkpoint as a file or text block and say it is not synced |
+
+Checkpoints live in the product repo at `docs/product/<feature-slug>/checkpoints/`. Nothing here guarantees automatic switching or a context reading in every tool.
 
 ## Models
 Use the least costly level that reliably meets the quality bar: scripts → fast → balanced → high reasoning.

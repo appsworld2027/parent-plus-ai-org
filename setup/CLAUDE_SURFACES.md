@@ -14,5 +14,11 @@
 > playbooks/operating-protocol.md. For ideas, bugs and feedback follow playbooks/ai-pm.md.
 > If you cannot read these files, say so instead of guessing. If you cannot save, give a short handover.
 
+## Once per account: the operating skill
+Save the `anuman-operating-system` skill and add this line to Instructions for Claude:
+> Use my anuman-operating-system skill for all product and project work. Manage sessions and handovers yourself.
+
+The skill is a short runtime copy of the standards here; these files win. Update both together.
+
 ## New product
 Add the same pointer to its `CLAUDE.md` / `AGENTS.md`, and keep only product-specific rules there.
