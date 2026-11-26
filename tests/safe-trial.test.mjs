@@ -161,7 +161,12 @@ test("gate forwards model calls only", () => {
   for (const [m, u] of [["GET", "/admin"], ["GET", "/v1/../admin"], ["POST", "/admin?x=/v1/messages"], ["DELETE", "/v1/messages"]]) assert.equal(allowed(m, u), false, u);
 });
 
-test("hourly resume is paused by policy", () => assert.match(read(".github/workflows/agent-resume.yml"), /\n    if: \$\{\{ false \}\}\n/));
+test("hourly resume is enabled for free-only agents with an explicit emergency stop", () => {
+  const resume = read(".github/workflows/agent-resume.yml");
+  assert.match(resume, /if: vars\.UNATTENDED_AGENTS != 'off'/);
+  assert.match(resume, /GROQ_API_KEY/);
+  assert.doesNotMatch(resume, /CLAUDE_CODE_OAUTH_TOKEN|CODEX_AUTH_JSON|NVIDIA_NIM_API_KEY/);
+});
 
 test("engine commands run with a clean environment, never inheriting runner settings", () => {
   assert.doesNotMatch(read("scripts/safe-trial/engine.sh"), /sudo -u trialproxy/);
