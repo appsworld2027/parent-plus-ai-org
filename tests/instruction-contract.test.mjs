@@ -75,6 +75,10 @@ test("reusable agent workflows enforce free-only Groq execution", () => {
   assert.ok(worker.includes('uv tool install "free-claude-code==6.19.56"'));
   assert.ok(worker.includes("MODEL=%s"));
   assert.ok(worker.includes("Groq free-model tool-call preflight: PASS"));
+  assert.ok(worker.includes("--max 12000"));
+  assert.ok(worker.includes("--system-prompt-file /tmp/agent-system.md"));
+  assert.ok(worker.includes('--tools "$TOOLS"'));
+  assert.ok(worker.includes("--max-turns 60"));
   assert.ok(worker.includes("groq-probe-retryable"));
   assert.ok(worker.includes('MARKER="ai-org:paused"'));
   const resume = read(".github/workflows/agent-resume.yml");
