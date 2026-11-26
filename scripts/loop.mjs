@@ -73,6 +73,16 @@ export function latestVerdict(comments, agent, since) {
   if (/Verdict:\s*\**\s*(APPROVE|PASS)/i.test(head)) return "approve";
   return null;
 }
+// GitHub supplies the account ID. The comment binds that account's verdict to a reviewed revision.
+export function verdictEvidence(comments, policy, role, sha, excludedIds = []) {
+  const id = policy?.[role];
+  if (!Number.isSafeInteger(id) || id <= 0 || excludedIds.includes(id) ||
+      Object.values(policy).filter((value) => value === id).length !== 1 ||
+      !/^[a-f0-9]{40}$/.test(sha)) return [];
+  const marker = `<!-- ai-org:reviewed-commit ${sha} -->`;
+  return comments.filter((comment) => comment.user?.id === id &&
+    comment.body?.split(/\r?\n/).some((line) => line.trim() === marker));
+}
 export function hasIndependentApproval(reviews, { head, authorLogin, reviewerIds }) {
   if (!head || !authorLogin || !Array.isArray(reviewerIds) || !reviewerIds.length) return false;
   const approvals = new Map();
@@ -202,6 +212,11 @@ function newIssue(title, body, lbl) {
 }
 const labelsOf = (x) => (x.labels || []).map((l) => l.name || l);
 const openPRs = () => ghj("pr", "list", "--repo", REPO, "--state", "open", "--limit", "100", "--json", "number,title,baseRefName,headRefName,headRefOid,labels,body,url");
+function prAuthorId(number) {
+  const id = api(`pulls/${number}`)?.user?.id;
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error("PR author ID unavailable");
+  return id;
+}
 const headDate = (sha) => api(`commits/${sha}`).commit.committer.date;
 function checkRuns(sha) { return (api(`commits/${sha}/check-runs?per_page=100`)?.check_runs || []).map((r) => ({ name: r.name, status: r.status, conclusion: r.conclusion, app: r.app?.slug })); }
 function ensureChecks(branch, sha) {
@@ -247,11 +262,14 @@ const referencedIssues = (body = "") => [...new Set([...body.matchAll(/#(\d+)/g)
 function advanceBuildPR(pr) {
   const L = labelsOf(pr), slug = slugOfBranch(pr.baseRefName);
   if (!slug || L.some((l) => INNER.includes(l))) return log(`#${pr.number}: inner loop still running (${L.join(",") || "no label"})`);
-  const all = [...comments(pr.number), ...referencedIssues(pr.body).flatMap((n) => { try { return comments(n); } catch { return []; } })];
-  if (failRounds(all) >= cfg().loop.maxFixRounds && !all.some((c) => (c.body || "").includes(MARK.blocked))) {
+  const prComments = comments(pr.number);
+  const all = [...prComments, ...referencedIssues(pr.body).flatMap((n) => { try { return comments(n); } catch { return []; } })];
+  const policy = cfg().loop.aiVerdictReviewerIds;
+  const eligible = policy === undefined ? all : verdictEvidence(prComments, policy, "rex", pr.headRefOid, [prAuthorId(pr.number)]);
+  if (failRounds(policy === undefined ? all : eligible) >= cfg().loop.maxFixRounds && !all.some((c) => (c.body || "").includes(MARK.blocked))) {
     label(pr.number, ["ai:blocked"]); return comment(pr.number, `<!-- ${MARK.blocked} -->\n**[Kiran — Project Manager]** ${cfg().loop.maxFixRounds}+ fix rounds without approval. Paused for Arjun/founder: reply \`/changes <direction>\` or \`/stop\`.`);
   }
-  const verdict = latestVerdict(all, "Rex", headDate(pr.headRefOid));
+  const verdict = latestVerdict(eligible, "Rex", headDate(pr.headRefOid));
   if (verdict !== "approve") return log(`#${pr.number}: waiting for Rex on ${pr.headRefOid.slice(0, 7)}`);
   const g = gate(pr.headRefName, pr.headRefOid);
   if (g === "pending") return log(`#${pr.number}: checks pending`);
@@ -306,21 +324,26 @@ function advanceContract(pr) {
     const issue = referencedIssues(pr.body)[0];
     const fixes = prComments.filter((c) => (c.body || "").includes(MARK.qaFix));
     const fixRounds = fixes.length, since = fixes.at(-1)?.created_at || "";
+    const policy = cfg().loop.aiVerdictReviewerIds;
+    const excludedIds = policy === undefined ? [] : [prAuthorId(pr.number)];
+    const evidenceFor = (role) => policy === undefined ? prComments :
+      verdictEvidence(prComments, policy, role, pr.headRefOid, excludedIds);
     const v = {
-      challenger: latestVerdict(prComments, "Quinn — QA Specialist, challenger", ""),
-      signoff: latestVerdict(prComments, "Arjun", since),
+      challenger: latestVerdict(evidenceFor("challenger"), "Quinn — QA Specialist, challenger", ""),
+      signoff: latestVerdict(evidenceFor("signoff"), "Arjun", since),
     };
     const step = qaChainStep({ raci, verdicts: v, fixRounds });
     const busy = issue ? labelsOf(api(`issues/${issue}`)).find((l) => ["ai:tests", "ai:tests-review", "ai:tests-signoff", "ai:blocked"].includes(l)) : null;
     if (busy) return log(`#${pr.number}: ${busy} on #${issue}`);
-    const asked = (kind) => prComments.filter((c) => (c.body || "").includes(`${MARK.qaReq} ${kind}`) && (c.created_at || "") > since).length;
+    const requestMarker = (kind) => `<!-- ${MARK.qaReq} ${kind}${policy === undefined ? "" : ` ${pr.headRefOid}`} -->`;
+    const asked = (kind) => prComments.some((c) => (c.body || "").includes(requestMarker(kind)) && (c.created_at || "") > since);
     if ((step === "challenge" && asked("challenge")) || (step === "signoff" && asked("signoff"))) {
       if (issue) label(issue, ["ai:blocked"]);
       return comment(pr.number, `**[Kiran — Project Manager]** The ${step === "challenge" ? "challenger" : "CPTO"} run finished without a \`Verdict:\` line. Paused (\`ai:blocked\`) so the chain does not loop.`);
     }
-    if (step === "challenge") { comment(pr.number, `<!-- ${MARK.qaReq} challenge -->\n**[Kiran — Project Manager]** Gate passed. Quinn (challenger, ${raci.models?.challenger || "second model"}) now reviews these tests on #${issue}.`); label(issue, ["ai:tests-review"]); return wake(issue); }
+    if (step === "challenge") { comment(pr.number, `${requestMarker("challenge")}\n**[Kiran — Project Manager]** Gate passed. Quinn (challenger, ${raci.models?.challenger || "second model"}) now reviews these tests on #${issue}.`); label(issue, ["ai:tests-review"]); return wake(issue); }
     if (step === "fix") { comment(pr.number, `<!-- ${MARK.qaFix} ${pr.headRefOid} -->\n**[Kiran — Project Manager]** Review asked for changes. Back to Quinn (author) on #${issue} for one fix round.`); label(issue, ["ai:tests"]); return wake(issue); }
-    if (step === "signoff") { comment(pr.number, `<!-- ${MARK.qaReq} signoff -->\n**[Kiran — Project Manager]** Review complete. Arjun (AI CPTO) signs off on #${issue}.`); label(issue, ["ai:tests-signoff"]); return wake(issue); }
+    if (step === "signoff") { comment(pr.number, `${requestMarker("signoff")}\n**[Kiran — Project Manager]** Review complete. Arjun (AI CPTO) signs off on #${issue}.`); label(issue, ["ai:tests-signoff"]); return wake(issue); }
     if (step === "block") { label(issue, ["ai:blocked"]); return comment(pr.number, "**[Kiran — Project Manager]** Sign-off still asks for changes after the fix round. Paused for the founder (`ai:blocked`)."); }
     if (step === "wait") return log(`#${pr.number}: waiting for QA verdicts`);
   }

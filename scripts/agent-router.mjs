@@ -156,6 +156,9 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "" }) {
     `5. Move the stage label as your role file says (\`${cli} edit ${number} --add-label … --remove-label …\`).`,
     `6. Never print secrets. Never contact the founder except through ai:founder-decision or ai:founder-test issues.`,
     "", onboardingRules(number),
+    ...(["ai:review", "ai:tests-review", "ai:tests-signoff"].includes(stage) ? [
+      "If the product manifest configures loop.aiVerdictReviewerIds, use the assigned review account. Post the verdict directly on the reviewed PR after pushing your handover. Include a standalone HTML comment in the form <!-- ai-org:reviewed-commit SHA --> using the full SHA you actually reviewed. Confirm it is still the PR head before posting.",
+    ] : []),
     ...(stage === "ai:tests" ? ["", testsBrief(number)] : []),
     ...(stage === "ai:tests-review" ? ["", challengeBrief(number)] : []),
     ...(stage === "ai:tests-signoff" ? ["", signoffBrief(number)] : []),

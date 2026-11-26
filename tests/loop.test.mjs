@@ -1,7 +1,7 @@
 // Tests for scripts/loop.mjs pure logic (AI Org outer loop). Run: node --test tests/loop.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseCommand, isFounder, latestVerdict, hasIndependentApproval, failRounds, checksState, latestRequiredWorkflow, parseAcceptance, nextBacklogItem, slugOfBranch, demoPack, contractState, gateDecision, qaChainStep, gateStatusSince, buildIssueBody, fixIssueBody, discoveryIssueBody, MARK } from "../scripts/loop.mjs";
+import { parseCommand, isFounder, latestVerdict, verdictEvidence, hasIndependentApproval, failRounds, checksState, latestRequiredWorkflow, parseAcceptance, nextBacklogItem, slugOfBranch, demoPack, contractState, gateDecision, qaChainStep, gateStatusSince, buildIssueBody, fixIssueBody, discoveryIssueBody, MARK } from "../scripts/loop.mjs";
 
 test("parseCommand reads the first non-empty line only", () => {
   assert.deepEqual(parseCommand("/approve"), { cmd: "approve", text: "" });
@@ -140,4 +140,16 @@ test("required CI selects only the latest run of the configured workflow for the
   ];
   assert.equal(latestRequiredWorkflow(otherRuns, "checks.yml", "feature", "head"), undefined);
   assert.equal(latestRequiredWorkflow([latest, ...otherRuns, expected], "checks.yml", "feature", "head"), latest);
+});
+
+test("configured AI verdict evidence requires the assigned account and reviewed commit", () => {
+  const sha = "a".repeat(40);
+  const policy = { rex: 12, challenger: 13, signoff: 14 };
+  const review = { user: { id: 12 }, body: `[Rex] Verdict: APPROVE\n<!-- ai-org:reviewed-commit ${sha} -->` };
+  assert.deepEqual(verdictEvidence([review], policy, "rex", sha), [review]);
+  assert.deepEqual(verdictEvidence([{ ...review, user: { id: 13 } }], policy, "rex", sha), []);
+  assert.deepEqual(verdictEvidence([review], policy, "rex", "b".repeat(40)), []);
+  assert.deepEqual(verdictEvidence([review], { ...policy, challenger: 12 }, "rex", sha), []);
+  assert.deepEqual(verdictEvidence([review], policy, "rex", sha, [12]), []);
+  assert.deepEqual(verdictEvidence([review], {}, "rex", sha), []);
 });
