@@ -112,3 +112,8 @@ test("gate forwards model calls only", () => {
 });
 
 test("hourly resume is paused by policy", () => assert.match(read(".github/workflows/agent-resume.yml"), /\n    if: \$\{\{ false \}\}\n/));
+
+test("engine commands run with a clean environment, never inheriting runner settings", () => {
+  assert.doesNotMatch(read("scripts/safe-trial/engine.sh"), /sudo -u trialproxy/);
+  assert.match(read("scripts/safe-trial/lib.sh"), /as_proxy\(\) \{ sudo -u trialproxy env -i HOME=\/home\/trialproxy /);
+});
