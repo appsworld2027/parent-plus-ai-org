@@ -1,10 +1,7 @@
-Patch the exact candidate below, SHA-256 c56efa7d798951da4e20f880192d44ed64b18605a7d72d3ece47d787c26c8315.
+Patch the exact candidate below, SHA-256 a41732f6d1efc1cdb30b507ea215b160e0f31dcf1d8c738fe02d2305f8889bcb.
+Use the candidate bytes and the actual AC-06 failure as the starting state. The failure showed two previous-child cards during loading, where zero were expected.
 
-Run 45804492343 passed all nine locked browser checks. Rex found that renderFeedback uses a display string such as "22 Nov 2026" as the HTML time element's dateTime value. Keep the visible date exactly the same, and make dateTime a valid calendar date such as "2026-11-22". Use deterministic conversion of the fixed English date format. Preserve all behavior including the previous-child loading fix.
-
-Write waitlist.mjs as plain text. The first line must be exactly ===BEFORE===, followed by a short unique verbatim source snippet, retaining its indentation. Then write a line exactly ===AFTER===, followed by its minimal JavaScript replacement, retaining indentation. End with a line exactly ===END===. Do not escape quotes, add Markdown fences, or emit the full document. The runner applies just this replacement to the verified base.
-
-Candidate:
+=== EXACT CANDIDATE (do not change anything except the minimal fix) ===
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -433,7 +430,6 @@ Candidate:
         isLoading = true;
         setStatus(COPY.loading, 'loading');
         showRetry(false);
-        clearFeedback();
 
         try {
           // Check online state
@@ -572,3 +568,40 @@ Candidate:
   </script>
 </body>
 </html>
+=== END CANDIDATE ===
+
+=== AC-06 FAILURE EVIDENCE (from run 45803763122) ===
+not ok 6 - AC-06 clears previous feedback during loading
+  ---
+  duration_ms: 186.320906
+  type: 'test'
+  location: 'feedback.mjs:37:3'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly equal:
+    
+    2 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 2
+  operator: 'strictEqual'
+  stack: |-
+    file:///home/runner/work/parent-plus-ai-org/parent-plus-ai-org/trial/autonomy/parent-feedback-preview/tests/acceptance/feedback.mjs:96:10
+    async TestContext.<anonymous> (file:///home/runner/work/parent-plus-ai-org/parent-plus-ai-org/trial/autonomy/parent-feedback-preview/tests/acceptance/feedback.mjs:44:7)
+    async Test.run (node:internal/test_runner/test:1054:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:744:7)
+  ...
+
+Test AC-06 does:
+1. Start with Alex (2 notes visible)
+2. Switch scenario to "slow"
+3. Switch child to Jamie
+4. Wait for "Loading feedback" text
+5. Assert cards(page).count() === 0  ← THIS FAILED: got 2 (Alex's cards still showing)
+6. Wait for Jamie's note to appear
+
+The bug: when switching to "slow" scenario then changing child, the code keeps showing the previous child's cards during loading instead of clearing them immediately.
+
+Write waitlist.mjs as plain text. The first line must be exactly ===BEFORE===, followed by a short unique verbatim source snippet, retaining its indentation. Then write a line exactly ===AFTER===, followed by its minimal JavaScript replacement, retaining indentation. End with a line exactly ===END===. Do not escape quotes, add Markdown fences, or emit the full document. The runner applies just this replacement to the verified base.
