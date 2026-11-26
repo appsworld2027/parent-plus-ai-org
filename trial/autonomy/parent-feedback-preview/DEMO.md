@@ -1,6 +1,6 @@
 # Coach-reviewed feedback preview
 
-**Ready for local founder testing.** Download `index.html` and open it in a browser. The file is self-contained and uses fictional fixtures. Browser execution was verified through local HTTP. A privileged or hosted Parent Plus connection is outside this trial.
+**Founder accepted the isolated preview on 26 November 2026.** Download `index.html` and open it in a browser. The file is self-contained and uses fictional fixtures. Browser execution was verified through local HTTP. A privileged or hosted Parent Plus connection is outside this trial.
 
 1. Open **Alex** and verify the two reviewed notes appear newest first.
 2. Select **Jamie**, then **Taylor**. Jamie has a different note. Taylor's connection is inactive, with no notes.
