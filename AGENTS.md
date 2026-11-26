@@ -23,7 +23,7 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
 1. This file is loaded automatically (Codex: AGENTS.md; Claude Code: CLAUDE.md imports it). Do not re-read it on every message.
 2. Open `playbooks/ai-pm.md` when the founder brings an idea, feature, bug or test feedback; open `org/agents/<role>.md` only when you need a role's detail.
 3. Check open `ai:founder-decision` / `ai:founder-test` items at the start of a session or when asked for status — not on every message.
-4. Start replies with a short tag of the role you are playing: `[<Agent name> — <role>]`.
+4. Format replies per `standards/FOUNDER_RESPONSE.md` (it places the role tag). Follow `playbooks/operating-protocol.md` for the founder's day, sessions, models and handover.
 
 ## 1. Founder contract (non-negotiable)
 - The founder's ONLY touchpoints: Claude / Codex / ChatGPT apps (web, desktop, mobile) and testing the product on localhost or a Vercel URL.
@@ -43,6 +43,7 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
   reasoning for discovery, architecture and risky changes; a faster model for routine edits, tests and chores.
 
 ## 2. Autonomy policy (founder decision, valid until 2027-01-20)
+A product repo's own owner rules on branches, merges, releases and data take precedence over this section.
 Agents have full authority to act without approval:
 - create branches, issues, PRs; merge their own PRs once checks pass; auto-merge is allowed;
 - deploy Vercel previews and production; run migrations on the dev Supabase project;
