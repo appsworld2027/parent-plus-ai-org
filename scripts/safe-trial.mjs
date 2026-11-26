@@ -9,7 +9,7 @@ function isMain(url) { try { return !!process.argv[1] && realpathSync(process.ar
 export const TRIAL = {
   slug: "needs-you-fees-overdue",
   base: "aaea570c5ae8574fff818f67176f7ebf06645e15", // Parent Plus commit before the feature or its tests existed
-  spec: "trial/controls/needs-you-fees-overdue.reviewed.spec.ts.txt",
+  spec: "trial/controls/needs-you-fees-overdue.v2.spec.ts.txt",
   acceptanceCount: 18,
   builder: FREE_MODELS.builder,
   reviewer: FREE_MODELS.reviewer,
@@ -56,12 +56,15 @@ export function verdict({ problems, checkExit, acceptance, before, after }) {
   const passed = acc.filter((s) => s === "expected").length;
   if (passed !== TRIAL.acceptanceCount || acc.length !== TRIAL.acceptanceCount) reasons.push(`acceptance tests: ${passed}/${TRIAL.acceptanceCount} passed`);
   if (!Object.keys(before).length) reasons.push("no baseline browser results to compare with");
-  const broken = Object.keys(before).filter((k) => before[k] === "expected" && after[k] !== "expected");
+  const ok = (v) => v === "expected" || v === "flaky"; // the full run retries once on both sides
+  const broken = Object.keys(before).filter((k) => ok(before[k]) && !ok(after[k]));
   if (broken.length) reasons.push(`${broken.length} browser tests that passed before now fail or did not run`);
-  return { result: reasons.length ? "FAIL" : "PASS", passed, broken, reasons };
+  // A pass is provisional: model-written code runs inside the test process, so a person or reviewer must read the diff.
+  return { result: reasons.length ? "FAIL" : "PROVISIONAL PASS", passed, broken, reasons };
 }
 
-export const reviewVerdict = (text) => (String(text).match(/^VERDICT: (APPROVE|CHANGES)\s*$/m) || [])[1] || "NO VERDICT";
+// Only the last non-empty line counts.
+export const reviewVerdict = (text) => (String(text).trim().split("\n").pop().trim().match(/^`?VERDICT: (APPROVE|CHANGES)`?$/) || [])[1] || "NO VERDICT";
 
 const OFFLINE = "This is a supervised, offline EVALUATION trial on made-up test data. There is no GitHub access. Do not push, open pull requests or use labels. Your work is graded and then discarded; it is never shipped.";
 export function builderPrompt() {

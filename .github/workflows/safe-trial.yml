@@ -3,7 +3,9 @@
 #  - read-only token, no Parent Plus credentials, nothing is pushed; the model's code stays in a run artifact;
 #  - Parent Plus public code at one fixed commit, made-up test data, placeholder database address;
 #  - free NVIDIA models only (NVIDIA trial terms: evaluation, not production);
-#  - graded on a fresh machine without any secret. Rules: scripts/safe-trial.mjs.
+#  - the model and all model-written code run as a user with no sudo and no internet; another user holds the key;
+#  - graded on a fresh machine without any secret. A pass is provisional until the diff is read.
+# Rules: scripts/safe-trial.mjs and scripts/safe-trial/.
 name: Safe trial (build and review)
 
 on:
@@ -23,57 +25,47 @@ concurrency:
 
 jobs:
   baseline:
-    if: inputs.confirm == 'EVALUATION ONLY' && github.ref == 'refs/heads/main' && github.actor == github.repository_owner
+    if: >-
+      inputs.confirm == 'EVALUATION ONLY' && github.ref == 'refs/heads/main' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 75
     steps:
       - &handbook
         uses: actions/checkout@v5
         with:
           path: handbook
           persist-credentials: false
-      - uses: actions/setup-node@v5
+      - &node
+        uses: actions/setup-node@v5
         with:
           node-version: 22
       - &workspace
         name: Prepare the same starting workspace
+        run: bash handbook/scripts/safe-trial/prepare.sh handbook
+      - &install
+        name: Install product dependencies and the browser, then isolate
         run: |
           set -euo pipefail
-          eval "$(node handbook/scripts/safe-trial.mjs env | sed -E 's/^([A-Z_]+)=(.*)$/export \1="\2"/')"
-          git init -q product && cd product
-          git fetch -q --depth 1 https://github.com/appsworld2027/Parent-plus-.git "$TRIAL_BASE"
-          git checkout -q FETCH_HEAD
-          rm -rf $TRIAL_STRIP
-          find founders -mindepth 1 -maxdepth 1 ! -name prototypes -exec rm -rf {} +
-          printf '{\n  "supabaseUrl": "https://example.supabase.co",\n  "supabasePublishableKey": "sb_publishable_example_public_test_key"\n}\n' > config/public-client.json
-          cp "../handbook/$TRIAL_SPEC" "e2e/acceptance/$TRIAL_SLUG.spec.ts"
-          printf '.ai-org-handbook/\n.trial/\n' >> .git/info/exclude
-          git config user.name "Safe trial"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A && git commit -qm "trial baseline"
-          mkdir -p .trial && cp -r ../handbook .ai-org-handbook && rm -rf .ai-org-handbook/.git .ai-org-handbook/trial
-          echo "TRIAL_SLUG=$TRIAL_SLUG" >> "$GITHUB_ENV"
-          echo "TRIAL_BUILDER=$TRIAL_BUILDER" >> "$GITHUB_ENV"
-          echo "TRIAL_REVIEWER=$TRIAL_REVIEWER" >> "$GITHUB_ENV"
-          echo "BASE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-      - &install
-        name: Install product dependencies and the browser
-        working-directory: product
-        run: npm ci --no-audit --no-fund && npx playwright install --with-deps chromium
-      - name: Baseline must be healthy, and the new tests must fail before the build
-        working-directory: product
+          cd /srv/trial/product
+          npm ci --no-audit --no-fund
+          PLAYWRIGHT_BROWSERS_PATH=/srv/trial/browsers npx playwright install --with-deps chromium
+          chmod -R a+rX /srv/trial/browsers
+          bash /srv/trial/judge/scripts/safe-trial/isolate.sh
+      - name: Baseline must be healthy, and the new tests must fail before the build (no model involved)
         run: |
           set -uo pipefail
-          mkdir -p /tmp/out
-          npm run check || { echo "::error::Baseline type check or unit tests fail. No model is run."; exit 1; }
-          npx playwright test --reporter=json --timeout=30000 --workers=2 > /tmp/out/before.json || true
-          npx playwright test "e2e/acceptance/$TRIAL_SLUG.spec.ts" --reporter=json --timeout=20000 --workers=2 > /tmp/out/acc-before.json || true
-          jq -e '.stats.expected > 0' /tmp/out/before.json >/dev/null || { echo "::error::No browser test passed on the baseline."; exit 1; }
-          jq -e '.stats.unexpected > 0' /tmp/out/acc-before.json >/dev/null || { echo "::error::Acceptance tests do not fail before the build."; exit 1; }
-          echo "baseline: $(jq -c .stats /tmp/out/before.json)"; echo "acceptance before: $(jq -c .stats /tmp/out/acc-before.json)"
+          . /srv/trial/judge/scripts/safe-trial/lib.sh
+          lock_workspace
+          bash /srv/trial/judge/scripts/safe-trial/run-tests.sh /srv/trial/out
+          [ "$(cat /srv/trial/out/check.exit)" = 0 ] || { echo "::error::Baseline type check or unit tests fail. No model is run."; exit 1; }
+          jq -e '.stats.expected > 0' /srv/trial/out/all.json >/dev/null || { echo "::error::No browser test passed on the baseline."; exit 1; }
+          jq -e '.stats.unexpected > 0' /srv/trial/out/acceptance.json >/dev/null || { echo "::error::Acceptance tests do not fail before the build."; exit 1; }
+          echo "baseline: $(jq -c .stats /srv/trial/out/all.json)"; echo "acceptance before: $(jq -c .stats /srv/trial/out/acceptance.json)"
       - uses: actions/upload-artifact@v4
         with:
           name: baseline
-          path: /tmp/out/
+          path: /srv/trial/out/
           retention-days: 14
 
   build:
@@ -82,63 +74,40 @@ jobs:
     timeout-minutes: 90
     steps:
       - *handbook
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
+      - *node
       - *workspace
       - *install
-      - &engine
-        name: Install the free engine
-        run: |
-          set -euo pipefail
-          curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null
-          "$HOME/.local/bin/uv" tool install free-claude-code >/dev/null
-          npm install -g @anthropic-ai/claude-code >/dev/null
-      - name: Build with the free builder model
-        working-directory: product
+      - name: Start the free engine (separate user holds the key)
         env:
           NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
-          EXPO_PUBLIC_SUPABASE_URL: https://example.supabase.co
-          EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_example_public_test_key
+        run: bash /srv/trial/judge/scripts/safe-trial/engine.sh "$TRIAL_BUILDER"
+      - name: Build with the free builder model (no secret in this step)
         run: |
-          set -uo pipefail
-          export PATH="$HOME/.local/bin:$PATH"
-          [ -n "$NVIDIA_NIM_API_KEY" ] || { echo "::error::NVIDIA_NIM_API_KEY is not set."; exit 1; }
-          case "$TRIAL_BUILDER" in nvidia_nim/*) ;; *) echo "::error::not a free NVIDIA model"; exit 1;; esac
-          mkdir -p /tmp/out "$HOME/.fcc" "$HOME/.claude"
-          printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$NVIDIA_NIM_API_KEY" "$TRIAL_BUILDER" > "$HOME/.fcc/.env"
-          chmod 600 "$HOME/.fcc/.env"
-          echo '{"includeCoAuthoredBy": false}' > "$HOME/.claude/settings.json"
-          nohup fcc-server > /tmp/fcc.log 2>&1 &
-          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8082/v1/models && break; sleep 1; done
-          node .ai-org-handbook/scripts/safe-trial.mjs builder-prompt > /tmp/prompt.txt
-          start=$(date +%s)
-          env -u NVIDIA_NIM_API_KEY ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
-            timeout 3600 claude -p "$(cat /tmp/prompt.txt)" --allowedTools "Bash,Read,Edit,Write,Glob,Grep" --max-turns 150 \
-            --output-format stream-json --verbose > /tmp/out/builder.jsonl 2> /tmp/out/builder.stderr
-          echo "builder model=$TRIAL_BUILDER exit=$? seconds=$(( $(date +%s) - start ))" | tee /tmp/out/builder-run.txt
-          git add -A
-          git diff --cached --binary --no-renames "$BASE_SHA" > /tmp/out/change.patch
-          git diff --cached --raw --no-renames "$BASE_SHA" > /tmp/out/change.raw
-          git diff --cached --stat "$BASE_SHA" | tail -20
-          # The agent has a shell, so never publish anything that contains the key.
-          if grep -rqF -- "$NVIDIA_NIM_API_KEY" /tmp/out; then rm -rf /tmp/out; echo "::error::The API key appeared in the output. Evidence deleted."; exit 1; fi
-          if grep -rqE 'nvapi-[A-Za-z0-9_-]{20,}' /tmp/out; then rm -rf /tmp/out; echo "::error::A key-like value appeared in the output. Evidence deleted."; exit 1; fi
+          . /srv/trial/judge/scripts/safe-trial/lib.sh
+          lock_workspace
+          bash /srv/trial/judge/scripts/safe-trial/agent.sh builder "$TRIAL_BUILDER" /srv/trial/judge/builder-prompt.txt 3600 150 \
+            --allowedTools "Bash,Read,Edit,Write,Glob,Grep"
+          bash /srv/trial/judge/scripts/safe-trial/collect.sh
+      - name: Scan the output before upload
+        id: scan
+        if: always()
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: bash /srv/trial/judge/scripts/safe-trial/scan.sh /srv/trial/out
       - uses: actions/upload-artifact@v4
+        if: always() && steps.scan.outcome == 'success'
         with:
           name: build
-          path: /tmp/out/
+          path: /srv/trial/out/
           retention-days: 14
 
   grade:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 75
     steps:
       - *handbook
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
+      - *node
       - *workspace
       - &getbuild
         uses: actions/download-artifact@v4
@@ -151,30 +120,13 @@ jobs:
           path: in/baseline
       - *install
       - name: Grade on a clean machine with no secrets
-        working-directory: product
         run: |
-          set -uo pipefail
-          mkdir -p /tmp/out; IN="$GITHUB_WORKSPACE/in"
-          # The grader and its inputs are copied out of reach before any model-written code runs.
-          cp -r "$GITHUB_WORKSPACE/handbook/scripts" /tmp/grader
-          cp "$IN/build/change.raw" "$IN/baseline/before.json" /tmp/
-          check=1; : > /tmp/acc.json; : > /tmp/after.json
-          if node /tmp/grader/safe-trial.mjs guard /tmp/change.raw && git apply --index "$IN/build/change.patch"; then
-            # Re-read the paths from what was really applied, not from the build machine's list.
-            git diff --cached --raw --no-renames "$BASE_SHA" > /tmp/change.raw
-            if node /tmp/grader/safe-trial.mjs guard /tmp/change.raw; then
-              npm run check; check=$?
-              npx playwright test "e2e/acceptance/$TRIAL_SLUG.spec.ts" --reporter=json --timeout=20000 --workers=2 > /tmp/acc.json || true
-              npx playwright test --reporter=json --timeout=30000 --workers=2 > /tmp/after.json || true
-            fi
-          fi
-          node /tmp/grader/safe-trial.mjs verdict /tmp/change.raw "$check" /tmp/acc.json /tmp/before.json /tmp/after.json /tmp/out/grade.txt
-          cp /tmp/acc.json /tmp/after.json /tmp/out/
-          cat /tmp/out/grade.txt >> "$GITHUB_STEP_SUMMARY"
+          bash /srv/trial/judge/scripts/safe-trial/grade.sh in/build/change.patch in/baseline
+          cat /srv/trial/out/grade.txt >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v4
         with:
           name: grade
-          path: /tmp/out/
+          path: /srv/trial/out/
           retention-days: 14
 
   review:
@@ -183,43 +135,53 @@ jobs:
     timeout-minutes: 45
     steps:
       - *handbook
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 22
+      - *node
       - *workspace
       - *getbuild
       - uses: actions/download-artifact@v4
         with:
           name: grade
           path: in/grade
-      - *engine
-      - name: Review with the free reviewer model (read-only tools, nothing is executed)
-        working-directory: product
+      - name: Apply and re-check the change before any engine or key
+        id: apply
+        run: |
+          set -euo pipefail
+          if bash /srv/trial/judge/scripts/safe-trial/apply.sh "$PWD/in/build/change.patch"; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            cp in/build/change.patch /srv/trial/product/.trial/change.patch
+            node /srv/trial/judge/scripts/safe-trial.mjs reviewer-prompt in/grade/grade.txt > /srv/trial/judge/reviewer-prompt.txt
+          else
+            mkdir -p /srv/trial/out; echo "NO REVIEW: the change was refused or empty" | tee /srv/trial/out/review.txt
+          fi
+          # Read-only review: the product's build hook and local agent settings do not belong in this workspace.
+          rm -rf /srv/trial/product/.claude
+      - name: Isolate
+        if: steps.apply.outputs.ok == 'true'
+        run: bash /srv/trial/judge/scripts/safe-trial/isolate.sh
+      - name: Start the free engine (separate user holds the key)
+        if: steps.apply.outputs.ok == 'true'
         env:
           NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: bash /srv/trial/judge/scripts/safe-trial/engine.sh "$TRIAL_REVIEWER"
+      - name: Review with the free reviewer model (read-only tools, no secret in this step)
+        if: steps.apply.outputs.ok == 'true'
         run: |
-          set -uo pipefail
-          export PATH="$HOME/.local/bin:$PATH"
-          case "$TRIAL_REVIEWER" in nvidia_nim/*) ;; *) echo "::error::not a free NVIDIA model"; exit 1;; esac
-          mkdir -p /tmp/out "$HOME/.fcc"
-          cp "$GITHUB_WORKSPACE/in/build/change.patch" .trial/change.patch
-          node .ai-org-handbook/scripts/safe-trial.mjs guard "$GITHUB_WORKSPACE/in/build/change.raw" && git apply .trial/change.patch || { echo "NO REVIEW: the change was refused or empty" | tee /tmp/out/review.txt; exit 0; }
-          node .ai-org-handbook/scripts/safe-trial.mjs reviewer-prompt "$GITHUB_WORKSPACE/in/grade/grade.txt" > /tmp/prompt.txt
-          printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$NVIDIA_NIM_API_KEY" "$TRIAL_REVIEWER" > "$HOME/.fcc/.env"
-          chmod 600 "$HOME/.fcc/.env"
-          nohup fcc-server > /tmp/fcc.log 2>&1 &
-          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8082/v1/models && break; sleep 1; done
-          env -u NVIDIA_NIM_API_KEY ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
-            timeout 1800 claude -p "$(cat /tmp/prompt.txt)" --allowedTools "Read,Glob,Grep" \
-            --disallowedTools "Bash,Edit,Write,WebFetch,WebSearch,Read(~/.fcc/**),Read(//proc/**)" --max-turns 60 \
-            --output-format stream-json --verbose > /tmp/out/reviewer.jsonl 2> /tmp/out/reviewer.stderr
-          echo "reviewer model=$TRIAL_REVIEWER exit=$?" | tee /tmp/out/reviewer-run.txt
-          jq -r 'select(.type=="result") | .result // ""' /tmp/out/reviewer.jsonl | tail -c 6000 > /tmp/out/review.txt
-          if grep -rqF -- "$NVIDIA_NIM_API_KEY" /tmp/out || grep -rqE 'nvapi-[A-Za-z0-9_-]{20,}' /tmp/out; then rm -rf /tmp/out; echo "::error::A key appeared in the output. Evidence deleted."; exit 1; fi
+          . /srv/trial/judge/scripts/safe-trial/lib.sh
+          sudo chown -R root:root /srv/trial/product; sudo chmod -R a+rX,go-w /srv/trial/product
+          bash /srv/trial/judge/scripts/safe-trial/agent.sh reviewer "$TRIAL_REVIEWER" /srv/trial/judge/reviewer-prompt.txt 1800 60 \
+            --allowedTools "Read,Glob,Grep" --disallowedTools "Bash,Edit,Write,WebFetch,WebSearch"
+          jq -r 'select(.type=="result") | .result // ""' /srv/trial/out/reviewer.jsonl | tail -c 6000 > /srv/trial/out/review.txt || true
+      - name: Scan the output before upload
+        id: scan
+        if: always()
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: bash /srv/trial/judge/scripts/safe-trial/scan.sh /srv/trial/out
       - uses: actions/upload-artifact@v4
+        if: always() && steps.scan.outcome == 'success'
         with:
           name: review
-          path: /tmp/out/
+          path: /srv/trial/out/
           retention-days: 14
 
   report:
@@ -241,5 +203,5 @@ jobs:
             cat in/grade/grade.txt 2>/dev/null || echo "Grade: no result"
             cat in/review/reviewer-run.txt 2>/dev/null || echo "Reviewer: no result"
             echo "Reviewer verdict: $(node handbook/scripts/safe-trial.mjs review-verdict in/review/review.txt)"
-            echo '```'; tail -c 3000 in/review/review.txt 2>/dev/null; echo '```'
+            echo '```'; tail -c 3000 in/review/review.txt 2>/dev/null || echo 'no review text'; echo '```'
           } | tee -a "$GITHUB_STEP_SUMMARY"
