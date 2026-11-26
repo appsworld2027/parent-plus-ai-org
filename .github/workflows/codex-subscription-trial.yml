@@ -45,7 +45,11 @@ jobs:
           chmod 700 "$CODEX_HOME"
           printf 'workspace=%s\n' "$WORKSPACE" >> "$GITHUB_OUTPUT"
           printf 'codex_home=%s\n' "$CODEX_HOME" >> "$GITHUB_OUTPUT"
-          sha256sum "$WORKSPACE/test/greeting.test.mjs" | cut -d' ' -f1 > "$RUNNER_TEMP/locked-tests.sha256"
+          (
+            cd "$WORKSPACE"
+            find . -type f ! -path './src/greeting.mjs' -print0 |
+              sort -z | xargs -0 sha256sum
+          ) > "$RUNNER_TEMP/locked-files.sha256"
           echo "Prepared synthetic workspace; no product repository files will be edited."
 
       - name: Verify the acceptance tests are red before implementation
@@ -68,7 +72,14 @@ jobs:
             exit 1
           }
 
-      - name: Install Codex CLI and provision subscription login
+      - name: Install Codex CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global @openai/codex
+          codex --version
+
+      - name: Provision the existing Codex subscription login
         env:
           CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
           CODEX_HOME: ${{ steps.prepare.outputs.codex_home }}
@@ -79,11 +90,10 @@ jobs:
             echo "::error::Add the CODEX_AUTH_JSON repository secret from the signed-in Codex CLI auth.json. Do not paste it into logs or chat."
             exit 1
           fi
-          npm install --global @openai/codex
           printf '%s' "$CODEX_AUTH_JSON" > "$CODEX_HOME/auth.json"
           chmod 600 "$CODEX_HOME/auth.json"
           unset CODEX_AUTH_JSON
-          codex --version
+          echo "Codex subscription credential provisioned without printing it."
 
       - name: Implement the synthetic task with Codex
         env:
@@ -94,25 +104,23 @@ jobs:
           set -euo pipefail
           cd "$WORKSPACE"
           PROMPT="$(cat task.md)
-          
-          Work only in this isolated synthetic workspace. Change only src/greeting.mjs. Do not edit tests or task.md. Do not use the network, GitHub, git push, or any external service. Run node --test test/greeting.test.mjs before finishing. If the tests pass, summarize the exact file changed and test result."
+
+          Work only in this isolated synthetic workspace. Change only src/greeting.mjs. Do not edit tests or task.md. Do not use shell network access, GitHub, git push, or any external service. Run node --test test/greeting.test.mjs before finishing. If the tests pass, summarize the exact file changed and test result."
           timeout 15m codex exec --sandbox workspace-write "$PROMPT" | tee "$RUNNER_TEMP/codex-output.txt"
 
-      - name: Verify implementation and locked tests
+      - name: Verify implementation and locked files
         env:
           WORKSPACE: ${{ steps.prepare.outputs.workspace }}
         shell: bash
         run: |
           set -euo pipefail
-          ACTUAL="$(sha256sum "$WORKSPACE/test/greeting.test.mjs" | cut -d' ' -f1)"
-          EXPECTED="$(cat "$RUNNER_TEMP/locked-tests.sha256")"
-          if [ "$ACTUAL" != "$EXPECTED" ]; then
-            echo "::error::Codex modified the locked acceptance tests."
-            exit 1
-          fi
-          if [ "$(find "$WORKSPACE" -type f | wc -l)" -ne 3 ]; then
-            echo "::error::Codex created or removed files outside the allowed implementation slot."
-            find "$WORKSPACE" -type f -print
+          (
+            cd "$WORKSPACE"
+            find . -type f ! -path './src/greeting.mjs' -print0 |
+              sort -z | xargs -0 sha256sum
+          ) > "$RUNNER_TEMP/actual-locked-files.sha256"
+          if ! diff -u "$RUNNER_TEMP/locked-files.sha256" "$RUNNER_TEMP/actual-locked-files.sha256"; then
+            echo "::error::Codex modified a locked file or created/removed files."
             exit 1
           fi
           cd "$WORKSPACE"
