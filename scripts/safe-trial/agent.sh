@@ -10,6 +10,7 @@ assert_system_readonly || exit 1  # checked again after the engine installs, rig
 start=$(date +%s); rc=0
 # The output files are opened by the runner, so the agent cannot swap them for links.
 as_agent env ANTHROPIC_BASE_URL=http://127.0.0.1:8790 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC=1 \
+  BASH_DEFAULT_TIMEOUT_MS=900000 BASH_MAX_TIMEOUT_MS=900000 \
   timeout "$seconds" claude -p "$(cat "$prompt")" "$@" --max-turns "$turns" --output-format stream-json --verbose \
   > "$out/$name.jsonl" 2> "$out/$name.stderr" || rc=$?
 kill_agent

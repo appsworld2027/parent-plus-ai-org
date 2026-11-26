@@ -26,3 +26,7 @@ Run `python3 org.py gate demo/blocked.json` for an example decision from
 supplied QA and CI evidence. This gate exits with status 1 when blocked.
 On GitHub, the human merger verifies the evidence and founder identities
 against the linked review, workflow run, and decision issue.
+
+---
+
+*Link verification (issue #69): All relative links in this README resolve to existing files as of 2026-11-26.*

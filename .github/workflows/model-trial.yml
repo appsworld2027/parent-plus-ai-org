@@ -1,221 +1,107 @@
-# Model trial: give several free NVIDIA NIM models the SAME real job and grade the result the same way.
-# Job: write locked acceptance tests for an approved Feature Contract (stage ai:tests) using the AI Org brief,
-# on a throw-away copy of the contract branch (nothing is pushed). Grade with scripts/grade-acceptance.mjs.
-# Entries "ref:<sha>" grade an existing spec from that product commit instead of running a model (controls).
-# Results: run summary, an artifact per entry, and one public issue in this repo with the comparison table.
 name: Model trial
-
 on:
   workflow_dispatch:
     inputs:
-      product_repo:
-        description: Product repository (owner/name)
-        required: true
-        type: string
-        default: appsworld2027/Parent-plus-
-      base_ref:
-        description: Commit on that branch BEFORE locked tests existed (the models start from here)
-        required: true
-        type: string
-      slug:
-        description: Feature slug (docs/product/<slug>/ACCEPTANCE.md)
-        required: true
-        type: string
-      models:
-        description: JSON list of nvidia_nim/... model ids
-        required: false
-        type: string
-        default: '["nvidia_nim/moonshotai/kimi-k3.1-pro","nvidia_nim/z-ai/glm-5.3-flash","nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b","nvidia_nim/mistralai/mistral-large-4-1t-a52b","nvidia_nim/minimaxai/minimax-m3.1-flash"]'
-      controls:
-        description: JSON list of "ref:<product sha>" specs to grade as controls
-        required: false
-        type: string
-        default: '[]'
-      minutes:
-        description: Time budget per model (minutes)
-        required: false
-        type: number
-        default: 60
-
+      review_only:
+        type: boolean
+        description: Review the retained, previously tested candidate
+        default: false
+      review_provider:
+        type: choice
+        description: Provider for independent review
+        options: [nvidia, groq]
+        default: nvidia
 permissions:
   contents: read
-  issues: write
-
 jobs:
-  plan:
+  autonomy:
+    if: ${{ !inputs.review_only }}
     runs-on: ubuntu-latest
-    outputs:
-      entries: ${{ steps.p.outputs.entries }}
-    steps:
-      - id: p
-        env:
-          MODELS: ${{ inputs.models }}
-          CONTROLS: ${{ inputs.controls }}
-        run: echo "entries=$(jq -cn --argjson a "$MODELS" --argjson b "$CONTROLS" '$a + $b')" >> "$GITHUB_OUTPUT"
-
-  trial:
-    needs: plan
-    runs-on: ubuntu-latest
-    timeout-minutes: 100
-    strategy:
-      fail-fast: false
-      max-parallel: 3 # one shared free API key (~40 requests/min): more in parallel would starve every model
-      matrix:
-        model: ${{ fromJSON(needs.plan.outputs.entries) }}
-    env:
-      MODEL: ${{ matrix.model }}
-      SLUG: ${{ inputs.slug }}
-      MINUTES: ${{ inputs.minutes }}
+    timeout-minutes: 17
     steps:
       - uses: actions/checkout@v5
         with:
-          repository: ${{ inputs.product_repo }}
-          ref: ${{ inputs.base_ref }}
-          fetch-depth: 1
-          persist-credentials: false
-      - name: Load AI Org handbook
-        uses: actions/checkout@v5
-        with:
-          repository: appsworld2027/parent-plus-ai-org
-          ref: main
-          path: .ai-org-handbook
           persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Prepare workspace (same as the agent worker)
+      - name: Install the existing AI Org NVIDIA adapter and agent client
         run: |
-          set -uo pipefail
-          npm ci --no-audit --no-fund >/tmp/prepare.log 2>&1 || { tail -20 /tmp/prepare.log; exit 1; }
-          npx playwright install --with-deps chromium >>/tmp/prepare.log 2>&1
-          git config user.name "Model trial"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-      - name: Control - take an existing spec from a product commit (or from this repo's trial/controls/)
-        if: startsWith(matrix.model, 'ref:') || startsWith(matrix.model, 'file:')
-        env:
-          PRODUCT_REPO: ${{ inputs.product_repo }}
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/agent-logs; LOCKED=$(jq -r '.loop.lockedPaths // "e2e/acceptance/"' .ai-org/manifest.json)
-          if [ "${MODEL#file:}" != "$MODEL" ]; then cp ".ai-org-handbook/${MODEL#file:}" "${LOCKED}${SLUG}.spec.ts"
-          else
-            REF="${MODEL#ref:}"; git fetch -q --depth 1 "https://github.com/$PRODUCT_REPO.git" "$REF"
-            for f in $(git ls-tree -r --name-only FETCH_HEAD "$LOCKED"); do git show "FETCH_HEAD:$f" > "$f"; done
-          fi
-          echo "rc=control secs=0" > /tmp/agent-logs/run.txt; git status --short
-      - name: Run the model on the ai:tests brief (no GitHub access, no push)
-        if: ${{ !startsWith(matrix.model, 'ref:') && !startsWith(matrix.model, 'file:') }}
+          curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null
+          "$HOME/.local/bin/uv" tool install free-claude-code
+          npm install -g @anthropic-ai/claude-code
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Dev autonomously implements the fictional waitlist
+        id: build
         env:
           NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
         run: |
-          set -uo pipefail
-          mkdir -p /tmp/agent-logs
-          curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null
-          export PATH="$HOME/.local/bin:$PATH"
-          uv tool install free-claude-code >/dev/null
-          npm install -g @anthropic-ai/claude-code >/dev/null
-          mkdir -p "$HOME/.fcc" "$HOME/.claude"
-          EFFORT=""; case "$MODEL" in *@*) EFFORT="${MODEL##*@}"; MODEL="${MODEL%@*}";; esac
-          printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$NVIDIA_NIM_API_KEY" "$MODEL" > "$HOME/.fcc/.env"
-          if [ -n "$EFFORT" ]; then
-            # FCC setting REASONING_POLICY (free_claude_code/config/settings.py, v6.19.47): off|low|medium|high|xhigh|max
-            # overrides the client and is sent to NVIDIA NIM as reasoning_effort (providers/nvidia_nim/request_options.py).
-            printf 'REASONING_POLICY=%s\n' "$EFFORT" >> "$HOME/.fcc/.env"
-            echo "reasoning effort: $EFFORT (FCC REASONING_POLICY)" | tee /tmp/agent-logs/effort.txt
-          fi
-          chmod 600 "$HOME/.fcc/.env"
-          echo '{"includeCoAuthoredBy": false}' > "$HOME/.claude/settings.json"
-          nohup fcc-server > /tmp/agent-logs/fcc.log 2>&1 &
-          for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8082/v1/models && break; sleep 1; done
-          BRIEF=$(node -e "import('./.ai-org-handbook/scripts/agent-router.mjs').then(m=>process.stdout.write(m.testsBrief('TRIAL')))")
-          PROMPT="You are Quinn, the QA Specialist of the AppsWorld AI Organization. Read .ai-org-handbook/org/agents/quinn-qa.md and .ai-org-handbook/playbooks/qa-charter.md.
-          This is an offline trial: there is no GitHub access. The contract branch is already checked out (it is the current directory). Do steps a-d of the brief below; skip every push, pull request and label step. Your result is the spec file you leave in the working tree plus /tmp/gate.md.
-          Slug: $SLUG. Contract: docs/product/$SLUG/ACCEPTANCE.md. Dependencies and Playwright Chromium are installed; do not reinstall them or read node_modules.
-          $BRIEF"
-          start=$(date +%s)
-          ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
-            timeout $(( MINUTES * 60 )) claude -p "$PROMPT" --allowedTools "Bash,Read,Edit,Write,Glob,Grep" --max-turns 120 \
-            --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr
-          rc=$?; echo "rc=$rc secs=$(( $(date +%s) - start ))" > /tmp/agent-logs/run.txt
-          cat /tmp/agent-logs/run.txt
-          exit 0 # a time-out is a result to grade, not a broken trial
-      - name: Grade independently (same gate for every model)
-        if: always()
-        shell: bash --noprofile --norc {0}
-        env:
-          BASE_REF: ${{ inputs.base_ref }}
+          set -euo pipefail
+          [ -n "$NVIDIA_NIM_API_KEY" ]
+          mkdir -p "$HOME/.fcc" "$RUNNER_TEMP/pilot" "$RUNNER_TEMP/evidence"
+          umask 077
+          printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b\nFCC_OPEN_BROWSER=false\nREASONING_POLICY=low\n' "$NVIDIA_NIM_API_KEY" > "$HOME/.fcc/.env"
+          fcc-server > "$RUNNER_TEMP/adapter.log" 2>&1 &
+          echo "$!" > "$RUNNER_TEMP/adapter.pid"
+          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8082/v1/models >/dev/null 2>&1 && break; sleep 1; done
+          prompt="$(printf 'You are Dev, the AI Org coding specialist. This is an isolated exercise. Write the one deliverable with the Write tool immediately, then give the short handover. The external evaluator runs all tests.\n'; cat trial/autonomy/objective.md)"
+          cd "$RUNNER_TEMP/pilot"
+          printf '%s\n' "$prompt" | env -u NVIDIA_NIM_API_KEY ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc DISABLE_AUTOUPDATER=1 \
+            timeout 300 claude -p --permission-mode acceptEdits --allowedTools "Read,Write,Edit,Glob,Grep" --max-turns 16 --output-format stream-json --verbose > "$RUNNER_TEMP/build.jsonl"
+      - name: Run the prewritten acceptance checks
         run: |
-          set -uo pipefail
-          LOCKED=$(jq -r '.loop.lockedPaths // "e2e/acceptance/"' .ai-org/manifest.json)
-          BASE_SHA=$(git rev-parse "$BASE_REF" 2>/dev/null || git rev-list --max-parents=0 HEAD | tail -1)
-          # Anything new or changed in the locked folder since the base commit, committed or not.
-          SPEC=$( { git diff --name-only "$BASE_SHA" -- "$LOCKED"; git ls-files --others --exclude-standard -- "$LOCKED"; } | sort -u | grep -E '\.(spec|test)\.[cm]?[jt]sx?$' | while read -r f; do [ -f "$f" ] && echo "$f"; done | head -1)
-          rcsecs=$(cat /tmp/agent-logs/run.txt 2>/dev/null | tr '\n' ' ')
-          turns=$(jq -r 'select(.type=="result") | .num_turns' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -1)
-          calls=$(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") | .name' /tmp/agent-logs/agent.jsonl 2>/dev/null | wc -l)
-          if [ -z "$SPEC" ]; then
-            line="TRIAL|$MODEL|NO SPEC WRITTEN|$rcsecs(rc=124 means out of time)|turns ${turns:-none}|tool calls $calls"
-          else
-            cp "$SPEC" /tmp/agent-logs/spec.ts
-            npx tsc --noEmit >/tmp/agent-logs/tsc.txt 2>&1; tsc=$?
-            npx playwright test "$SPEC" --reporter=json --timeout=20000 --workers=2 > /tmp/agent-logs/acc.json 2>/tmp/agent-logs/pw.stderr || true
-            node .ai-org-handbook/scripts/grade-acceptance.mjs --spec "$SPEC" --report /tmp/agent-logs/acc.json \
-              --contract "docs/product/$SLUG/ACCEPTANCE.md" --src src --tsc-exit "$tsc" --md /tmp/agent-logs/gate.md >/dev/null; g=$?
-            head=$(head -1 /tmp/agent-logs/gate.md | sed 's/^### //')
-            selfclaim=$( [ -f /tmp/gate.md ] && head -1 /tmp/gate.md | grep -o 'PASS\|FAIL' || echo "none")
-            line="TRIAL|$MODEL|${head}|tsc exit $tsc|model's own gate claim: $selfclaim|$rcsecs|turns ${turns:-none}|tool calls $calls"
-            { echo "#### $MODEL"; cat /tmp/agent-logs/gate.md; echo; } >> "$GITHUB_STEP_SUMMARY"
-          fi
-          echo "$line"; echo "- $line" >> "$GITHUB_STEP_SUMMARY"; echo "$line" > /tmp/agent-logs/line.txt
-          if [ -s /tmp/agent-logs/agent.jsonl ]; then
-            {
-              echo "**Run diagnosis (from the model's own log):**"; echo '```'
-              jq -r 'select(.type=="system" and .subtype=="init") | "model as seen by the client: \(.model)"' /tmp/agent-logs/agent.jsonl | head -1
-              echo "result event: $(jq -r 'select(.type=="result") | "\(.subtype) turns=\(.num_turns)"' /tmp/agent-logs/agent.jsonl | tail -1)"
-              echo "reasoning blocks: $(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="thinking") | .type' /tmp/agent-logs/agent.jsonl | wc -l), characters: $(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="thinking") | .thinking // ""' /tmp/agent-logs/agent.jsonl | wc -c)"
-              grep -m1 'reasoning effort' /tmp/agent-logs/effort.txt 2>/dev/null || echo "reasoning effort: model default"
-              echo "tools used: $(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") | .name' /tmp/agent-logs/agent.jsonl | sort | uniq -c | tr '\n' ' ')"
-              echo "test runs: $(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") | .input.command // empty' /tmp/agent-logs/agent.jsonl | grep -c 'playwright\|grade-acceptance')"
-              echo "--- last 6 things it said"
-              jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' /tmp/agent-logs/agent.jsonl | tr '\n' ' ' | grep -o '.\{0,1\}[A-Z][^.!?]\{8,180\}[.!?:]' | tail -6
-              echo "--- engine errors (last 5)"
-              grep -iE 'error|429|timeout|exception|refused' /tmp/agent-logs/fcc.log 2>/dev/null | grep -v ' 200 OK' | tail -5 | sed -E 's/nvapi-[A-Za-z0-9_-]+/nvapi-REDACTED/g' | cut -c1-220
-              echo '```'
-            } > /tmp/agent-logs/diag.md
-          fi
-      - name: Save trial evidence
+          set -euo pipefail
+          git show "$GITHUB_SHA:trial/autonomy/acceptance.mjs" > "$RUNNER_TEMP/acceptance.mjs"
+          node "$RUNNER_TEMP/acceptance.mjs" "$RUNNER_TEMP/pilot/waitlist.mjs" | tee "$RUNNER_TEMP/evidence/acceptance.txt"
+          cp "$RUNNER_TEMP/pilot/waitlist.mjs" "$RUNNER_TEMP/evidence/waitlist.mjs"
+      - name: Rex reviews the exact candidate that passed acceptance
+        env:
+          REVIEW_PROVIDER: ${{ inputs.review_provider }}
+          NVIDIA_NIM_API_KEY: ${{ inputs.review_provider == 'nvidia' && secrets.NVIDIA_NIM_API_KEY || '' }}
+          GROQ_API_KEY: ${{ inputs.review_provider == 'groq' && secrets.GROQ_API_KEY || '' }}
+        run: |
+          set -euo pipefail
+          sha256sum "$RUNNER_TEMP/evidence/waitlist.mjs" | tee "$RUNNER_TEMP/evidence/candidate.sha256"
+          node trial/autonomy/review.mjs "$RUNNER_TEMP/evidence/waitlist.mjs" | tee "$RUNNER_TEMP/evidence/review.json"
+      - name: Report evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        run: |
+          mkdir -p "$RUNNER_TEMP/evidence"
+          if [ -s "$RUNNER_TEMP/build.jsonl" ]; then
+            echo "Builder tool calls:"
+            jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") | .name' "$RUNNER_TEMP/build.jsonl" | sort | uniq -c || true
+          fi
+          for role in build review; do
+            if [ -s "$RUNNER_TEMP/$role.jsonl" ]; then
+              jq -c 'select(.type=="result") | {subtype,is_error,num_turns,duration_ms,modelUsage,result}' "$RUNNER_TEMP/$role.jsonl" | tee "$RUNNER_TEMP/evidence/$role.jsonl" || true
+            fi
+          done
+          if [ -f "$RUNNER_TEMP/evidence/acceptance.txt" ]; then
+            cat "$RUNNER_TEMP/evidence/acceptance.txt" >> "$GITHUB_STEP_SUMMARY"
+            echo "Generated implementation:"
+            cat "$RUNNER_TEMP/evidence/waitlist.mjs"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: trial-${{ strategy.job-index }}
-          path: /tmp/agent-logs/
-          retention-days: 14
-
-  report:
-    needs: trial
-    if: always()
+          name: autonomy-pilot-evidence
+          path: ${{ runner.temp }}/evidence/
+  review_retained_candidate:
+    if: inputs.review_only
     runs-on: ubuntu-latest
-    env:
-      GH_TOKEN: ${{ github.token }}
+    timeout-minutes: 5
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v5
         with:
-          pattern: trial-*
-          path: trials
-      - name: Publish one comparison issue (readable without logging in)
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Verify the retained candidate
+        run: node trial/autonomy/acceptance.mjs trial/autonomy/waitlist.mjs
+      - name: Get Rex's independent review from the selected provider
         env:
-          SLUG: ${{ inputs.slug }}
-          BASE: ${{ inputs.base_ref }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        run: |
-          set -uo pipefail
-          {
-            echo "<!-- model-trial $SLUG -->"
-            echo "Model trial for \`$SLUG\` (models start from product commit \`$BASE\`, same brief, same time budget, graded by \`scripts/grade-acceptance.mjs\`). Run: $RUN_URL"
-            echo; echo '```'; cat trials/*/line.txt 2>/dev/null | sed -E 's/nvapi-[A-Za-z0-9_-]+/nvapi-REDACTED/g'; echo '```'
-            for d in trials/*; do
-              [ -f "$d/line.txt" ] || continue
-              echo; echo "<details><summary>$(cut -d'|' -f2 "$d/line.txt")</summary>"; echo
-              [ -f "$d/gate.md" ] && cat "$d/gate.md"; echo; [ -f "$d/diag.md" ] && cat "$d/diag.md"; echo; echo "</details>"
-            done
-          } > /tmp/report.md
-          gh issue create --repo "$GITHUB_REPOSITORY" --title "Model trial: $SLUG (run ${{ github.run_id }})" --body-file /tmp/report.md
+          REVIEW_PROVIDER: ${{ inputs.review_provider }}
+          NVIDIA_NIM_API_KEY: ${{ inputs.review_provider == 'nvidia' && secrets.NVIDIA_NIM_API_KEY || '' }}
+          GROQ_API_KEY: ${{ inputs.review_provider == 'groq' && secrets.GROQ_API_KEY || '' }}
+        run: node trial/autonomy/review.mjs

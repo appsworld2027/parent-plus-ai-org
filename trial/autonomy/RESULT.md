@@ -1,0 +1,30 @@
+# Waitlist autonomy trial
+
+**Decision:** Autonomous implementation and executable quality checks passed for the narrow pilot. Autonomous review remains blocked. This evidence does not certify the everyday issue-to-release loop.
+
+- Branch: `codex/autonomy-waitlist-pilot`. Candidate source recovered without code edits from the [build run](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45792541331) and retained in commit `e8e70d6`; Git blob `da069511d1b75f66cc6c8d6c9a411b966deb2a40`.
+- Dev produced the file and handover without interaction during the successful build step. It took 43.5 seconds and 9 turns, after an initial harness failure and a turn-budget failure. The configured route was NVIDIA Nemotron 3 Ultra through the FCC adapter. The client reported the alias `claude-opus-5-5`, so provider-confirmed build model identity and billed cost are unavailable. Client counters reported 30,736 input, 2,713 output and 105,216 cache-read tokens.
+- Four checks passed in the original run, locally on the retained candidate, and in the review-only run. The no-op control failed all four. A seeded comparison with an ordered-set reference matched across 10,000 operations. The implementation uses arrays per slot; queue operations scan the array and emptied slot keys are retained. It is suitable for the specified small in-memory exercise.
+- Rex through the adapter timed out after 240 seconds. [The direct NVIDIA Mistral review retry](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45793504876) timed out after 120 seconds. There is no independent model verdict or review consumption record. Human approval and the normal workflow handoffs were outside the exercise.
+- The isolated workflow was manually dispatched on the branch. No Parent Plus or default branch was modified.
+
+**Next action:** Diagnose Mistral availability or try a distinct available free reviewer against the retained candidate, then prove the review handoff without a manual re-dispatch. Do not rebuild the candidate to retry evaluation.
+
+## Reviewer recovery and founder handoff
+
+- Kimi K3.1 Pro also timed out on a [non-streamed request](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45794609061). In the [streamed retry](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45795046583), NVIDIA returned HTTP 200 after 45.9 seconds, but the stream did not finish within 105 seconds. The recorded evidence establishes connectivity and incomplete review, with no verdict.
+- The branch now supports a selectable Groq reviewer using Llama 3.3 70B. A simulated stream verified verdict and usage parsing. The [live GitHub Actions attempt](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45795291514) stopped with the explicit missing `GROQ_API_KEY` message. The four candidate checks passed before review. No candidate source changes were made during recovery.
+- Founder action: add a Groq free-tier API key as the `GROQ_API_KEY` Actions repository secret in `appsworld2027/parent-plus-ai-org`. Do not paste it into chat. Existing Studio credentials are separate.
+- Resume: verify the current branch and candidate blob, dispatch `model-trial.yml` on `codex/autonomy-waitlist-pilot` with `review_only=true` and `review_provider=groq`, and read the actual verdict and response metadata. Only a valid PASS clears this review gate. Then wire the proven reviewer into the same build run and validate automatic handoff. For product-level evaluation, use an isolated fictional product and observe founder brief, discovery, contract, locked tests, build, QA, review, preview, and recovery.
+- Session lifecycle: ESCALATE for provider credential. Context and decision retention are sufficient to continue in this session; exact context utilization unavailable. Both live recovery attempts completed. No background continuation is active.
+
+## Verified automatic handoff
+
+**Decision: PASS for the isolated build → acceptance → independent review chain.** The current product-level trial remains pending.
+
+- The new Groq credential reached the API. The fixed Llama ID returned HTTP 404, so the trial now selects an active reviewer from a short allowlist using Groq’s model catalog. The [retained-candidate review](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45796520304) passed all four checks and returned PASS from `openai/gpt-oss-120b`. Its closing summary was truncated. The trial now rejects incomplete reviews and requires a complete PASS. Local fixtures confirmed that it accepts complete PASS and rejects both CHANGES and truncated PASS.
+- [Single-trigger run 45796821843](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45796821843) passed on `2d92b74`. Dev generated a fresh candidate in 7 turns and 56.3 seconds. All four prewritten checks passed. The workflow automatically handed that candidate to Rex with SHA-256 `2332f1efaedabdd90c9fd31c105973a3ff47c991ff0b6442f7c435165101b982`.
+- Groq confirmed `openai/gpt-oss-120b`, ordinary completion (`stop`), and PASS. It reported 578 input, 692 output, and 1,270 total tokens, including 311 reasoning tokens within output. The reviewer found no blockers and noted optional empty-slot cleanup and improved lookup performance. The adapter client still does not establish the builder’s provider-side model or billed cost. [Evidence artifact](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45796821843/artifacts/15105640720)
+- The original retained candidate is still Git blob `da069511d1b75f66cc6c8d6c9a411b966deb2a40`. The new candidate lives in the run evidence. All changes stayed on the pilot branch.
+- Next action: evaluate full AI Org delivery on a small fictional product, from founder brief and discovery through approved contract, quality gates, preview, and recovery. This checkpoint confirms the isolated technical handoff, with default workflow and product delivery still to evaluate.
+- Session lifecycle: CONTINUE. The credential blocker is closed, the run is complete, and the evidence is durable. Exact context utilization and billed cost are unavailable.

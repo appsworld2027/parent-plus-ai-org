@@ -72,7 +72,7 @@ jobs:
   build:
     needs: baseline
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 180
     steps:
       - *handbook
       - *node
@@ -82,19 +82,25 @@ jobs:
         env:
           NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
         run: bash /srv/trial/judge/scripts/safe-trial/engine.sh "$TRIAL_BUILDER"
-      - name: Build with the free builder model (no secret in this step)
-        run: |
-          . /srv/trial/judge/scripts/safe-trial/lib.sh
-          lock_workspace
-          bash /srv/trial/judge/scripts/safe-trial/agent.sh builder "$TRIAL_BUILDER" /srv/trial/judge/builder-prompt.txt 3600 150 \
-            --allowedTools "Bash,Read,Edit,Write,Glob,Grep"
-          bash /srv/trial/judge/scripts/safe-trial/collect.sh
+      - uses: actions/download-artifact@v4
+        with:
+          name: baseline
+          path: in/baseline
+      - name: Build with the free builder model, test, and send failures back (no secret in this step)
+        run: bash /srv/trial/judge/scripts/safe-trial/build-loop.sh in/baseline
       - name: Scan the output before upload
         id: scan
         if: always()
         env:
           NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
         run: bash /srv/trial/judge/scripts/safe-trial/scan.sh /srv/trial/out
+      - name: What the builder did (shown only after the key scan passed)
+        if: always() && steps.scan.outcome == 'success'
+        run: |
+          cd /srv/trial/out || exit 0
+          for f in builder.jsonl builder-fix*.jsonl; do [ -f "$f" ] || continue; echo "== ${f%.jsonl}"; cat "${f%.jsonl}-run.txt"; node /srv/trial/judge/scripts/safe-trial.mjs activity "$f"; done
+          for f in round-*-failures.txt; do [ -f "$f" ] || continue; echo "== $f"; cat "$f"; done
+          cat rounds.txt 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         if: always() && steps.scan.outcome == 'success'
         with:
@@ -200,8 +206,10 @@ jobs:
           {
             echo "## Safe trial result (evaluation only; code is not shipped)"
             echo "Stages: baseline=${{ needs.baseline.result }} build=${{ needs.build.result }} grade=${{ needs.grade.result }} review=${{ needs.review.result }}"
-            cat in/build/builder-run.txt 2>/dev/null || echo "Builder: no result"
+            cat in/build/builder*-run.txt 2>/dev/null || echo "Builder: no result"
+            cat in/build/rounds.txt 2>/dev/null || echo "Self-check rounds: none"
             cat in/grade/grade.txt 2>/dev/null || echo "Grade: no result"
+            echo '```'; cat in/grade/grade-failures.txt 2>/dev/null || echo 'no failure details'; echo '```'
             cat in/review/reviewer-run.txt 2>/dev/null || echo "Reviewer: no result"
             echo "Reviewer verdict: $(node handbook/scripts/safe-trial.mjs review-verdict in/review/review.txt)"
             echo '```'; tail -c 3000 in/review/review.txt 2>/dev/null || echo 'no review text'; echo '```'

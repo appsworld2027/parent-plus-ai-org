@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { spawnSync, execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { allowed } from "../scripts/safe-trial/gate.mjs";
-import { TRIAL, patchProblems, parseRaw, outcomes, verdict, reviewVerdict, builderPrompt } from "../scripts/safe-trial.mjs";
+import { TRIAL, patchProblems, parseRaw, outcomes, verdict, reviewVerdict, builderPrompt, fixPrompt, failureDetails, clean, activity, GRADE_RUNS } from "../scripts/safe-trial.mjs";
 
 const read = (p) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const flow = read(".github/workflows/safe-trial.yml");
@@ -50,6 +50,54 @@ test("reviewer verdict counts only the last line", () => {
 });
 
 test("builder is told not to publish anything", () => assert.match(builderPrompt(), /Do not push, open pull requests or use labels/));
+
+test("builder's finish line is exactly what grading runs, with no GitHub instructions", () => {
+  const prompt = builderPrompt();
+  for (const cmd of Object.values(GRADE_RUNS)) assert.ok(prompt.includes(cmd), cmd);
+  assert.doesNotMatch(prompt, /Read the issue|comment on|ai:qa|build branch|Closes #|open \(or update\) the PR/i);
+  const runner = read("scripts/safe-trial/run-tests.sh");
+  assert.ok(runner.includes('"e2e/acceptance/$TRIAL_SLUG.spec.ts" --reporter=json --timeout=30000 --workers=2'));
+  assert.ok(runner.includes("npx playwright test --reporter=json --timeout=30000 --workers=2 --retries=1"));
+  assert.match(GRADE_RUNS.all, /--timeout=30000 --workers=2 --retries=1/);
+});
+
+test("builder commands may run long enough for the full browser suite", () => assert.match(read("scripts/safe-trial/agent.sh"), /BASH_DEFAULT_TIMEOUT_MS=900000 BASH_MAX_TIMEOUT_MS=900000/));
+
+const failing = (title, message) => ({ title, tests: [{ status: "unexpected", projectName: "", results: [{ error: { message } }] }] });
+const passing = (title) => ({ title, tests: [{ status: "expected", projectName: "" }] });
+const rep = (...specs) => ({ suites: [{ file: "old.spec.ts", specs }] });
+
+test("failures are named with a reason", () => {
+  const text = failureDetails({ checkExit: 1, checkLog: "src/a.ts: error TS1", accReport: rep(failing("AC-03 overdue", "Timed out waiting\nstack")),
+    beforeReport: rep(passing("AC-10 caught up"), passing("gone")), afterReport: rep(failing("AC-10 caught up", "not visible")) }).join("\n");
+  for (const want of ["AC-03 overdue", "Timed out waiting", "AC-10 caught up", "not visible", "gone", "did not run", "error TS1"]) assert.ok(text.includes(want), want);
+});
+
+test("text from model-influenced code cannot issue log commands, forge lines or leak a key shape", () => {
+  const out = clean("\u001b[31m::error::x\n::add-mask::y nvapi-" + "a".repeat(30));
+  assert.doesNotMatch(out, /::|\n|\u001b|nvapi-a/);
+  assert.ok(clean("z".repeat(999)).length <= 220);
+});
+
+test("fix prompt keeps the same brief and adds the failures", () => {
+  const p = fixPrompt("- failing thing");
+  assert.ok(p.startsWith(builderPrompt())); assert.match(p, /- failing thing/);
+});
+
+test("builder activity is summarised from its transcript", () => {
+  const lines = [{ type: "assistant", message: { content: [{ type: "tool_use", name: "Bash", input: { command: "npm run check" } }] } },
+    { type: "assistant", message: { content: [{ type: "tool_use", name: "Edit", input: {} }] } }];
+  const text = activity(lines.map((l) => JSON.stringify(l)).join("\n") + "\nnot json");
+  assert.match(text, /Bash 1/); assert.match(text, /Edit 1/); assert.match(text, /npm run check/);
+});
+
+test("build job sends failures back for a limited number of fix rounds", () => {
+  const loop = read("scripts/safe-trial/build-loop.sh");
+  assert.match(loop, /MAX_FIX_ROUNDS=2\n/);
+  const build = flow.slice(flow.indexOf("\n  build:"), flow.indexOf("\n  grade:"));
+  assert.match(build, /build-loop\.sh in\/baseline/); assert.match(build, /name: baseline/); assert.match(build, /timeout-minutes: 180/);
+  assert.ok(build.indexOf("safe-trial.mjs activity") > build.indexOf("id: scan"));
+});
 
 test("safe trial workflow is manual, owner-only, read-only and publishes nothing", () => {
   const triggers = flow.slice(flow.indexOf("\non:"), flow.indexOf("\npermissions:"));
