@@ -1,8 +1,8 @@
-Patch the exact candidate below. Its SHA-256 is a41732f6d1efc1cdb30b507ea215b160e0f31dcf1d8c738fe02d2305f8889bcb.
+Patch the exact candidate below, SHA-256 c56efa7d798951da4e20f880192d44ed64b18605a7d72d3ece47d787c26c8315.
 
-GitHub Actions run 45803763122 passed 8 of 9 locked browser checks. Only AC-06 failed: after the viewer loaded Alex, selected Slow, and switched to Jamie, the loading status appeared while two Alex cards remained visible. Zero cards are required while loading a different child's notes. Selecting Slow alone should preserve the current notes until the next child selection; Jamie's notes should appear after the delay. Keep all other behavior and markup unchanged.
+Run 45804492343 passed all nine locked browser checks. Rex found that renderFeedback uses a display string such as "22 Nov 2026" as the HTML time element's dateTime value. Keep the visible date exactly the same, and make dateTime a valid calendar date such as "2026-11-22". Use deterministic conversion of the fixed English date format. Preserve all behavior including the previous-child loading fix.
 
-Your only deliverable is waitlist.mjs containing raw JSON with exactly two string fields, "before" and "after". This is the workflow's compatibility filename. "before" must be one short, unique, exact verbatim snippet of the candidate below, and "after" the minimally revised replacement. The external runner applies this single literal replacement to the verified candidate then runs all nine locked browser checks. Do not generate the full document or use Markdown fences.
+Write waitlist.mjs as raw JSON with exactly two string fields, "before" and "after". "before" is a short unique verbatim source snippet; "after" is its minimal replacement. The runner applies just this replacement to the verified base. Do not emit Markdown fences or the full document.
 
 Candidate:
 <!DOCTYPE html>
@@ -433,6 +433,7 @@ Candidate:
         isLoading = true;
         setStatus(COPY.loading, 'loading');
         showRetry(false);
+        clearFeedback();
 
         try {
           // Check online state

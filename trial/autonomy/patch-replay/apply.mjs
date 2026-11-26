@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 export function applyModelPatch(candidate) {
   const base = readFileSync(new URL("./base.html", import.meta.url), "utf8");
   const digest = createHash("sha256").update(base).digest("hex");
-  if (digest !== "a41732f6d1efc1cdb30b507ea215b160e0f31dcf1d8c738fe02d2305f8889bcb") {
+  if (digest !== "c56efa7d798951da4e20f880192d44ed64b18605a7d72d3ece47d787c26c8315") {
     throw new Error("Patch base does not match the failed candidate");
   }
 
