@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Last gate before anything is uploaded: only plain files, and no key. Needs NVIDIA_NIM_API_KEY.
 set -uo pipefail
+PATH=/usr/sbin:/usr/bin:/sbin:/bin  # this step holds the key: use system programs only
 out=${1:?folder}
 mkdir -p "$out"
 if [ -n "$(find "$out" ! -type f ! -type d -print -quit)" ]; then rm -rf "$out"; echo "::error::Unexpected link or special file in output. Evidence deleted."; exit 1; fi

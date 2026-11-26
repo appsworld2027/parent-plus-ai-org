@@ -56,13 +56,14 @@ jobs:
         run: |
           set -uo pipefail
           . /srv/trial/judge/scripts/safe-trial/lib.sh
-          lock_workspace
+          lock_workspace grading
           bash /srv/trial/judge/scripts/safe-trial/run-tests.sh /srv/trial/out
           [ "$(cat /srv/trial/out/check.exit)" = 0 ] || { echo "::error::Baseline type check or unit tests fail. No model is run."; exit 1; }
           jq -e '.stats.expected > 0' /srv/trial/out/all.json >/dev/null || { echo "::error::No browser test passed on the baseline."; exit 1; }
           jq -e '.stats.unexpected > 0' /srv/trial/out/acceptance.json >/dev/null || { echo "::error::Acceptance tests do not fail before the build."; exit 1; }
           echo "baseline: $(jq -c .stats /srv/trial/out/all.json)"; echo "acceptance before: $(jq -c .stats /srv/trial/out/acceptance.json)"
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: baseline
           path: /srv/trial/out/

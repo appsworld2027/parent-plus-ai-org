@@ -26,7 +26,8 @@ export function patchProblems(entries) {
     const support = /^e2e\/support\//.test(path);
     const newTest = /^tests\//.test(path) && status === "A";
     const notes = path.startsWith(`docs/product/${TRIAL.slug}/handoffs/`);
-    if (path.includes("..") || !(app || support || newTest || notes)) problems.push(`not allowed: ${status} ${path}`);
+    const instructions = /(^|\/)(CLAUDE(\.local)?\.md|AGENTS\.md|\.claude(\/|$)|\.mcp\.json$)/i.test(path);
+    if (path.includes("..") || instructions || !(app || support || newTest || notes)) problems.push(`not allowed: ${status} ${path}`);
   }
   return problems;
 }

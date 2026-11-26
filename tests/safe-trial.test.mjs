@@ -15,7 +15,8 @@ const M = (path, status = "M") => ({ status, path });
 test("trial build may change app code, test support and new unit tests only", () => {
   assert.deepEqual(patchProblems([M("src/coach/needs.ts"), M("App.tsx"), M("e2e/support/feesBackend.ts"), M("tests/new.test.ts", "A")]), []);
   for (const bad of [M(`e2e/acceptance/${TRIAL.slug}.spec.ts`), M("playwright.config.ts"), M("package.json"), M("config/public-client.json"),
-    M(".github/workflows/x.yml", "A"), M("tests/old.test.ts"), M("tests/old.test.ts", "D"), M("scripts/a.mjs"), M("src/../package.json")])
+    M(".github/workflows/x.yml", "A"), M("tests/old.test.ts"), M("tests/old.test.ts", "D"), M("scripts/a.mjs"), M("src/../package.json"),
+    M("src/CLAUDE.md", "A"), M("src/a/AGENTS.md", "A"), M("e2e/support/.claude/settings.json", "A")])
     assert.equal(patchProblems([bad]).length, 1, bad.path);
   assert.equal(patchProblems([]).length, 1);
 });
