@@ -37,15 +37,15 @@ export const ENGINES = ["claude", "codex", "free"];
 // No paid fallback is permitted. Background execution remains separately gated below.
 export const ALLOWED_ENGINES = Object.freeze([...AUTONOMY_POLICY.execution.allowedEngines]);
 
-// Free engine = Claude Code through Free Claude Code (FCC) on free NVIDIA NIM models.
+// Free engine = Claude Code CLI through the pinned Free Claude Code adapter, backed by Groq's free tier.
 // Measured 2026-11-20 from GitHub runners: Nemotron 3 Ultra and Mistral Large 4 answer in ~1s and pass
 // Claude Code tool use; Kimi K3.1 Pro passes but queues 20-90s per call.
 export const FREE_MODELS = {
-  builder: "nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b",
-  reviewer: "nvidia_nim/mistralai/mistral-large-4-1t-a52b",
+  builder: "groq/openai/gpt-oss-120b",
+  reviewer: "groq/qwen/qwen3.8-27b",
 };
 // One line, NVIDIA only, optional effort suffix: the worker writes this value into the proxy's .env file.
-const FREE_OVERRIDE = /^nvidia_nim\/[A-Za-z0-9._\/-]+(@(off|low|medium|high|xhigh|max))?$/;
+const FREE_OVERRIDE = /^groq\/(openai\/gpt-oss-120b|qwen\/qwen3\.8-27b)(@(off|low|medium|high|xhigh|max))?$/;
 const REVIEW_ROLES = ["quinn-qa", "rex-reviewer"];
 
 export function agentInfo(slug, dir = AGENTS_DIR) {
@@ -57,7 +57,8 @@ export function agentInfo(slug, dir = AGENTS_DIR) {
 }
 
 export function route({ labels = [], body = "", isPR = false, engines = { claude: false, codex: false, free: false }, freeModel = "", allowed = ALLOWED_ENGINES, supervisedTrial = false }) {
-  engines = Object.fromEntries(ENGINES.map((e) => [e, allowed.includes(e) && !!engines[e]]));
+  const policyAllowed = new Set(ALLOWED_ENGINES);
+  engines = Object.fromEntries(ENGINES.map((e) => [e, policyAllowed.has(e) && allowed.includes(e) && !!engines[e]]));
   const stage = STAGE_ORDER.find((s) => labels.includes(s));
   if (!stage) return { action: "skip", reason: "no ai:* stage label" };
   if (NO_AGENT.includes(stage)) return { action: "skip", stage, reason: `${stage} waits for a founder or a project manager` };
