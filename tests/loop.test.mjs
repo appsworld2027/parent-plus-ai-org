@@ -1,7 +1,7 @@
 // Tests for scripts/loop.mjs pure logic (AI Org outer loop). Run: node --test tests/loop.test.mjs
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseCommand, isFounder, latestVerdict, hasIndependentApproval, failRounds, checksState, parseAcceptance, nextBacklogItem, slugOfBranch, demoPack, contractState, gateDecision, qaChainStep, gateStatusSince, buildIssueBody, fixIssueBody, discoveryIssueBody, MARK } from "../scripts/loop.mjs";
+import { parseCommand, isFounder, latestVerdict, hasIndependentApproval, failRounds, checksState, latestRequiredWorkflow, parseAcceptance, nextBacklogItem, slugOfBranch, demoPack, contractState, gateDecision, qaChainStep, gateStatusSince, buildIssueBody, fixIssueBody, discoveryIssueBody, MARK } from "../scripts/loop.mjs";
 
 test("parseCommand reads the first non-empty line only", () => {
   assert.deepEqual(parseCommand("/approve"), { cmd: "approve", text: "" });
@@ -127,4 +127,17 @@ test("an unrelated GitHub App cannot supply a required Actions result", () => {
   const run = { name: "foundation", status: "completed", conclusion: "success" };
   assert.equal(checksState([{ ...run, app: "external-app" }], ["foundation"], "github-actions"), "missing");
   assert.equal(checksState([{ ...run, app: "github-actions" }], ["foundation"], "github-actions"), "success");
+});
+
+test("required CI selects only the latest run of the configured workflow for the exact branch and commit", () => {
+  const expected = { id: 10, head_sha: "head", head_branch: "feature", path: ".github/workflows/checks.yml" };
+  const latest = { ...expected, id: 11, status: "in_progress" };
+  const otherRuns = [
+    { ...expected, id: 20, path: ".github/workflows/unrelated.yml" },
+    { ...expected, id: 21, head_sha: "previous" },
+    { ...expected, id: 22, head_branch: "another-feature" },
+    { ...expected, id: 23, path: ".github/workflows/other/checks.yml" },
+  ];
+  assert.equal(latestRequiredWorkflow(otherRuns, "checks.yml", "feature", "head"), undefined);
+  assert.equal(latestRequiredWorkflow([latest, ...otherRuns, expected], "checks.yml", "feature", "head"), latest);
 });

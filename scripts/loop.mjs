@@ -97,6 +97,11 @@ export function checksState(runs, required = ["foundation"], requiredApp) {
   if (!required.every((n) => runs.some((r) => r.name === n && r.conclusion === "success" && (!requiredApp || r.app === requiredApp)))) return "missing";
   return "success";
 }
+export function latestRequiredWorkflow(runs, workflow, branch, sha) {
+  const path = `.github/workflows/${workflow}`;
+  return runs.filter((run) => run.head_sha === sha && run.head_branch === branch && run.path?.split("@", 1)[0] === path)
+    .sort((a, b) => b.id - a.id)[0];
+}
 export function parseAcceptance(md = "") {
   const why = (md.match(/##\s*Why this feature[^\n]*\n+([\s\S]*?)(\n##|$)/i) || [])[1]?.trim().split(/\n\s*\n/)[0]?.replace(/\s+/g, " ") || "";
   const acs = [];
@@ -200,13 +205,22 @@ function checkRuns(sha) { return (api(`commits/${sha}/check-runs?per_page=100`)?
 function ensureChecks(branch, sha) {
   const runs = api(`actions/runs?head_sha=${sha}&per_page=50`)?.workflow_runs || [];
   const { checksWorkflow, qaWorkflow } = cfg().loop;
-  for (const wf of [checksWorkflow, qaWorkflow]) if (wf && !runs.some((r) => r.path?.endsWith(`/${wf}`)))
+  for (const wf of [checksWorkflow, qaWorkflow]) if (wf && !latestRequiredWorkflow(runs, wf, branch, sha))
     act(`dispatch ${wf} on ${branch} (agent pushes do not trigger CI)`, () => { try { gh("workflow", "run", wf, "--repo", REPO, "--ref", branch); } catch (e) { log(`  could not dispatch ${wf}: ${e.message.split("\n")[0]}`); } });
+  return runs;
 }
 function gate(branch, sha) {
-  ensureChecks(branch, sha);
-  const s = checksState(checkRuns(sha), cfg().loop.requiredChecks, "github-actions");
-  return s === "missing" ? "pending" : s;
+  const { checksWorkflow, requiredChecks } = cfg().loop;
+  const workflow = latestRequiredWorkflow(ensureChecks(branch, sha), checksWorkflow, branch, sha);
+  const overall = checksState(checkRuns(sha), []);
+  if (overall === "fail") return "fail";
+  if (!workflow || workflow.status !== "completed") return "pending";
+  if (workflow.conclusion !== "success") return "fail";
+  const path = `repos/${REPO}/actions/runs/${workflow.id}/attempts/${workflow.run_attempt}/jobs?per_page=100`;
+  const jobs = ghj("api", "--paginate", "--slurp", path).flatMap((page) => page.jobs);
+  const required = checksState(jobs, requiredChecks);
+  if (required === "missing") return "pending";
+  return required === "success" ? overall : required;
 }
 function lock(base, head, sha, labels) {
   run("git", ["fetch", "-q", "origin", base, head]);
