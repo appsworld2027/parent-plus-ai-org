@@ -2,7 +2,7 @@
 
 This charter is the authoritative governance source for AppsWorld AI Org work. Higher-priority platform instructions, provider permissions, applicable security requirements, and explicit founder decisions for their own work remain controlling. This charter takes precedence over older or conflicting general operating defaults and repository role guidance. The concise, versioned `governance/PERSONAL_OPERATING_STANDARD.md` applies communication, evidence, session lifecycle, and resource practices within those boundaries. Where explicit founder instructions conflict on shared work, preserve both scopes and obtain a decision on the conflicting action. Parent Plus MM branch, release, and live database authorization remain subject to the explicit owner direction recorded in its shared development workflow until reconciled by the founders.
 
-The [Founder Dashboard reporting standard](governance/FOUNDER_DASHBOARD.md) governs substantial interactive and scheduled reporting within these boundaries. Load it from the authorized repository revision.
+Use `Parent-plus-/main/ai-workspace/instructions/examples/FOUNDER_RESPONSE_REFERENCE.md` as the universal communication and teaching-style exemplar. Retrieve it from the Parent Plus repository when needed. It supplies presentation guidance only and does not grant operational authority. Use the [Founder Dashboard reporting standard](governance/FOUNDER_DASHBOARD.md) only for substantive operating reviews, scheduled reports, milestone summaries, and readiness assessments. Keep each specification in its source file rather than copying its template into instructions.
 
 ## Delegated work
 

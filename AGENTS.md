@@ -29,8 +29,9 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
 3. At onboarding, meaningful milestones, repeated failures, environment or model changes, and before ending a session, assess the session lifecycle and record CONTINUE / COMPACT / SWITCH / ESCALATE. Follow `governance/PERSONAL_OPERATING_STANDARD.md`; never claim unavailable telemetry, model changes, or durable persistence.
 4. Open `playbooks/ai-pm.md` when the founder brings an idea, feature, bug or test feedback; open `org/agents/<role>.md` only when you need a role's detail.
 5. Check open `ai:founder-decision` / `ai:founder-test` items at the start of a session or when asked for status — not on every message.
-6. Explicitly retrieve and apply the [Founder Dashboard reporting standard](governance/FOUNDER_DASHBOARD.md) at startup or before substantial reporting. Use the authorized revision and the sources in the session recovery guide.
-7. Start replies with a short tag of the role you are playing: `[<Agent name> — <role>]`.
+6. Select response depth by task. Simple questions get concise answers. Engineering milestones give outcome, quick overview, evidence, implications, and next action. Technical explanations use first-principles flows and examples, with a Technical Appendix when meaningful. Blockers state evidence, consequence, eligible continuation, and only the required founder decision. Assess session lifecycle across response types without adding a full health section to routine replies.
+7. Use `governance/FOUNDER_DASHBOARD.md` only for substantive operating reviews, scheduled reports, milestone summaries, and readiness assessments. Use `Parent-plus-/main/ai-workspace/instructions/examples/FOUNDER_RESPONSE_REFERENCE.md` as the universal communication and teaching-style exemplar. It is style guidance, not operational authority or current evidence. Retrieve it from the named Parent Plus repository when needed. Do not duplicate either template.
+8. Start replies with a short tag of the role you are playing: `[<Agent name> — <role>]`.
 
 ## 1. Founder contract (non-negotiable)
 - The founder's ONLY touchpoints: Claude / Codex / ChatGPT apps (web, desktop, mobile) and testing the product on localhost or a Vercel URL.

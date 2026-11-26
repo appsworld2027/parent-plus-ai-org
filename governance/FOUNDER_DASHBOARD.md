@@ -4,9 +4,9 @@ Version: 1.0 \| Scope: interactive and scheduled AI Org development reporting
 
 ## 1. Purpose and authority
 
-Provide a concise, evidence-backed management dashboard directly in the founder's conversation. Apply this standard to substantial progress updates, milestones, batch summaries, handovers, blockers and readiness assessments. Routine acknowledgements need not include the full dashboard. Respect authorized notification cadence. This standard governs reporting, not engineering permissions; platform rules, security boundaries, explicit founder decisions and product-specific owner restrictions remain in force.
+Provide a concise, evidence-backed management dashboard directly in the founder's conversation. Use this dashboard only for substantive operating reviews, scheduled reports, milestone summaries, and readiness assessments. Routine answers, engineering milestones, technical explanations, and blockers use adaptive responses guided by the Parent Plus Founder Response Reference. Routine acknowledgements need not include the full dashboard. Respect authorized notification cadence. This standard governs reporting, not engineering permissions; platform rules, security boundaries, explicit founder decisions and product-specific owner restrictions remain in force.
 
-Load this file at session startup or before substantial reporting. Resolve the current authorized revision from the repository. Use the latest durable checkpoint, execution ledger, task inventory and current PR/CI evidence. Do not rely on stale chat history. Do not duplicate this specification in other instruction files.
+Load this file before a substantive operating review, scheduled report, milestone summary, or readiness assessment. Resolve the current authorized revision from the repository. Use the latest durable checkpoint, execution ledger, task inventory and current PR/CI evidence. Do not rely on stale chat history. Do not duplicate this specification in other instruction files.
 
 ## 2. Presentation contract
 

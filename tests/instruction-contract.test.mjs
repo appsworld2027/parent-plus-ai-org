@@ -33,6 +33,10 @@ test("the concise standard covers lifecycle, evidence, portable handover, direct
   assert.match(dashboard, /When rich delivery is unsupported or unconfirmed, emit the complete Markdown template/);
   assert.match(standard, /do not implicitly propagate/);
   assert.match(standard, /defaults that input to `main`/);
+  assert.match(agents, /Engineering milestones give outcome, quick overview, evidence, implications, and next action/);
+  assert.match(agents, /without adding a full health section to routine replies/);
+  assert.match(agents, /as the universal communication and teaching-style exemplar/);
+  assert.match(dashboard, /Use this dashboard only for substantive operating reviews, scheduled reports, milestone summaries, and readiness assessments/);
 });
 
 test("the scheduled GitHub path checks out a selectable handbook and assembles canonical policies and reporting standard before role work", () => {
@@ -48,7 +52,8 @@ test("the scheduled GitHub path checks out a selectable handbook and assembles c
   assert.ok(charterAt >= 0 && standardAt > charterAt && dashboardAt > standardAt && handbookAt > dashboardAt && roleAt > handbookAt);
   for (const action of ["CONTINUE", "COMPACT", "SWITCH", "ESCALATE"]) assert.ok(prompt.includes(action));
   assert.match(prompt, /If any required source is absent/);
-  assert.match(prompt, /Apply the Founder Dashboard standard to substantial batch reports and persist them in the authorized project record/);
+  assert.match(prompt, /Use the Founder Dashboard standard only for substantive operating reviews/);
+  assert.match(prompt, /technical explanations, or evidence-led blocker reports/);
   assert.match(prompt, /Do not claim delivery to a founder conversation/);
 });
 
