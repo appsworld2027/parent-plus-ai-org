@@ -58,3 +58,28 @@ Execute **A1–A2** in a safe non-production environment if available; otherwise
 Lifecycle: CONTINUE for safe planning/integration investigation; ESCALATE only when a non-production worker/credential or consequential permission is needed.
 Context utilization, actual token counts, expenditure and next scheduled execution: unavailable.
 This audit is a navigation artifact, not a replacement for the existing authoritative ledger or owner rules. New sessions must follow `governance/SESSION_RECOVERY.md` and verify live PR heads/checks before acting.
+
+## Live founder validation addendum — 2026-11-26 (Studio and free-model routing)
+Evidence: founder-provided Cloud Shell outputs/screenshots, directly inspected GitHub sources. These observations supersede earlier *unverified* labels where indicated; do not equate an available role with a running worker.
+
+### Confirmed progress
+- Studio launched in Cloud Shell on port 8484; founder screenshot shows Parent Plus selected, Agents board populated from GitHub, Garage tab readable and Other models selector with NVIDIA/OpenRouter/Groq/Gemini/Ollama. Browser-based UI access **verified by founder**; no real provider model call yet.
+- Garage `parent-plus/MEMORY.md` verified on GitHub, fictional marker `GARAGE-INTEGRATION-TEST-20261126` written in commit `a3ebe3487e45528a1a1db300e5469eac661ee797` and read back remotely. Founder fast-forwarded local Garage checkout `328be17 -> a3ebe34` with local `parent-plus/team-models.json` modification preserved; latest screenshot shows marker in Studio. **Manual sync and cross-surface retrieval PASS**. Automatic external-change refresh **not verified**: `server/garage.mjs` pulls at chat start, not necessarily on browser refresh. Marker remains to clean up after final recovery test.
+- `studio-garage` visibility was reported by founder's `gh repo view` as **PUBLIC**, despite Studio labeling it private. Do not treat UI privacy label as authoritative; use only fictional data for test.
+
+### Critical distinction: 11 defined roles ≠ 11 connected/running workers
+- AI Org `AGENTS.md` defines 11 named AI roles. `scripts/agent-router.mjs` maps workflow stages to roles and selects an engine from **Claude, Codex, free** according to engine availability and optional labels. This is real orchestration code.
+- Studio `server/team.mjs` supports per-agent model assignment and a two-model free pool. Garage's *committed* `parent-plus/team-models.json` (2026-11-24) currently assigns mostly Claude and Codex. The founder has a modified **local** copy (contents not inspected), so do not overwrite it or assume the committed assignments reflect their current Studio selection.
+- `.github/workflows/agent-worker.yml` uses `vars.UNATTENDED_AGENTS == 'on'` as the master switch and presence of `NVIDIA_NIM_API_KEY` to make the free engine available; Studio's **Keys** configuration is local to Studio and is **not** the same as GitHub Actions secrets. Neither the GitHub variable's live value nor NVIDIA credential availability was verified. No active worker has been demonstrated.
+- Free-engine worker uses Free Claude Code as an execution adapter with NVIDIA NIM models; **this is not Claude subscription login**, but the tool's name can confuse users. Founder explicitly wants Claude and Codex logged out for pilots. Do not silently route to either paid-subscription engine.
+- Studio `Other models` chat is an interactive tool-using agent for a selected product; it is **not automatically** the unattended GitHub Actions worker. Studio's published team plan says the router *may* read it, while the inspected router uses available engine secrets, stage and manifest overrides; live end-to-end consumption of team-models.json is unproven.
+
+### Pilot path authorized by founder preference
+1. Keep Claude Code and Codex logged out; use NVIDIA/free models only for the first controlled test, without enabling unattended GitHub Actions.
+2. In Studio **Other models → Keys**, check whether an NVIDIA key is already configured (do not paste it into chat). If not, connect a free NVIDIA key through Studio's UI. Then select NVIDIA and a model, create a new chat in a disposable product workspace, and ask for a short non-destructive response. Record actual provider/model, response, errors, and whether any tool execution was requested.
+3. Validate builder/reviewer assignments using the two distinct free NVIDIA models; keep Parent Plus production and MM/development unchanged. Never overwrite the locally modified team-models.json merely to make it match the older remote plan.
+4. Use a separate small disposable pilot repository/product, not Parent Plus, for a complete contract → build → test → review demonstration. Confirm available engine credential and master switch before enabling any unattended workflow. No merges/deployments without existing gates.
+5. After the final memory-recovery test, remove only the explicitly fictional Blue Kite marker while preserving unrelated changes and logs.
+
+### Exact next founder interaction
+Open Studio **Other models → Keys** and report whether NVIDIA shows *Connected/Key saved* or *Needs key*. Then perform one simple new-chat reply. No Claude/Codex login and no background worker activation required for this step.
