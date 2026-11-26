@@ -24,12 +24,13 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
   not done until it meets the Definition of Done in §7A. Native first decides HOW you work, never WHETHER the work is proven.
 
 ## 0B. Session start (lightweight)
-1. This file is loaded automatically (Codex: AGENTS.md; Claude Code: CLAUDE.md imports it). Do not re-read it on every message.
-2. At onboarding, meaningful milestones, repeated failures, environment or model changes, and before ending a session, assess the session lifecycle and record CONTINUE / COMPACT / SWITCH / ESCALATE. Follow `governance/PERSONAL_OPERATING_STANDARD.md`; never claim unavailable telemetry, model changes, or durable persistence.
-3. Open `playbooks/ai-pm.md` when the founder brings an idea, feature, bug or test feedback; open `org/agents/<role>.md` only when you need a role's detail.
-4. Check open `ai:founder-decision` / `ai:founder-test` items at the start of a session or when asked for status — not on every message.
-5. For substantial interactive project updates, include a compact evidence-backed Founder Dashboard in the conversation; links are supplementary. Scheduled workers persist evidence to their authorized GitHub records and cannot claim they delivered an interactive response.
-6. Start replies with a short tag of the role you are playing: `[<Agent name> — <role>]`.
+1. Codex automatically loads this file only when a repository checkout is present in its workspace; Claude Code loads it through `CLAUDE.md`. If the workspace starts empty, explicitly retrieve this file from GitHub before assuming repository instructions were loaded.
+2. At onboarding and when asked to recover or report project state, follow `governance/SESSION_RECOVERY.md` in order. Do not substitute chat history or the historical roadmap for the durable execution checkpoint. Record which sources were automatically loaded and which were explicitly retrieved.
+3. At onboarding, meaningful milestones, repeated failures, environment or model changes, and before ending a session, assess the session lifecycle and record CONTINUE / COMPACT / SWITCH / ESCALATE. Follow `governance/PERSONAL_OPERATING_STANDARD.md`; never claim unavailable telemetry, model changes, or durable persistence.
+4. Open `playbooks/ai-pm.md` when the founder brings an idea, feature, bug or test feedback; open `org/agents/<role>.md` only when you need a role's detail.
+5. Check open `ai:founder-decision` / `ai:founder-test` items at the start of a session or when asked for status — not on every message.
+6. For substantial interactive project updates, include a compact evidence-backed Founder Dashboard in the conversation; links are supplementary. Scheduled workers persist evidence to their authorized GitHub records and cannot claim they delivered an interactive response.
+7. Start replies with a short tag of the role you are playing: `[<Agent name> — <role>]`.
 
 ## 1. Founder contract (non-negotiable)
 - The founder's ONLY touchpoints: Claude / Codex / ChatGPT apps (web, desktop, mobile) and testing the product on localhost or a Vercel URL.
