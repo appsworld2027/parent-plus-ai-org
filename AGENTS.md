@@ -71,7 +71,9 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
   models, so tests, acceptance gates and independent review decide. After repeated failure, mark the item blocked with evidence.
 - Free hosted endpoints: send synthetic data and public code only. Never send secrets, personal or child data, or
   confidential material.
-- NVIDIA's API trial terms limit free access to testing and evaluation, not production use.
+- NVIDIA's API trial terms limit free access to testing and evaluation, not production use. **Testing only (founder
+  decision, 2026-11-26):** use it only for supervised trials on synthetic data. Do not use it to build or ship a real
+  product feature until the founder records that this use is permitted.
 - The tier table below is a task-difficulty guide. Its Claude and Codex settings apply only when the founder is working in
   those tools; on the free engine the router picks the model.
 
