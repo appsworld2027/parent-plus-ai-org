@@ -9,6 +9,7 @@ Other files link here; they do not restate it. Where an older format differs, th
 | Question, chat or small edit | Answer directly in a few lines. No dashboard. |
 | Meaningful status (result, failure, review) | Outcome, evidence, next action |
 | Feature milestone or founder checkpoint | Outcome plus founder dashboard |
+| Any reply after real project work (status, build, review, decision) | End with the founder dashboard, so the founder always sees status and next step. Skip it only for a plain question or tiny edit. |
 
 ## Status reply
 1. Outcome heading with one icon: ✅ done · ⚠️ blocked or risk · ❌ failed · 🔍 findings · 🛠️ in progress.
@@ -53,9 +54,10 @@ Status colours: Passed (green) · Partial (orange) · Blocked (red) · Pending (
 |---|---|---|
 | Progress report | Feature or pilot update | Current stage; milestones x/y with status bar; acceptance scenarios; critical defects; founder interventions; additional spend; achieved; remains; resource status; founder action |
 | Command centre | Setup or multi-workstream | Milestones x/y, status per milestone, session health per workstream |
-| Readiness checklist | Before risky or unattended work | Items x/y, each ticked only with verification evidence; clear go / no-go |
+| Readiness checklist | Before risky or unattended work | Items x/y per `templates/READINESS_CHECKLIST.md`, each ticked only with verification evidence; clear go / no-go |
 | Evaluation checklist | Independent QA | x/y under Core journeys · Edge cases · Security and privacy · Resilience and UX |
-| Consumption | Measured data exists | Tokens, spend, agent runs, founder interventions, by activity |
+| Consumption | Measured data exists | Total processed tokens; additional paid spend; agent executions; founder interventions; bars of tokens by activity (Discovery, Architecture, Planning, Implementation, QA, Review) and a table by agent role and model, measured only, Unknown otherwise |
+| Product thinking report | Founder asks how Maya thought, or before a contract is approved | The four-group evaluation checklist x/y plus problem, method, assumptions, risks, per `templates/PRODUCT_THINKING.md` |
 | Continuity tests | Proving handover works | Same model new session · different model · runtime restart · founder handover |
 
 ## Product thinking

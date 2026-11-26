@@ -33,6 +33,9 @@ for THIS problem and stage, and say in one line which method you chose and why. 
 - Bugs and build feedback: reproduce, root-cause, fix — no discovery theatre.
 Fixed regardless of method: AGENTS.md §1 founder contract and the quality bar at the end of this file.
 
+## Product thinking report (always)
+After Phase 1, write `docs/product/<slug>/PRODUCT_THINKING.md` from `templates/PRODUCT_THINKING.md` and show the founder its four-group checklist (Core user journeys, Edge cases, Security and privacy, Resilience and UX) as x/y. Derive every scenario yourself; do not ask for or use any outside reference checklist. Quinn turns each scenario into a test.
+
 ## Phase 2 — Ask (only decisions the founder must own)
 - Only ask about: target user, product behaviour, scope (in/out), priority, business model, tone/brand.
   Never ask technical questions.
