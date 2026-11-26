@@ -74,6 +74,11 @@ test("reusable agent workflows enforce free-only Groq execution", () => {
   assert.ok(worker.includes('GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}'));
   assert.ok(worker.includes('uv tool install "free-claude-code==6.19.56"'));
   assert.ok(worker.includes("MODEL=%s"));
+  assert.ok(worker.includes("Groq free-model tool-call preflight: PASS"));
+  assert.ok(worker.includes("groq-probe-retryable"));
+  assert.ok(worker.includes('MARKER="ai-org:paused"'));
+  const resume = read(".github/workflows/agent-resume.yml");
+  assert.ok(resume.includes("ai:tests-review") && resume.includes("ai:tests-signoff"));
   assert.doesNotMatch(worker, /Run agent with Claude Code|Run agent with Codex|CODEX_AUTH_JSON|CLAUDE_CODE_OAUTH_TOKEN|NVIDIA_NIM_API_KEY/);
 });
 
