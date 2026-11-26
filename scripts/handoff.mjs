@@ -23,6 +23,9 @@ export const SECTIONS = [
   ["Next must not", "boundaries for the next role"],
   ["Open questions", "addressed to a named role, or 'none'"],
   ["Memory proposals", "lessons worth keeping for future features, each with its evidence, or 'none'"],
+  ["Session lifecycle", "CONTINUE / COMPACT / SWITCH / ESCALATE with brief evidence; unavailable metrics stated explicitly"],
+  ["Persistence", "durable checkpoint location and verified commit/link, or portable handover and explicit persistence limitation"],
+  ["Resources and next action", "measured resources or unavailable, plus the exact next eligible task"],
 ];
 const EMPTY = /^(\s*(-\s*)?(tbd|todo|n\/a|\.\.\.|…)?\s*)$/i;
 
@@ -46,6 +49,9 @@ export function validatePacket(md = "") {
   if (u && u.split("\n").filter((l) => l.trim()).length < 5) problems.push("'## Understanding' needs 5 lines (goal, constraints, traps, must not touch, proof)");
   if (p.Done && !/[0-9a-f]{7,40}|PASS|passed|exit 0|https?:\/\//i.test(p.Done)) problems.push("'## Done' has no evidence (commit SHA, gate result, command result or link)");
   if (p.Assumptions && !/\b(VERIFIED|UNVERIFIED|none)\b/.test(p.Assumptions)) problems.push("'## Assumptions' must mark each item VERIFIED or UNVERIFIED (or say none)");
+  if (p["Session lifecycle"] && !/\b(CONTINUE|COMPACT|SWITCH|ESCALATE)\b/.test(p["Session lifecycle"])) problems.push("'## Session lifecycle' must record CONTINUE, COMPACT, SWITCH, or ESCALATE");
+  if (p.Persistence && !((/\bVERIFIED\b/i.test(p.Persistence) && /[0-9a-f]{7,40}|https?:\/\/|refs\/heads\//i.test(p.Persistence)) || (/\bUNAVAILABLE\b/i.test(p.Persistence) && /portable handover/i.test(p.Persistence)))) problems.push("'## Persistence' must cite a durable checkpoint or state UNAVAILABLE and provide a portable handover");
+  if (p["Resources and next action"] && !(/\b(unavailable|not reported|measured)\b/i.test(p["Resources and next action"]) && /next action\s*:/i.test(p["Resources and next action"]))) problems.push("'## Resources and next action' must state resource measurement availability and an exact 'Next action:'");
   return { ok: problems.length === 0, problems, packet: p };
 }
 export function template(stage, role) {

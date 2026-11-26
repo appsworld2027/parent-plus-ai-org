@@ -29,6 +29,12 @@ Do not edit the spec
 none
 ## Memory proposals
 none
+## Session lifecycle
+CONTINUE — no measured context telemetry; progress verified from PR head.
+## Persistence
+VERIFIED — checkpoint commit 1a2b3c4 on refs/heads/ai/contract-fees.
+## Resources and next action
+Model/token metrics unavailable. Next action: run independent review against commit 1a2b3c4.
 `;
 test("a complete packet validates", () => assert.equal(validatePacket(good).ok, true, validatePacket(good).problems.join("; ")));
 test("missing, empty and evidence-free sections are rejected", () => {
@@ -41,6 +47,15 @@ test("missing, empty and evidence-free sections are rejected", () => {
 test("understanding must have 5 lines and assumptions must be marked", () => {
   const r = validatePacket(good.replace("Proof: gate PASS on the head commit\n", "").replace("- VERIFIED:", "-"));
   assert.ok(r.problems.some((p) => /needs 5 lines/.test(p))); assert.ok(r.problems.some((p) => /VERIFIED or UNVERIFIED/.test(p)));
+});
+test("lifecycle and persistence sections require a supported action and durable evidence or portable handover", () => {
+  const bad = good.replace("CONTINUE — no measured context telemetry; progress verified from PR head.", "session is fine").replace("VERIFIED — checkpoint commit 1a2b3c4 on refs/heads/ai/contract-fees.", "saved locally").replace("Next action: run independent review", "maybe review later");
+  const r = validatePacket(bad);
+  assert.ok(r.problems.some((p) => /Session lifecycle.*must record/.test(p)));
+  assert.ok(r.problems.some((p) => /Persistence.*durable checkpoint/.test(p)));
+  assert.ok(r.problems.some((p) => /Resources and next action.*exact/.test(p)));
+  const portable = good.replace("VERIFIED — checkpoint commit 1a2b3c4 on refs/heads/ai/contract-fees.", "UNAVAILABLE — persistence failed; portable handover follows in this packet.");
+  assert.equal(validatePacket(portable).ok, true, validatePacket(portable).problems.join("; "));
 });
 test("template lists every section", () => { const t = template("ai:tests", "quinn-qa"); for (const [n] of SECTIONS) assert.match(t, new RegExp(`## ${n}`)); });
 test("onboarding pack: role, RACI, lessons, memory, contract, handovers, attempt, task — in that order", () => {

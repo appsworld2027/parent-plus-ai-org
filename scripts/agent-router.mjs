@@ -115,11 +115,13 @@ export function buildBrief(number) {
 export function onboardingRules(number) {
   return [
     "## Onboarding and handover (every run)",
+    "- Before acting, read `.ai-org-handbook/FOUNDER_OPERATING_CHARTER.md` and `.ai-org-handbook/governance/PERSONAL_OPERATING_STANDARD.md`, then this handbook and your role file. If either canonical policy is absent in the selected handbook revision, stop dependent work and report the missing source.",
+    "- At onboarding, meaningful milestones, repeated failures, environment or model changes, and before ending, assess context only from available measurements, progress, repeated work, decisions, dependencies, and risks. Record CONTINUE / COMPACT / SWITCH / ESCALATE; never claim unsupported context metrics or actions.",
     "- FIRST read `/tmp/onboarding.md` completely: your role, RACI seat, role lessons, product memory, the contract, every earlier handover and (on a retry) why the last attempt failed. Do not rediscover what it already tells you.",
     "- Your first message is the 5-line Understanding: goal · constraints · known traps · what you must not touch · how you will prove it is done.",
     `- LAST, write your handover to \`docs/product/<slug>/handoffs/NN-<stage>-<role>-<seat>.md\` (NN = next free number) using \`node .ai-org-handbook/scripts/handoff.mjs template <stage> <role>\`; fill every section; check it with \`node .ai-org-handbook/scripts/handoff.mjs validate <file>\`; commit and push it with your work. An invalid or missing handover fails the run.`,
     "- Put lessons that would help future features under `## Memory proposals` (fact + evidence). Never edit `docs/ai-memory/` directly; Arjun merges approved memory.",
-    `- Hand over through the packet and a comment on #${number}; never write prompts for another agent.`,
+    `- Hand over through the packet and a comment on #${number}; never write prompts for another agent. Include checkpoint persistence evidence or state that persistence was unavailable, measured resources or their unavailability, the lifecycle action, and the exact next action.`,
   ].join("\n");
 }
 // Quinn-Challenger: attacks the author's tests on a different model; must not rewrite them.
@@ -149,7 +151,7 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "" }) {
   const extra = agent.slug === "maya-ai-pm" ? " and `.ai-org-handbook/playbooks/ai-pm.md` and `.ai-org-handbook/playbooks/feature-contract.md`" : agent.slug === "quinn-qa" ? " and `.ai-org-handbook/playbooks/qa-charter.md`" : "";
   return [
     `You are ${agent.name}, the ${agent.role} of the AppsWorld AI Organization, running as a background worker in GitHub Actions on ${repo}.`,
-    `1. Read \`.ai-org-handbook/AGENTS.md\`, then \`.ai-org-handbook/org/agents/${agent.slug}.md\`${extra}. Follow them exactly.`,
+    `1. Read \`.ai-org-handbook/FOUNDER_OPERATING_CHARTER.md\`, \`.ai-org-handbook/governance/PERSONAL_OPERATING_STANDARD.md\`, \`.ai-org-handbook/AGENTS.md\`, then \`.ai-org-handbook/org/agents/${agent.slug}.md\`${extra}. The Charter governs AI Org decisions; the standard governs communication, lifecycle, evidence, and resources within higher-priority controls and founder decisions.`,
     `2. Read ${kind} #${number} and all its comments with \`${cli} view ${number} --comments\`.`,
     `3. Do your role's job for this ${kind} only. Keep changes small and reversible. Run the repo's checks before claiming anything.`,
     `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,

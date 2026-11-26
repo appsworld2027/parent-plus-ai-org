@@ -1,6 +1,6 @@
 # Founder Operating Charter
 
-This charter governs development-stage AppsWorld AI Org work. Provider permissions, platform controls, applicable security requirements and explicit founder decisions for their own work still apply. This charter takes precedence over older general operating defaults. Where explicit founder instructions conflict on shared work, preserve both scopes and obtain a decision on the conflicting action. Parent Plus MM branch, release and live database authorization remain subject to the explicit owner direction recorded in its shared development workflow until reconciled by the founders.
+This charter is the authoritative governance source for AppsWorld AI Org work. Higher-priority platform instructions, provider permissions, applicable security requirements, and explicit founder decisions for their own work remain controlling. This charter takes precedence over older or conflicting general operating defaults and repository role guidance. The concise, versioned `governance/PERSONAL_OPERATING_STANDARD.md` applies communication, evidence, session lifecycle, and resource practices within those boundaries. Where explicit founder instructions conflict on shared work, preserve both scopes and obtain a decision on the conflicting action. Parent Plus MM branch, release, and live database authorization remain subject to the explicit owner direction recorded in its shared development workflow until reconciled by the founders.
 
 ## Delegated work
 
@@ -15,3 +15,5 @@ Use acceptance criteria, locked acceptance tests verified to fail for the intend
 ## Models and continuity
 
 Select the least resource-intensive available model that meets required capability and risk. Prefer deterministic scripts for predictable work and independent execution for critical review. Record actual model, usage, retries, quality results and expenditure where the runtime reports them. Mark unavailable measurements explicitly. Preserve verified checkpoints in approved project memory, retain founder attribution and recover the current state against GitHub before resuming.
+
+At onboarding, meaningful milestones, repeated failures, environment or model changes, and before a session ends, assess session quality and choose CONTINUE, COMPACT, SWITCH, or ESCALATE. Do not claim unsupported context metrics, model changes, durable persistence, or background activity. Verify a checkpoint from its committed or otherwise durable source. If durable persistence is unavailable, provide a portable handover. Keep protected merge and release approvals, owner restrictions, and security gates in force; routine development and independent review continue autonomously within them.

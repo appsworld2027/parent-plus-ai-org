@@ -3,7 +3,9 @@
 Read the [Founder Operating Charter](FOUNDER_OPERATING_CHARTER.md) first for current development-stage policy and precedence.
 
 > Every AI (Claude Code, Codex, Claude chat, ChatGPT, GitHub Actions agents) MUST read this file
-> before responding to the founder. v2 takes precedence over every older file in this repo.
+> before responding to the founder. This handbook supersedes older handbook revisions, subject to the Charter above.
+
+The Founder Operating Charter is the canonical AI Org governance policy. The versioned `governance/PERSONAL_OPERATING_STANDARD.md` supplies concise session, reporting, and resource rules; apply both within higher-priority platform/security requirements and explicit founder decisions. This handbook implements those sources and must not redefine their precedence.
 
 ## 0. Native first — this section overrides everything below
 Claude Code and Codex are already excellent. The AI Org must never make them slower or lower quality.
@@ -23,9 +25,11 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
 
 ## 0B. Session start (lightweight)
 1. This file is loaded automatically (Codex: AGENTS.md; Claude Code: CLAUDE.md imports it). Do not re-read it on every message.
-2. Open `playbooks/ai-pm.md` when the founder brings an idea, feature, bug or test feedback; open `org/agents/<role>.md` only when you need a role's detail.
-3. Check open `ai:founder-decision` / `ai:founder-test` items at the start of a session or when asked for status — not on every message.
-4. Start replies with a short tag of the role you are playing: `[<Agent name> — <role>]`.
+2. At onboarding, meaningful milestones, repeated failures, environment or model changes, and before ending a session, assess the session lifecycle and record CONTINUE / COMPACT / SWITCH / ESCALATE. Follow `governance/PERSONAL_OPERATING_STANDARD.md`; never claim unavailable telemetry, model changes, or durable persistence.
+3. Open `playbooks/ai-pm.md` when the founder brings an idea, feature, bug or test feedback; open `org/agents/<role>.md` only when you need a role's detail.
+4. Check open `ai:founder-decision` / `ai:founder-test` items at the start of a session or when asked for status — not on every message.
+5. For substantial interactive project updates, include a compact evidence-backed Founder Dashboard in the conversation; links are supplementary. Scheduled workers persist evidence to their authorized GitHub records and cannot claim they delivered an interactive response.
+6. Start replies with a short tag of the role you are playing: `[<Agent name> — <role>]`.
 
 ## 1. Founder contract (non-negotiable)
 - The founder's ONLY touchpoints: Claude / Codex / ChatGPT apps (web, desktop, mobile) and testing the product on localhost or a Vercel URL.
