@@ -5,8 +5,8 @@ import { readFileSync } from "node:fs";
 const autonomyPolicy = JSON.parse(readFileSync(new URL("../governance/AUTONOMY_POLICY.json", import.meta.url), "utf8"));
 import { route as policyRoute, ENGINES, ALLOWED_ENGINES, agentInfo, buildPrompt, pauseComment, PAUSE_MARKER, FREE_MODELS, testsBrief, buildBrief, STAGE_SEAT } from "../scripts/agent-router.mjs";
 
-// Engine-selection mechanics are tested with every engine allowed; the free-only policy is tested at the end.
-const route = (a) => policyRoute({ allowed: ENGINES, supervisedTrial: true, ...a });
+// Tests exercise the canonical policy: caller inputs cannot widen the allowed engine set.
+const route = (a) => policyRoute(a);
 const both = { claude: true, codex: true, free: false }, none = { claude: false, codex: false, free: false };
 const freeOnly = { claude: false, codex: false, free: true }, all = { claude: true, codex: true, free: true };
 
@@ -26,17 +26,22 @@ test("without any engine the agent pauses", () => {
   const r = route({ labels: ["ai:build"], engines: none });
   assert.equal(r.action, "pause"); assert.equal(r.role, "dev-coder");
 });
-test("engine label is honoured, with fallback to another engine", () => {
-  assert.equal(route({ labels: ["ai:build", "engine:codex"], engines: both }).engine, "codex");
-  const r = route({ labels: ["ai:build", "engine:codex"], engines: { claude: true, codex: false, free: false } });
-  assert.equal(r.engine, "claude"); assert.equal(r.fallback, true);
+test("paid engine labels cannot override the free-only policy", () => {
+  for (const label of ["engine:claude", "engine:codex"]) {
+    const r = route({ labels: ["ai:build", label], engines: all });
+    assert.equal(r.engine, "free");
+    assert.equal(r.fallback, true);
+  }
 });
-test("QA and review prefer an engine that did not author the PR", () => {
-  assert.equal(route({ labels: ["ai:qa", "engine:claude"], isPR: true, engines: both }).engine, "codex");
-  assert.equal(route({ labels: ["ai:review", "engine:codex"], isPR: true, engines: both }).engine, "claude");
+test("QA and review always use the distinct free reviewer model, regardless of paid author labels", () => {
+  assert.equal(route({ labels: ["ai:qa", "engine:claude"], isPR: true, engines: all }).engine, "free");
+  assert.equal(route({ labels: ["ai:qa", "engine:claude"], isPR: true, engines: all }).free_model, FREE_MODELS.reviewer);
+  assert.equal(route({ labels: ["ai:review", "engine:codex"], isPR: true, engines: all }).engine, "free");
+  assert.equal(route({ labels: ["ai:review", "engine:codex"], isPR: true, engines: all }).free_model, FREE_MODELS.reviewer);
 });
-test("paid engines are preferred over the free engine when no label is set", () => {
-  assert.equal(route({ labels: ["ai:build"], engines: all }).engine, "claude");
+test("the free builder is preferred when no engine label is set", () => {
+  assert.equal(route({ labels: ["ai:build"], engines: all }).engine, "free");
+  assert.equal(route({ labels: ["ai:build"], engines: all }).free_model, FREE_MODELS.builder);
 });
 test("free engine runs when it is the only engine, with builder and reviewer models", () => {
   const b = route({ labels: ["ai:fix"], engines: freeOnly });
@@ -88,7 +93,7 @@ test("Dev gets a build brief on ai:build/ai:fix issues only", () => {
   assert.ok(buildBrief(9).includes("#9"));
 });
 test("an explicit free model overrides the stage default", () => {
-  assert.equal(route({ labels: ["ai:tests"], engines: freeOnly, freeModel: "nvidia_nim/moonshotai/kimi-k3.1-pro" }).free_model, "nvidia_nim/moonshotai/kimi-k3.1-pro");
+  assert.equal(route({ labels: ["ai:tests"], engines: freeOnly, freeModel: "groq/qwen/qwen3.8-27b" }).free_model, "groq/qwen/qwen3.8-27b");
   assert.equal(route({ labels: ["ai:tests"], engines: freeOnly }).free_model, FREE_MODELS.builder);
 });
 test("v3: QA stages carry seats, onboarding + handover rules, and the right brief", () => {
@@ -105,7 +110,7 @@ test("v3: QA stages carry seats, onboarding + handover rules, and the right brie
 
 test("policy: canonical autonomy policy is the engine source of truth and remains fail-closed", () => {
   assert.deepEqual(ALLOWED_ENGINES, autonomyPolicy.execution.allowedEngines);
-  assert.equal(autonomyPolicy.execution.backgroundEnabled, false);
+  assert.equal(autonomyPolicy.execution.backgroundEnabled, true);
   assert.equal(autonomyPolicy.execution.allowPaidFallback, false);
   assert.equal(autonomyPolicy.execution.requirePrivateRepositoriesForConfidentialCode, true);
 });
@@ -113,18 +118,21 @@ test("policy: canonical autonomy policy is the engine source of truth and remain
 test("policy: paid engines never run, even when connected or labelled", () => {
   assert.deepEqual(ALLOWED_ENGINES, ["free"]);
   for (const labels of [["ai:build"], ["ai:build", "engine:claude"], ["ai:review", "engine:codex"]]) {
-    assert.equal(policyRoute({ labels, isPR: true, engines: all, supervisedTrial: true }).engine, "free");
+    assert.equal(policyRoute({ labels, isPR: true, engines: all }).engine, "free");
     assert.equal(policyRoute({ labels, isPR: true, engines: both }).action, "pause");
   }
 });
-test("policy: a model override cannot leave the NVIDIA free endpoints", () => {
-  for (const freeModel of ["openrouter/vendor/paid-model", "nvidia_nim/a/b\nMODEL=open_router/x/y", "nvidia_nim/a/b OPENROUTER_API_KEY=k"])
-    assert.equal(policyRoute({ labels: ["ai:build"], engines: freeOnly, freeModel, supervisedTrial: true }).free_model, FREE_MODELS.builder);
+test("policy: model overrides are restricted to the approved Groq free-tier allowlist", () => {
+  assert.equal(policyRoute({ labels: ["ai:tests"], engines: freeOnly, freeModel: "groq/qwen/qwen3.8-27b@medium" }).free_model, "groq/qwen/qwen3.8-27b@medium");
+  for (const freeModel of ["openrouter/vendor/paid-model", "nvidia_nim/a/b", "groq/openai/paid-model", "groq/qwen/qwen3.8-27b MODEL=other"])
+    assert.equal(policyRoute({ labels: ["ai:build"], engines: freeOnly, freeModel }).free_model, FREE_MODELS.builder);
 });
 
-test("policy: without a supervised synthetic-data trial, every background stage pauses", () => {
+test("policy: enabled background stages run only on the approved free engine", () => {
   for (const s of ["ai:discovery", "ai:plan", "ai:tests", "ai:tests-review", "ai:tests-signoff", "ai:build", "ai:qa", "ai:review", "ai:fix"]) {
-    const r = policyRoute({ labels: [s], engines: all, freeModel: "nvidia_nim/moonshotai/kimi-k3.1-pro@medium" });
-    assert.equal(r.action, "pause", s); assert.equal(r.free_model, undefined);
+    const r = policyRoute({ labels: [s], engines: all });
+    assert.equal(r.action, "run", s);
+    assert.equal(r.engine, "free", s);
+    assert.ok(r.free_model === FREE_MODELS.builder || r.free_model === FREE_MODELS.reviewer, s);
   }
 });
