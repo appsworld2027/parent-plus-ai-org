@@ -17,6 +17,23 @@
       "remainingRetries": 1,
       "resources": {},
       "nextAction": "Retry workflow-specific-required-checks from draft 501b2df. Fetch the recovery ref, reapply bf99ac7, rerun ai:verify, then publish through the ledger."
+    },
+    {
+      "sprintId": "phase3a-continuity-20261126",
+      "number": 2,
+      "runId": "e5715701-9d7d-4bf8-a346-51a326bf1ac4",
+      "taskId": "workflow-specific-required-checks",
+      "status": "running",
+      "baseCommit": "501b2df846072bd3108fc11722211b29ca4c681a",
+      "resultCommit": null,
+      "startedAt": "2026-11-26T01:44:03.590Z",
+      "completedAt": null,
+      "lockOwner": "bfeefcc32b1ba9ddaabab235d70b398f5150e02a",
+      "verification": null,
+      "recovery": null,
+      "remainingRetries": 0,
+      "resources": {},
+      "nextAction": "Implement and persist recovery commit"
     }
   ]
 }
