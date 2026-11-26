@@ -12,28 +12,31 @@ kill_agent() { for _ in 1 2 3 4 5; do sudo pkill -KILL -u trialagent 2>/dev/null
 # Fails if the agent could change any program or system file that the judge or a secret step might run.
 PROTECTED_TREES=${TRIAL_PROTECTED_TREES:-"/opt /usr /etc"}
 assert_system_readonly() {
-  local d found trees="$PROTECTED_TREES"
+  local d found trees="$PROTECTED_TREES" back=$PWD
+  cd /
   local entry exact; local IFS=:
   for entry in $PATH; do
     d=$entry exact=1
     while [ -n "$d" ] && [ "$d" != / ]; do
       # A sticky folder (like /tmp) is safe as a parent: others cannot replace an existing entry in it.
-      if sudo -u trialagent test -w "$d" && { [ "$exact" = 1 ] || [ ! -k "$d" ]; }; then echo "::error::the agent user can write to $d (on PATH)"; return 1; fi
+      if sudo -u trialagent test -w "$d" && { [ "$exact" = 1 ] || [ ! -k "$d" ]; }; then echo "::error::the agent user can write to $d (on PATH)"; cd "$back"; return 1; fi
       if [ -d "$d" ]; then exact=0; else exact=1; fi
       d=$(dirname "$d")
     done
   done
   unset IFS
   found=$(sudo -u trialagent find $trees ! -type l -writable -print 2>/dev/null | head -5) || true  # unreadable folders make find exit 1
-  [ -z "$found" ] || { echo "::error::the agent user can write to system files: $found"; return 1; }
-  if sudo -u trialagent test -w /var/run/docker.sock; then echo "::error::the agent user can use Docker"; return 1; fi
+  [ -z "$found" ] || { echo "::error::the agent user can write to system files: $found"; cd "$back"; return 1; }
+  if sudo -u trialagent test -w /var/run/docker.sock; then echo "::error::the agent user can use Docker"; cd "$back"; return 1; fi
+  cd "$back"
 }
 JUDGE_PATHS="e2e/acceptance playwright.config.ts package.json package-lock.json tsconfig.json vitest.config.mts config scripts"
 lock_workspace() {
   local p=$ROOT/product
   sudo chown -R trialagent: "$p"
   # The root folder is locked below, so git must be told this workspace is expected.
-  sudo -u trialagent -H git config --global --replace-all safe.directory "$p"
+  # Commands run as another user must start in a folder that user can open; the runner's folders are closed to it.
+  (cd / && sudo -u trialagent -H git config --global --replace-all safe.directory "$p")
   for f in $JUDGE_PATHS; do sudo chown -R root:root "$p/$f"; sudo chmod -R go-w "$p/$f"; done
   # Sticky, root-owned folders: new files are allowed, replacing someone else's entry is not.
   sudo chown root:root "$p" "$p/e2e"; sudo chmod 1777 "$p" "$p/e2e"
