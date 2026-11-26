@@ -5,6 +5,11 @@ import { resolve } from "node:path";
 
 const candidate = resolve(process.argv[2] ?? "trial/autonomy/waitlist.mjs");
 const cwd = "trial/autonomy/parent-feedback-preview/tests/acceptance";
+const patchHarness = resolve("trial/autonomy/patch-replay/apply.mjs");
+if (process.env.RUNNER_TEMP && candidate.startsWith(resolve(process.env.RUNNER_TEMP, "pilot") + "/")) {
+  const { applyModelPatch } = await import(patchHarness);
+  applyModelPatch(candidate);
+}
 if (process.env.RUNNER_TEMP && process.argv[2]) {
   const evidence = resolve(process.env.RUNNER_TEMP, "evidence");
   mkdirSync(evidence, { recursive: true });
