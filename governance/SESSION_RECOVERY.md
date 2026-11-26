@@ -4,7 +4,7 @@ Use this source order at session start, when resuming work, and before reporting
 
 ## 1. Authoritative instructions and founder decisions
 
-Read `AGENTS.md`, `FOUNDER_OPERATING_CHARTER.md`, `governance/PERSONAL_OPERATING_STANDARD.md`, and `governance/decisions/LOG.md` from `appsworld2027/parent-plus-ai-org` at the active work branch. If it is not checked out, use the connected GitHub tools to retrieve them by path/ref; if those are unavailable, clone the named repository into the workspace first. A blank Codex Cloud workspace does not auto-load repository files.
+Read `AGENTS.md`, `FOUNDER_OPERATING_CHARTER.md`, `governance/PERSONAL_OPERATING_STANDARD.md`, and `governance/decisions/LOG.md` from `appsworld2027/parent-plus-ai-org` at `main` for the currently adopted baseline. Then read those files from the active work branch to identify branch-specific changes. Until an unmerged draft is adopted by an explicit founder decision or merged through its gates, treat its policy changes as proposals; never use a draft to widen permissions. If no checkout is present, use connected GitHub tools to retrieve the files by path/ref first; if those are unavailable, clone the named repository into the workspace. A blank Codex Cloud workspace does not auto-load repository files.
 
 For Parent Plus owner authority, retrieve `ai-workspace/development/SHARED_DEVELOPMENT_WORKFLOW.md` from `appsworld2027/Parent-plus-`, branch `MM/development`. `docs/SHARED_DEVELOPMENT_WORKFLOW.md` is only a move notice. The latest owner instruction in this workflow is branch-specific: MM work stays on `MM/development`; do not work on `main` or promote MM changes without a new explicit owner instruction. Check the live branch tip before relying on a commit reference. At this checkpoint the observed tip was `710082b2d8cf3c1007086df31f87b34ae8e02573`.
 
@@ -32,3 +32,5 @@ If the ledger, Command Centre, PR, or CI evidence is missing or stale, say which
 ## 5. Source-loading record
 
 In the handover or Founder Dashboard, name the path, repository, branch/commit used for each important fact and mark the source as **automatically loaded** or **explicitly retrieved**. Repository files are not automatically loaded when the workspace starts without a checkout; use GitHub first, then clone if local inspection or edits are needed. Keep actual decisions in their existing owner/decision records.
+
+Run `npm run ai:recovery:smoke` to validate this order from an empty temporary workspace. It retrieves the current draft instructions, reporting branch ledger and Command Centre, Parent Plus owner workflow, and current PR/check data; it fails if checkpoint data is missing, the dashboard disagrees with the latest ledger batch, or fetched branch refs are stale. The smoke test is read-only and removes its temporary clones.

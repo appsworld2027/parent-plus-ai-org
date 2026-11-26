@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { assertNoCurrentAuthorityConflicts, currentAuthorityConflicts, latestExecutionCheckpoint, validateCheckpointFreshness } from '../scripts/recovery-validation.mjs'
 
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8')
 const instructions = read('AGENTS.md')
@@ -35,6 +36,30 @@ test('stale or missing evidence and unresolved decision conflicts cannot be gues
   assert.match(recovery, /If the ledger, Command Centre, PR, or CI evidence is missing or stale/)
   assert.match(recovery, /If current founder decisions or owner instructions conflict/)
   assert.match(recovery, /pause only the affected action for resolution/)
+  assert.match(recovery, /at `main` for the currently adopted baseline/)
+  assert.match(recovery, /treat its policy changes as proposals/)
   assert.match(recovery, /Do not infer that an old roadmap item, pilot plan, merged PR, or passing check lifts a newer hold/)
   assert.match(recovery, /automatically loaded.*explicitly retrieved/)
+  assert.match(recovery, /npm run ai:recovery:smoke/)
+})
+
+test('freshness validator rejects missing or stale checkpoints and surfaces conflicting current authorities', () => {
+  const ledger = { sprintId: 'test-sprint', batches: [{ taskId: 'latest-task', nextAction: 'continue test', status: 'successful' }] }
+  const dashboard = 'test-sprint latest-task continue test'
+  assert.throws(() => latestExecutionCheckpoint(null), /Missing durable execution ledger/)
+  assert.throws(() => latestExecutionCheckpoint({ batches: [] }), /no actionable checkpoint/)
+  assert.throws(() => validateCheckpointFreshness({ liveRefSha: 'new', fetchedRefSha: 'old', ledger, dashboard }), /does not match the live reporting branch tip/)
+  assert.throws(() => validateCheckpointFreshness({ liveRefSha: 'same', fetchedRefSha: 'same', ledger, dashboard: 'stale dashboard' }), /missing, stale, or conflicts/)
+  assert.deepEqual(currentAuthorityConflicts([
+    { authority: 'founder', scope: 'shared-scope', value: 'approved' },
+    { authority: 'owner', scope: 'shared-scope', value: 'hold' },
+  ]), ['shared-scope'])
+  assert.throws(() => assertNoCurrentAuthorityConflicts([
+    { authority: 'founder', scope: 'shared-scope', value: 'approved' },
+    { authority: 'owner', scope: 'shared-scope', value: 'hold' },
+  ]), /Conflicting current founder\/owner decisions/)
+  assert.deepEqual(currentAuthorityConflicts([
+    { authority: 'owner', scope: 'shared-scope', value: 'hold' },
+    { authority: 'historical', scope: 'shared-scope', value: 'approved' },
+  ]), [], 'historical notes cannot override or conflict with current authority')
 })
