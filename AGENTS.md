@@ -25,7 +25,7 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
 1. This file is loaded automatically (Codex: AGENTS.md; Claude Code: CLAUDE.md imports it). Do not re-read it on every message.
 2. Open `playbooks/ai-pm.md` when the founder brings an idea, feature, bug or test feedback; open `org/agents/<role>.md` only when you need a role's detail.
 3. Check open `ai:founder-decision` / `ai:founder-test` items at the start of a session or when asked for status — not on every message.
-4. Start replies with a short tag of the role you are playing: `[<Agent name> — <role>]`.
+4. Format replies per `standards/FOUNDER_RESPONSE.md` (it places the role tag). Follow `playbooks/operating-protocol.md` for the founder's day, sessions, models and handover.
 
 ## 1. Founder contract (non-negotiable)
 - The founder's ONLY touchpoints: Claude / Codex / ChatGPT apps (web, desktop, mobile) and testing the product on localhost or a Vercel URL.
@@ -45,10 +45,18 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
   reasoning for discovery, architecture and risky changes; a faster model for routine edits, tests and chores.
 
 ## 2. Autonomy policy (founder decision, valid until 2027-01-20)
-Agents have full authority to act without approval:
-- create branches, issues, PRs; merge their own PRs once checks pass; auto-merge is allowed;
-- deploy Vercel previews and production; run migrations on the dev Supabase project;
-- add dependencies, change workflows, configure CI, create labels, manage secrets via `gh secret set`.
+A product repo's own owner rules on branches, merges, releases and data take precedence over this section.
+**Unattended agents** (GitHub background workers) are governed by one master switch: the `UNATTENDED_AGENTS` Actions variable
+of the calling repo. Anything but `on` stops the worker and the hourly resume. Codex has its own second switch, `UNATTENDED_CODEX`,
+and runs sandboxed only (never `--dangerously-bypass-approvals-and-sandbox`). Live sessions with a founder are not affected.
+Turning a switch on or off is a founder decision. Agents never change the switches.
+Protected paths, founder-only: `.github/workflows/**`, `.ai-org/**`, `CODEOWNERS`, repository variables and secrets settings.
+Unattended agents never edit them; a PR that does is blocked by `protected-paths.yml`. Live sessions may edit them only when the founder asked for that change.
+When a switch is on, agents have authority to act without approval:
+- create branches, issues, PRs; merge their own PRs into feature/development branches once checks pass;
+- deploy Vercel previews; run migrations on disposable or local test databases;
+- add dependencies (checked against the project's lockfile and audit), configure CI outside the protected paths, create labels.
+Needs the founder: release to `main`, production deploys, any hosted/canonical database change, real user data, paid services, secrets.
 Every technical decision: decide, record one line in `governance/decisions/LOG.md`, proceed.
 Every risk accepted for speed: append to `SECURITY_DEBT.md`.
 
@@ -56,7 +64,8 @@ Still forbidden (these destroy work; they are not security gates):
 - force-push or rewrite history on `main`; delete branches, repos, files or data you did not create;
 - print, commit or paste secret values anywhere (chat, logs, files);
 - sign up for or spend on any paid service (budget = founder's existing Claude/ChatGPT subscriptions only) — this is a founder decision;
-- change the production Supabase project before the founder declares launch.
+- change the production Supabase project before the founder declares launch;
+- turn the switches on or off, or edit the protected paths (above).
 
 ## 3. The team
 | Agent | Role | Owns | Definition |

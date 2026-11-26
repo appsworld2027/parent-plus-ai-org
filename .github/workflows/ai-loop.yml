@@ -2,7 +2,8 @@
 #  - advance: on a schedule and whenever a PR/issue changes, move every item one step (scripts/loop.mjs)
 #  - command: when a founder comments /approve, /changes, /next or /stop
 #  - next:    start the next backlog item when nothing is in flight
-# Deterministic: no model calls, no secrets beyond the workflow token.
+# Deterministic: no model calls, no secrets beyond the workflow token. Deliberately NOT behind UNATTENDED_AGENTS:
+# it only moves items already created by humans or live sessions; shipping to main still needs a founder /approve.
 name: AI loop
 
 on:
