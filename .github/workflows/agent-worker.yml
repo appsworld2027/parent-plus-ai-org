@@ -1,7 +1,6 @@
 # Reusable agent worker. Called by each repo's ai-agents.yml when an ai:* stage label is added
 # (or by workflow_dispatch to chain agent -> agent). The router decides: skip, pause (no
-# engine connected) or run the chosen engine (Claude Code, Codex, or the free engine = Claude Code
-# through Free Claude Code on free NVIDIA NIM models) as the named agent.
+# engine connected) or run the free Groq model through the pinned Free Claude Code adapter as the named agent.
 name: Agent worker
 
 on:
@@ -24,18 +23,14 @@ on:
     secrets:
       AI_ORG_HANDBOOK_SSH_KEY:
         required: false
-      CLAUDE_CODE_OAUTH_TOKEN:
-        required: false
-      CODEX_AUTH_JSON:
-        required: false
-      NVIDIA_NIM_API_KEY:
+      GROQ_API_KEY:
         required: false
 
 jobs:
   agent:
-    # Master off switch (founder decision 2026-11-26). Runs only if the CALLING repo sets the Actions
-    # variable UNATTENDED_AGENTS=on. Unset or anything else = no unattended agent runs. See AGENTS.md section 2.
-    if: vars.UNATTENDED_AGENTS == 'on'
+    # Founder-controlled emergency stop: set UNATTENDED_AGENTS=off in the caller repo.
+    # Unset means enabled; a missing free-model key still causes the router to pause.
+    if: vars.UNATTENDED_AGENTS != 'off'
     runs-on: ubuntu-latest
     timeout-minutes: 95
     concurrency:
@@ -87,9 +82,7 @@ jobs:
         env:
           LABELS: ${{ steps.item.outputs.labels }}
           IS_PR: ${{ steps.item.outputs.is_pr }}
-          ENGINE_CLAUDE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
-          ENGINE_CODEX: ${{ secrets.CODEX_AUTH_JSON != '' }}
-          ENGINE_FREE: ${{ secrets.NVIDIA_NIM_API_KEY != '' }}
+          ENGINE_FREE: ${{ secrets.GROQ_API_KEY != '' }}
         run: |
           set -euo pipefail
           PRFLAG=""; [ "$IS_PR" = "true" ] && PRFLAG="--pr"
@@ -162,19 +155,10 @@ jobs:
             gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/pause.md
           fi
 
-      - name: Run agent with Claude Code
-        if: steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'claude'
-        uses: anthropics/claude-code-action@v1
-        with:
-          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          github_token: ${{ github.token }}
-          prompt: ${{ steps.router.outputs.prompt }}
-          claude_args: --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch"
-
-      - name: Run agent with the free engine (Claude Code via FCC + NVIDIA NIM)
+      - name: Run agent with the free Groq model (Claude Code CLI via FCC)
         if: steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'free'
         env:
-          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           FREE_MODEL: ${{ steps.router.outputs.free_model }}
           PROMPT: ${{ steps.router.outputs.prompt }}
           AGENT_NAME: ${{ steps.router.outputs.agent_name }}
@@ -183,12 +167,12 @@ jobs:
           mkdir -p /tmp/agent-logs
           curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null
           export PATH="$HOME/.local/bin:$PATH"
-          uv tool install free-claude-code >/dev/null
+          uv tool install "free-claude-code==6.19.56" >/dev/null
           npm install -g @anthropic-ai/claude-code >/dev/null
           mkdir -p "$HOME/.fcc" "$HOME/.claude"
-          # FREE_MODEL may carry a reasoning effort chosen by a model trial: "nvidia_nim/<model>@low" (FCC REASONING_POLICY).
+          # FREE_MODEL is an approved Groq free-tier route; an optional effort suffix is forwarded to FCC.
           EFFORT=""; case "$FREE_MODEL" in *@*) EFFORT="${FREE_MODEL##*@}"; FREE_MODEL="${FREE_MODEL%@*}";; esac
-          printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$NVIDIA_NIM_API_KEY" "$FREE_MODEL" > "$HOME/.fcc/.env"
+          printf 'GROQ_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$GROQ_API_KEY" "$FREE_MODEL" > "$HOME/.fcc/.env"
           [ -n "$EFFORT" ] && printf 'REASONING_POLICY=%s\n' "$EFFORT" >> "$HOME/.fcc/.env" && echo "reasoning effort: $EFFORT"
           chmod 600 "$HOME/.fcc/.env"
           echo '{"includeCoAuthoredBy": false}' > "$HOME/.claude/settings.json"
@@ -197,7 +181,7 @@ jobs:
           git config user.name "$AGENT_NAME (AppsWorld AI Org)"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           PROMPT="$PROMPT
-          7. Engine facts: you are running on the model $FREE_MODEL, served free by NVIDIA NIM through Free Claude Code. You are not a Claude model. Whenever you name the model or engine that did the work (comments, commits, PRs), state exactly this.
+          7. Engine facts: you are running on the model $FREE_MODEL, served by the Groq free tier through Free Claude Code. You are not a Claude model. Whenever you name the model or engine that did the work (comments, commits, PRs), state exactly this.
           8. Post every comment and PR body with --body-file pointing to a file you wrote first (never inline --body), so code formatting survives.
           9. Evidence rule: every claim that checks passed must link a CI run or quote the command and its result line."
           if [ -f .ai-org/manifest.json ] && jq -e '.governance.autoMerge == false' .ai-org/manifest.json >/dev/null; then
@@ -223,22 +207,7 @@ jobs:
           tail -c 1500 /tmp/agent-logs/agent.stderr
           exit $rc
 
-      - name: Run agent with Codex (experimental until verified with a ChatGPT subscription)
-        # Second switch: Codex stays off until a sandboxed run is verified in CI (set UNATTENDED_CODEX=on to try it).
-        if: steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'codex' && vars.UNATTENDED_CODEX == 'on'
-        env:
-          CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
-          PROMPT: ${{ steps.router.outputs.prompt }}
-        run: |
-          set -euo pipefail
-          npm install -g @openai/codex >/dev/null
-          export CODEX_HOME="$RUNNER_TEMP/codex-home"; mkdir -p "$CODEX_HOME"
-          printf '%s' "$CODEX_AUTH_JSON" > "$CODEX_HOME/auth.json"; chmod 600 "$CODEX_HOME/auth.json"
-          # Sandboxed: writes limited to the workspace; network on so gh/git work. Never the bypass flag.
-          codex exec --sandbox workspace-write -c sandbox_workspace_write.network_access=true "$PROMPT"
-          echo "::warning::Codex may have refreshed its login. Saving it back to the CODEX_AUTH_JSON secret needs a bot token (SECURITY_DEBT S7)."
-
-      - name: Export NVIDIA worker usage
+      - name: Export free-model worker usage
         if: always() && steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'free'
         run: |
           if [ -f /tmp/agent-logs/agent.jsonl ]; then
