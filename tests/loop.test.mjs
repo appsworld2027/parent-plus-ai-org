@@ -145,11 +145,19 @@ test("required CI selects only the latest run of the configured workflow for the
 test("configured AI verdict evidence requires the assigned account and reviewed commit", () => {
   const sha = "a".repeat(40);
   const policy = { rex: 12, challenger: 13, signoff: 14 };
-  const review = { user: { id: 12 }, body: `[Rex] Verdict: APPROVE\n<!-- ai-org:reviewed-commit ${sha} -->` };
+  const review = { user: { id: 12, login: "authorized-reviewer", type: "User" }, body: `[Rex] Verdict: APPROVE\n<!-- ai-org:reviewed-commit ${sha} -->` };
   assert.deepEqual(verdictEvidence([review], policy, "rex", sha), [review]);
-  assert.deepEqual(verdictEvidence([{ ...review, user: { id: 13 } }], policy, "rex", sha), []);
+  assert.deepEqual(verdictEvidence([{ ...review, user: { id: 13, login: "unassigned-user", type: "User" } }], policy, "rex", sha), [], "a comment claiming to be Rex cannot impersonate the assigned account");
+  assert.deepEqual(verdictEvidence([{ ...review, user: { id: 12, login: "authorized-reviewer[bot]", type: "Bot" } }], policy, "rex", sha), [], "a GitHub App bot cannot impersonate an assigned human account");
   assert.deepEqual(verdictEvidence([review], policy, "rex", "b".repeat(40)), []);
+  assert.deepEqual(verdictEvidence([{ ...review, body: `[Rex] Verdict: APPROVE\n<!-- ai-org:reviewed-commit ${"b".repeat(40)} -->` }], policy, "rex", sha), [], "stale evidence for another commit cannot pass");
   assert.deepEqual(verdictEvidence([review], { ...policy, challenger: 12 }, "rex", sha), []);
   assert.deepEqual(verdictEvidence([review], policy, "rex", sha, [12]), []);
   assert.deepEqual(verdictEvidence([review], {}, "rex", sha), []);
+});
+
+test("unauthorized human account cannot satisfy the independent PR approval allowlist", () => {
+  const options = { head: "current", authorLogin: "Builder", reviewerIds: [12, 14] };
+  const unauthorized = { id: 1, user: { id: 99, login: "unlisted-reviewer", type: "User" }, state: "APPROVED", commit_id: "current" };
+  assert.equal(hasIndependentApproval([unauthorized], options), false);
 });

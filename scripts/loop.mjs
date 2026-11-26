@@ -80,7 +80,7 @@ export function verdictEvidence(comments, policy, role, sha, excludedIds = []) {
       Object.values(policy).filter((value) => value === id).length !== 1 ||
       !/^[a-f0-9]{40}$/.test(sha)) return [];
   const marker = `<!-- ai-org:reviewed-commit ${sha} -->`;
-  return comments.filter((comment) => comment.user?.id === id &&
+  return comments.filter((comment) => comment.user?.type === "User" && comment.user?.id === id &&
     comment.body?.split(/\r?\n/).some((line) => line.trim() === marker));
 }
 export function hasIndependentApproval(reviews, { head, authorLogin, reviewerIds }) {
