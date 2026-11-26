@@ -38,3 +38,8 @@ Session action: SWITCH at founder request. Context was sufficient to preserve cu
 
 - The founder approved the Coach-reviewed feedback draft on 26 November 2026 in Codex (“Go ahead..”). The approved contract and Quinn's nine browser checks are frozen together in the commit adding this checkpoint. Interactive Quinn authored the checks. Playwright drove Chromium and all nine failed with the expected missing child selector assertion before any candidate existed.
 - Next: run Dev with the existing free-tier builder. Execute these exact browser checks, inspect edge cases independently, and run the existing Groq reviewer against the exact passing candidate. Open the isolated preview and verify recovery.
+
+## Free-tier execution started
+
+- Run [45800396793](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45800396793) was observed in progress. Commit `cfa7d72` on `codex/autonomy-feedback-execution` adapts the prompt and test entry point to reuse the existing manual workflow without editing it or the waitlist evidence on this working branch. For compatibility, the artifact filename `waitlist.mjs` contains the requested HTML. The workflow passes the exact tested file to Groq only if the locked tests pass.
+- Lifecycle: CONTINUE. Context is sufficient. Follow the run to completion, verify the artifact and digest, and confirm the browser preview and recovery. No production work.
