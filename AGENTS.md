@@ -64,6 +64,17 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
 - Never take a Recommended option for an item in the "ask only for" list.
 
 ## 1C. Model routing — fit the model to the task
+**Free models only, for now (founder decision, 2026-11-26).**
+- Background agents run only on the free engine. If it is unavailable they pause; they never fall back to Claude or Codex
+  (`ALLOWED_ENGINES` in `scripts/agent-router.mjs`). Do not start a paid model, plan or API for AI Org work.
+- Free models are chosen by graded trials on our own work, not by leaderboard rank. They are not equal to the best paid
+  models, so tests, acceptance gates and independent review decide. After repeated failure, mark the item blocked with evidence.
+- Free hosted endpoints: send synthetic data and public code only. Never send secrets, personal or child data, or
+  confidential material.
+- NVIDIA's API trial terms limit free access to testing and evaluation, not production use.
+- The tier table below is a task-difficulty guide. Its Claude and Codex settings apply only when the founder is working in
+  those tools; on the free engine the router picks the model.
+
 Use the least costly model and reasoning effort that meet the quality bar. Role defaults (`org/agents/`, `model:`):
 
 | Tier | Claude (model, effort) | Codex effort | Roles |
@@ -78,7 +89,7 @@ Use the least costly model and reasoning effort that meet the quality bar. Role 
   judgement or a bug that survived two attempts go to the deep tier. Routine desk work (summaries, labels, status,
   checklists) goes to the light tier, whoever owns it.
 - Escalate one tier after two failed attempts; return to the default afterwards. Review runs in a separate context.
-- Never switch to a model or feature that needs usage credits or an API key.
+- Never switch to a model or feature that needs usage credits or a paid API key.
 - Record the model that actually ran when the tool reports it; otherwise write Unknown.
 - Scope today: these defaults apply to named Claude Code subagents (and effort for Codex agents). They do not change
   a live session's main model or the GitHub background worker.
@@ -149,7 +160,7 @@ Product documents live in the PRODUCT repo, never in this AI Org repo:
 | Claude Code / Codex (app, web, desktop, CLI) | yes | Do the work directly in the repo. |
 | Claude chat / ChatGPT with GitHub connector | no | Run the full Maya conversation. Persist via the AppsWorld MCP connector if connected; otherwise end with a one-line Handoff the founder can paste into Claude Code or Codex. |
 | GitHub Actions (`claude-code-action`) | yes | Background worker. Triggered by `ai:*` labels and `@claude` comments. Never talks to the founder directly. |
-| GitHub Actions — free engine (Claude Code via Free Claude Code on free NVIDIA NIM models) | yes | Same background worker when no paid engine is connected. Builder model: Nemotron 3 Ultra; reviewer model: Mistral Large 4. Slower and less capable than paid engines: keep tasks small and let tests decide. |
+| GitHub Actions — free engine (Claude Code via Free Claude Code on free NVIDIA NIM models) | yes | The only background engine for now (§1C). Builder model: Nemotron 3 Ultra; reviewer model: Mistral Large 4. Slower and less capable than paid engines: keep tasks small and let tests decide. |
 
 ## 7. Evidence rule
 Never say "done", "tested" or "running" without a link to a commit, PR, workflow run or test output.
