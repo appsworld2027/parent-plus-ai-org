@@ -43,3 +43,9 @@ Session action: SWITCH at founder request. Context was sufficient to preserve cu
 
 - Run [45800396793](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45800396793) was observed in progress. Commit `cfa7d72` on `codex/autonomy-feedback-execution` adapts the prompt and test entry point to reuse the existing manual workflow without editing it or the waitlist evidence on this working branch. For compatibility, the artifact filename `waitlist.mjs` contains the requested HTML. The workflow passes the exact tested file to Groq only if the locked tests pass.
 - Lifecycle: CONTINUE. Context is sufficient. Follow the run to completion, verify the artifact and digest, and confirm the browser preview and recovery. No production work.
+
+## Runner browser recovery
+
+- Build in run `45800396793` completed in 2 turns and 127.226 seconds. FCC was configured for NVIDIA Nemotron; the adapter client reported a Claude alias with 19,436 input, 5,035 output, 13,152 cache-read tokens. Provider identity and billing remain unverified. The client list-cost estimate is not a bill.
+- Before acceptance, Playwright refused to install Chromium for the runner's Ubuntu 26.04 image. The workflow skipped Rex and published no candidate from that attempt. Execution adapter commit `85b9d6c` selects installed Chrome and saves the candidate before checks. The locked tests are unchanged.
+- Lifecycle: CONTINUE. [Retry run 45800951515](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45800951515) was observed in progress. If artifact downloads are blocked, retrieve the generated source from the workflow log and verify its SHA-256 against the runner.
