@@ -118,3 +118,17 @@ test("autonomy rule keeps its escalation limits; role models are routed and the 
   assert.equal(model("kiran-pjm-a"), "haiku low");
   for (const a of registry) assert.doesNotMatch(read(`.claude/agents/${a.agentId}.md`), /^model: inherit$/m);
 });
+
+test("cross-repository private handbook checkout uses a dedicated read-only credential without persisting it", () => {
+  for (const path of [".github/workflows/agent-worker.yml", ".github/workflows/ai-loop.yml", ".github/workflows/handbook-connectivity.yml"]) {
+    const workflow = read(path);
+    assert.match(workflow, /AI_ORG_HANDBOOK_TOKEN:\n\s+required: false/);
+    assert.match(workflow, /HANDBOOK_ACCESS:.*secrets\.AI_ORG_HANDBOOK_TOKEN != ''/);
+    assert.match(workflow, /token:.*github\.repository == 'appsworld2027\/parent-plus-ai-org'.*github\.token.*secrets\.AI_ORG_HANDBOOK_TOKEN/);
+    assert.match(workflow, /persist-credentials: false/);
+  }
+  const smoke = read(".github/workflows/handbook-connectivity.yml");
+  assert.match(smoke, /contents: read/);
+  assert.doesNotMatch(smoke, /NVIDIA_NIM_API_KEY|CODEX_AUTH_JSON|CLAUDE_CODE_OAUTH_TOKEN/);
+  assert.match(smoke, /git rev-parse HEAD/);
+});
