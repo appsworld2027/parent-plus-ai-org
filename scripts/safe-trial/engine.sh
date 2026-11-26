@@ -9,7 +9,7 @@ cd /  # everything below runs as the proxy user, which cannot open the runner's 
 case "$MODEL" in nvidia_nim/*) ;; *) echo "::error::not a free NVIDIA model"; exit 1;; esac
 [ -n "${NVIDIA_NIM_API_KEY:-}" ] || { echo "::error::NVIDIA_NIM_API_KEY is not set."; exit 1; }
 as_proxy bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null && "$HOME/.local/bin/uv" tool install free-claude-code >/dev/null && "$HOME/.local/bin/uv" tool list && mkdir -p "$HOME/.fcc" && chmod 700 "$HOME/.fcc"'
-printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$NVIDIA_NIM_API_KEY" "$MODEL" \
+printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\nENABLE_WEB_SERVER_TOOLS=false\n' "$NVIDIA_NIM_API_KEY" "$MODEL" \
   | as_proxy bash -c 'umask 077; cat > "$HOME/.fcc/.env"'
 sudo mkdir -p /srv/trial-gate && sudo cp "$J/scripts/safe-trial/gate.mjs" /srv/trial-gate/gate.mjs && sudo chmod -R a+rX /srv/trial-gate
 NODE=$(command -v node)
