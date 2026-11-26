@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "status": "security-prerequisites-pending",
+  "status": "free-model-autonomy-enabled",
   "authority": {
     "strategyApprovalRequired": true,
     "routinePostStrategyFounderApprovalRequired": false,
@@ -15,11 +15,18 @@
     ]
   },
   "execution": {
-    "backgroundEnabled": false,
-    "allowedEngines": ["free"],
+    "backgroundEnabled": true,
+    "allowedEngines": [
+      "free"
+    ],
     "allowPaidFallback": false,
     "requirePrivateRepositoriesForConfidentialCode": true,
-    "requireApprovedProviderForConfidentialCode": true,
+    "requireApprovedProviderForConfidentialCode": false,
+    "freeProvider": "groq",
+    "freeModels": {
+      "builder": "groq/openai/gpt-oss-120b",
+      "reviewer": "groq/qwen/qwen3.8-27b"
+    },
     "maxConcurrentDeliveryLanes": 2
   },
   "release": {
@@ -36,6 +43,8 @@
   },
   "notes": [
     "This policy is the machine-readable authority contract for AI Org.",
-    "Background execution remains disabled until repository privacy and provider-usage prerequisites are verified."
+    "Unattended development agents use only the Groq free tier through the pinned Free Claude Code adapter.",
+    "If the free key, model, or quota is unavailable, execution pauses; no paid fallback or automatic upgrade is permitted.",
+    "Never send secrets, production credentials, customer data, or child personal data to hosted models."
   ]
 }
