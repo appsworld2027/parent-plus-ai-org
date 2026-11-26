@@ -225,6 +225,21 @@ jobs:
           codex exec --sandbox workspace-write -c sandbox_workspace_write.network_access=true "$PROMPT"
           echo "::warning::Codex may have refreshed its login. Saving it back to the CODEX_AUTH_JSON secret needs a bot token (SECURITY_DEBT S7)."
 
+      - name: Export NVIDIA worker usage
+        if: always() && steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'free'
+        run: |
+          if [ -f /tmp/agent-logs/agent.jsonl ]; then
+            node "$GITHUB_WORKSPACE/.ai-org-handbook/scripts/worker-usage.mjs" /tmp/agent-logs/agent.jsonl /tmp/route.json /tmp/ai-org-usage.json
+          fi
+
+      - name: Publish worker usage
+        if: always() && steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'free'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-org-usage-${{ github.run_attempt }}
+          path: /tmp/ai-org-usage.json
+          if-no-files-found: ignore
+
       # Independent check of Quinn's locked tests: they must be red for the right reason (scripts/grade-acceptance.mjs).
       # The loop only opens the build when this commit status is green, so broken tests never reach Dev.
       - name: Acceptance-test gate (ai:tests only)
