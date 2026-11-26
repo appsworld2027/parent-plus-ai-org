@@ -120,7 +120,7 @@ test("autonomy rule keeps its escalation limits; role models are routed and the 
 });
 
 test("cross-repository private handbook checkout uses a dedicated read-only credential without persisting it", () => {
-  for (const path of [".github/workflows/agent-worker.yml", ".github/workflows/ai-loop.yml", ".github/workflows/handbook-connectivity.yml"]) {
+  for (const path of [".github/workflows/agent-worker.yml", ".github/workflows/ai-loop.yml", ".github/workflows/handbook-connectivity.yml", ".github/workflows/contract-lock.yml"]) {
     const workflow = read(path);
     assert.match(workflow, /AI_ORG_HANDBOOK_TOKEN:\n\s+required: false/);
     assert.match(workflow, /HANDBOOK_ACCESS:.*secrets\.AI_ORG_HANDBOOK_TOKEN != ''/);
