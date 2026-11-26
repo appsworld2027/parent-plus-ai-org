@@ -5,9 +5,7 @@ set -euo pipefail
 # GitHub's images leave system folders writable by everyone (/opt, /usr/share, /usr/lib/jvm). Close that before any
 # model process exists. This covers every tree the check below inspects, and only touches entries that need it.
 if [ -d /opt/hostedtoolcache ]; then sudo chown -R "$(id -un):" /opt/hostedtoolcache; fi
-for d in $PROTECTED_TREES $(echo "$PATH" | tr ':' ' '); do
-  if [ -d "$d" ]; then sudo find "$d" -xdev ! -type l -perm /022 -exec chmod go-w {} + 2>/dev/null || true; fi
-done  # the check below is what decides
+harden_system
 cd /  # the checks below run as other users
 for u in trialagent trialproxy; do id "$u" >/dev/null 2>&1 || sudo useradd --create-home --shell /bin/bash "$u"; sudo chmod 700 "/home/$u"; done
 for ipt in iptables ip6tables; do

@@ -117,3 +117,9 @@ test("engine commands run with a clean environment, never inheriting runner sett
   assert.doesNotMatch(read("scripts/safe-trial/engine.sh"), /sudo -u trialproxy/);
   assert.match(read("scripts/safe-trial/lib.sh"), /as_proxy\(\) \{ sudo -u trialproxy env -i HOME=\/home\/trialproxy /);
 });
+
+test("system folders are locked and checked again after the coding tool is installed", () => {
+  assert.match(read("scripts/safe-trial/engine.sh"), /npm install -g [^\n]+\)\nharden_system\nassert_system_readonly/);
+});
+
+test("the engine may not browse the web for the model", () => assert.match(read("scripts/safe-trial/engine.sh"), /\\nENABLE_WEB_SERVER_TOOLS=false\\n/));
