@@ -1,4 +1,22 @@
 {
   "sprintId": "phase3a-continuity-20261126",
-  "batches": []
+  "batches": [
+    {
+      "sprintId": "phase3a-continuity-20261126",
+      "number": 1,
+      "runId": "846a1138-110c-4b5e-956c-00681efd680a",
+      "taskId": "workflow-specific-required-checks",
+      "status": "running",
+      "baseCommit": "08ae977803be4c8d824448bc9d62ada24fc00ba2",
+      "resultCommit": null,
+      "startedAt": "2026-11-26T01:14:20.166Z",
+      "completedAt": null,
+      "lockOwner": "3758af46a95b4c1ee3ff386936387dc02cabd70a",
+      "verification": null,
+      "recovery": null,
+      "remainingRetries": 1,
+      "resources": {},
+      "nextAction": "Implement and persist recovery commit"
+    }
+  ]
 }

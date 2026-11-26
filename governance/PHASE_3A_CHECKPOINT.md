@@ -4,6 +4,7 @@ Sprint **phase3a-continuity-20261126** · **Sprint in progress**
 
 | Batch | Task | Outcome | Published commit | Verification and CI | Recovery / blocker | Resources | Next action |
 | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | workflow-specific-required-checks | running | Unavailable | Unavailable | Unavailable | {} | Implement and persist recovery commit |
 
 The Parent Plus pilot remains **NO-GO**. MM restrictions and independent review remain in effect.
 
@@ -30,6 +31,8 @@ The Parent Plus pilot remains **NO-GO**. MM restrictions and independent review 
 | Independent audit and pilot | Blocked | Needs independent verification and the required authorization. |
 
 </details>
+
+
 ## Recovery baseline
 
 - The first scheduled attempt used a detached checkout based on `00459e4`. Its local commit `4a7d637` could not fast-forward the draft at `1c271a0`. The rejection showed divergence from the checkout base. It did not establish that the remote had advanced during the batch.
