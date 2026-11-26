@@ -9,3 +9,11 @@
 - The isolated workflow was manually dispatched on the branch. No Parent Plus or default branch was modified.
 
 **Next action:** Diagnose Mistral availability or try a distinct available free reviewer against the retained candidate, then prove the review handoff without a manual re-dispatch. Do not rebuild the candidate to retry evaluation.
+
+## Reviewer recovery and founder handoff
+
+- Kimi K3.1 Pro also timed out on a [non-streamed request](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45794609061). In the [streamed retry](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45795046583), NVIDIA returned HTTP 200 after 45.9 seconds, but the stream did not finish within 105 seconds. The recorded evidence establishes connectivity and incomplete review, with no verdict.
+- The branch now supports a selectable Groq reviewer using Llama 3.3 70B. A simulated stream verified verdict and usage parsing. The [live GitHub Actions attempt](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45795291514) stopped with the explicit missing `GROQ_API_KEY` message. The four candidate checks passed before review. No candidate source changes were made during recovery.
+- Founder action: add a Groq free-tier API key as the `GROQ_API_KEY` Actions repository secret in `appsworld2027/parent-plus-ai-org`. Do not paste it into chat. Existing Studio credentials are separate.
+- Resume: verify the current branch and candidate blob, dispatch `model-trial.yml` on `codex/autonomy-waitlist-pilot` with `review_only=true` and `review_provider=groq`, and read the actual verdict and response metadata. Only a valid PASS clears this review gate. Then wire the proven reviewer into the same build run and validate automatic handoff. For product-level evaluation, use an isolated fictional product and observe founder brief, discovery, contract, locked tests, build, QA, review, preview, and recovery.
+- Session lifecycle: ESCALATE for provider credential. Context and decision retention are sufficient to continue in this session; exact context utilization unavailable. Both live recovery attempts completed. No background continuation is active.
