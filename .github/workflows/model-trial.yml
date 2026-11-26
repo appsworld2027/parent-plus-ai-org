@@ -6,6 +6,11 @@ on:
         type: boolean
         description: Review the retained, previously tested candidate
         default: false
+      review_provider:
+        type: choice
+        description: Provider for independent review
+        options: [nvidia, groq]
+        default: nvidia
 permissions:
   contents: read
 jobs:
@@ -101,7 +106,9 @@ jobs:
           node-version: 22
       - name: Verify the retained candidate
         run: node trial/autonomy/acceptance.mjs trial/autonomy/waitlist.mjs
-      - name: Get Rex's independent review directly from NVIDIA
+      - name: Get Rex's independent review from the selected provider
         env:
-          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          REVIEW_PROVIDER: ${{ inputs.review_provider }}
+          NVIDIA_NIM_API_KEY: ${{ inputs.review_provider == 'nvidia' && secrets.NVIDIA_NIM_API_KEY || '' }}
+          GROQ_API_KEY: ${{ inputs.review_provider == 'groq' && secrets.GROQ_API_KEY || '' }}
         run: node trial/autonomy/review.mjs
