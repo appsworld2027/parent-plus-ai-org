@@ -14,8 +14,6 @@ permissions:
   issues: read
   pull-requests: read
   actions: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: founder-dashboard
@@ -34,21 +32,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           AI_ORG_REPO: ${{ github.repository }}
-          ENGINE_CLAUDE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' }}
-          ENGINE_CODEX: ${{ secrets.CODEX_AUTH_JSON != '' }}
-          ENGINE_FREE: ${{ secrets.NVIDIA_NIM_API_KEY != '' }}
+          ENGINE_FREE: ${{ secrets.GROQ_API_KEY != '' }}
         run: node scripts/build-dashboard.mjs
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - name: Upload founder dashboard
+        uses: actions/upload-artifact@v4
         with:
+          name: founder-dashboard-${{ github.run_number }}
           path: site
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          retention-days: 14

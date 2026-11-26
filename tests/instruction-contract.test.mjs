@@ -57,31 +57,29 @@ test("the scheduled GitHub path checks out a selectable handbook and assembles c
   assert.match(prompt, /Do not claim delivery to a founder conversation/);
 });
 
-test("reusable agent workflows keep provider credential values scoped to their engine step", () => {
+test("reusable agent workflows enforce free-only Groq execution", () => {
   const caller = read(".github/workflows/ai-agents.yml");
-  assert.match(caller, /permissions:\s*\{\}/);
-  assert.doesNotMatch(caller, /secrets:\s*inherit/);
-  assert.doesNotMatch(caller, /CLAUDE_CODE_OAUTH_TOKEN:/);
-  assert.doesNotMatch(caller, /CODEX_AUTH_JSON:/);
-  assert.match(caller, /NVIDIA_NIM_API_KEY: \$\{\{ secrets\.NVIDIA_NIM_API_KEY \}\}/);
-  assert.doesNotMatch(caller, /id-token:\s*write/);
+  assert.ok(caller.includes("permissions: {}"));
+  assert.ok(!caller.includes("secrets: inherit"));
+  assert.doesNotMatch(caller, /(?:CLAUDE_CODE_OAUTH_TOKEN|CODEX_AUTH_JSON|NVIDIA_NIM_API_KEY):/);
+  assert.ok(caller.includes("GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}"));
+  assert.ok(!caller.includes("id-token: write"));
 
   const routeStart = worker.indexOf("      - name: Route");
   const prepareStart = worker.indexOf("      - name: Prepare the product workspace", routeStart);
-  const codexStart = worker.indexOf("      - name: Run agent with Codex", prepareStart);
-  const codexEnd = worker.indexOf("\n      # Independent check", codexStart);
-  assert.ok(routeStart >= 0 && prepareStart > routeStart && codexStart > prepareStart && codexEnd > codexStart);
+  assert.ok(routeStart >= 0 && prepareStart > routeStart);
   const route = worker.slice(routeStart, prepareStart);
-  const codexStep = worker.slice(codexStart, codexEnd);
-  assert.match(route, /ENGINE_CODEX:\s*\$\{\{\s*secrets\.CODEX_AUTH_JSON\s*!=\s*''\s*\}\}/,
-    "routing may inspect only whether the Codex secret exists");
-  assert.doesNotMatch(route, /CODEX_AUTH_JSON:\s*\$\{\{\s*secrets\.CODEX_AUTH_JSON\s*\}\}/,
-    "routing must not receive the Codex secret value");
-  assert.match(codexStep, /CODEX_AUTH_JSON:\s*\$\{\{\s*secrets\.CODEX_AUTH_JSON\s*\}\}/);
-  assert.match(codexStep, /chmod 600 "\$CODEX_HOME\/auth\.json"/);
-  assert.doesNotMatch(codexStep, /secrets\.(?:CLAUDE_CODE_OAUTH_TOKEN|NVIDIA_NIM_API_KEY)/);
-  assert.equal((worker.match(/\$\{\{\s*secrets\.CODEX_AUTH_JSON\s*\}\}/g) || []).length, 1,
-    "Codex credential value is exposed in only its engine step");
+  assert.ok(route.includes("ENGINE_FREE: ${{ secrets.GROQ_API_KEY != '' }}"));
+  assert.doesNotMatch(route, /ENGINE_(?:CLAUDE|CODEX)|NVIDIA_NIM_API_KEY|CLAUDE_CODE_OAUTH_TOKEN|CODEX_AUTH_JSON/);
+  assert.ok(worker.includes('GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}'));
+  assert.ok(worker.includes('uv tool install "free-claude-code==6.19.56"'));
+  assert.ok(worker.includes("MODEL=%s"));
+  assert.ok(worker.includes("Groq free-model tool-call preflight: PASS"));
+  assert.ok(worker.includes("groq-probe-retryable"));
+  assert.ok(worker.includes('MARKER="ai-org:paused"'));
+  const resume = read(".github/workflows/agent-resume.yml");
+  assert.ok(resume.includes("ai:tests-review") && resume.includes("ai:tests-signoff"));
+  assert.doesNotMatch(worker, /Run agent with Claude Code|Run agent with Codex|CODEX_AUTH_JSON|CLAUDE_CODE_OAUTH_TOKEN|NVIDIA_NIM_API_KEY/);
 });
 
 test("scheduled work does not claim an interactive founder report was delivered", () => {

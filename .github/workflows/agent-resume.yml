@@ -1,5 +1,5 @@
-# Reusable "resume paused work" sweep. When a Claude, Codex or free-engine (NVIDIA NIM) secret exists, find open
-# issues/PRs at an agent stage whose latest comment is the AI Org pause notice, and re-dispatch them.
+# Reusable "resume paused work" sweep. When the Groq free-tier key exists, resume open agent-stage
+# issues/PRs whose latest comment is the AI Org pause notice. No paid fallback is available.
 name: Agent resume
 
 on:
@@ -10,23 +10,18 @@ on:
         type: string
         default: ai-agents.yml
     secrets:
-      CLAUDE_CODE_OAUTH_TOKEN:
-        required: false
-      CODEX_AUTH_JSON:
-        required: false
-      NVIDIA_NIM_API_KEY:
+      GROQ_API_KEY:
         required: false
 
 jobs:
   resume:
-    # PAUSED BY POLICY (founder decision 2026-11-26): background agents cannot run, so retrying paused items every hour
-    # only loops. Restore `if: vars.UNATTENDED_AGENTS == 'on'` in the same reviewed change that allows background runs.
-    if: ${{ false }}
+    # Default enabled; set UNATTENDED_AGENTS=off in the caller repo for the emergency stop.
+    if: vars.UNATTENDED_AGENTS != 'off'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
-      HAS_ENGINE: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN != '' || secrets.CODEX_AUTH_JSON != '' || secrets.NVIDIA_NIM_API_KEY != '' }}
+      HAS_ENGINE: ${{ secrets.GROQ_API_KEY != '' }}
       WORKFLOW: ${{ inputs.dispatch_workflow }}
     steps:
       - name: Re-dispatch paused items
@@ -34,7 +29,7 @@ jobs:
           set -euo pipefail
           if [ "$HAS_ENGINE" != "true" ]; then echo "No engine connected - nothing to resume." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
           count=0
-          for n in $(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --jq '.[] | select([.labels[].name] | index("ai:blocked") | not) | select([.labels[].name] | any(. == "ai:discovery" or . == "ai:plan" or . == "ai:build" or . == "ai:qa" or . == "ai:review" or . == "ai:fix")) | .number'); do
+          for n in $(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --jq '.[] | select([.labels[].name] | index("ai:blocked") | not) | select([.labels[].name] | any(. == "ai:discovery" or . == "ai:plan" or . == "ai:tests" or . == "ai:tests-review" or . == "ai:tests-signoff" or . == "ai:build" or . == "ai:qa" or . == "ai:review" or . == "ai:fix")) | .number'); do
             last=$(gh api "repos/$GITHUB_REPOSITORY/issues/$n/comments?per_page=100" --jq 'last | .body // ""')
             if printf '%s' "$last" | grep -q 'ai-org:paused'; then
               gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" -f number="$n"

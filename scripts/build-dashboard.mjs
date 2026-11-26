@@ -6,7 +6,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
 const TOKEN = process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "";
 const ORG_REPO = process.env.AI_ORG_REPO || "appsworld2027/parent-plus-ai-org";
-const engines = { Claude: process.env.ENGINE_CLAUDE === "true", Codex: process.env.ENGINE_CODEX === "true", "Free (NVIDIA NIM via FCC)": process.env.ENGINE_FREE === "true" };
+const engines = { "Groq free tier (via FCC)": process.env.ENGINE_FREE === "true" };
 const projects = JSON.parse(readFileSync("org/projects.json", "utf8")).projects;
 
 const STAGES = [
@@ -57,7 +57,7 @@ async function load(repo) {
       repo, stage: stage[0], owner: stage[2], number: it.number, title: it.title, url: it.html_url,
       kind: it.pull_request ? "PR" : "Issue", updated: it.updated_at,
       lane: names.includes("lane:a") ? "Lane A · Kiran" : names.includes("lane:b") ? "Lane B · Leela" : "",
-      engine: names.includes("engine:claude") ? "Claude" : names.includes("engine:codex") ? "Codex" : "",
+      engine: names.includes("engine:free") ? "Groq free" : "",
     });
   }
   return { repo, cards, runs: runs.workflow_runs };

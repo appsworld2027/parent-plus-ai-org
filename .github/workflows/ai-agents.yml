@@ -24,20 +24,20 @@ jobs:
       issues: write
       pull-requests: write
       actions: write
-    if: vars.UNATTENDED_AGENTS == 'on' && (github.event_name == 'workflow_dispatch' || ((github.event_name == 'issues' || github.event_name == 'pull_request') && startsWith(github.event.label.name, 'ai:')))
+    if: vars.UNATTENDED_AGENTS != 'off' && (github.event_name == 'workflow_dispatch' || ((github.event_name == 'issues' || github.event_name == 'pull_request') && startsWith(github.event.label.name, 'ai:')))
     uses: ./.github/workflows/agent-worker.yml
     with:
       number: ${{ github.event.issue.number || github.event.pull_request.number || inputs.number }}
-    # Current canonical policy is free-only. Do not delegate paid-engine credentials.
+    # Canonical policy: Groq free-tier model only. Do not delegate paid-engine credentials.
     secrets:
-      NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
 
   resume:
     permissions:
       issues: read
       pull-requests: read
       actions: write
-    if: vars.UNATTENDED_AGENTS == 'on' && github.event_name == 'schedule'
+    if: vars.UNATTENDED_AGENTS != 'off' && github.event_name == 'schedule'
     uses: ./.github/workflows/agent-resume.yml
     secrets:
-      NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}

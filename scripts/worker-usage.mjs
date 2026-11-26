@@ -12,7 +12,7 @@ export function workerUsage(log, route, { item, attempt, at } = {}) {
   }
   const metric = (x) => Number.isFinite(x) && x >= 0 ? x : null;
   return { version: 1, item, attempt, at, rows: Object.entries(result?.modelUsage || {}).map(([model, u]) => ({
-    engine: "github:nvidia", role: route.agent_name, model, modelSource: "adapter", requestedModel: route.free_model,
+    engine: "github:groq", role: route.agent_name, model, modelSource: "adapter", requestedModel: route.free_model,
     input: metric(u?.inputTokens), output: metric(u?.outputTokens),
     cache: metric(u?.cacheReadInputTokens), cost: null,
   })) };
