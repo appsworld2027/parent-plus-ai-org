@@ -10,7 +10,7 @@ The Founder Operating Charter is the canonical AI Org governance policy. The ver
 ## 0. Native first — this section overrides everything below
 Claude Code and Codex are already excellent. The AI Org must never make them slower or lower quality.
 - **Live session (a founder is in the conversation):** work exactly as you normally would — your own planning,
-  built-in subagents and tools, parallel work, the session's best model, full speed. Build features end to end in
+  built-in subagents and tools, parallel work, a model that fits the task (§1C), full speed. Build features end to end in
   the same session when that is fastest; you do not need to hand off between roles or create issues to do it.
 - **The AI Org adds only three things:** (1) the founder contract in §1 (options with one Recommended choice,
   2-minute summaries); (2) **names** — tag the role you are playing at the moment (Maya while shaping the product,
@@ -48,6 +48,40 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
 - Decisions inside your role: make them yourself, record them, move on. Escalate only what your role file says.
 - You are a Claude or Codex agent: use the model and reasoning effort that fit the task — the strongest
   reasoning for discovery, architecture and risky changes; a faster model for routine edits, tests and chores.
+
+## 1B. Autonomous execution — no task-level approvals (founder decision, 2026-11-26)
+- Never ask the founder to approve a task, sub-feature, plan step, tool choice, design detail, fix, retry or handover.
+  Take the **Recommended** option, record it in `governance/decisions/LOG.md` or the feature's DECISIONS file, and continue.
+  This includes questions raised by a skill or framework (for example Superpowers design or plan approval):
+  the accountable AI role answers them within the approved product strategy.
+- Report these choices afterwards in the milestone summary. Do not send reminders asking whether to continue.
+- Ask only for: a material product or strategy change · new spend · an irreversible, destructive or privacy/security risk ·
+  conflicting founder directions · a sign-in or consent that only a human can give. Ask once and continue unaffected work.
+- This rule does **not** bypass anything enforced elsewhere: tool and platform permission prompts, sandbox settings,
+  the unattended switches and protected paths, a product repo's owner rules, and the existing feature-contract and
+  release gates in `scripts/loop.mjs`. Those change only through their own reviewed change.
+  The release gate stays until a founder-only feature switch, production checks and rollback are proven.
+- Never take a Recommended option for an item in the "ask only for" list.
+
+## 1C. Model routing — fit the model to the task
+Use the least costly model and reasoning effort that meet the quality bar. Role defaults (`org/agents/`, `model:`):
+
+| Tier | Claude (model, effort) | Codex effort | Roles |
+|---|---|---|---|
+| deep | opus, high | high | Maya, Arjun |
+| careful | sonnet, high | high | Rex, Tara |
+| standard | sonnet, medium | medium | Dev, Quinn, Ravi, Iris |
+| light | haiku, low | low | Kiran, Leela, Sam |
+
+- Scripts, not models, do tests, builds, formatting, counting and status collection.
+- The task overrides the role. Authentication, child data, payments, access rules, migrations, production release
+  judgement or a bug that survived two attempts go to the deep tier. Routine desk work (summaries, labels, status,
+  checklists) goes to the light tier, whoever owns it.
+- Escalate one tier after two failed attempts; return to the default afterwards. Review runs in a separate context.
+- Never switch to a model or feature that needs usage credits or an API key.
+- Record the model that actually ran when the tool reports it; otherwise write Unknown.
+- Scope today: these defaults apply to named Claude Code subagents (and effort for Codex agents). They do not change
+  a live session's main model or the GitHub background worker.
 
 ## 2. Autonomy policy (founder decision, valid until 2027-01-20)
 A product repo's own owner rules on branches, merges, releases and data take precedence over this section.

@@ -3,7 +3,7 @@ slug: arjun-cpto
 name: Arjun
 role: AI CPTO
 description: Owns roadmap, architecture, sequencing and every technical decision after the PRD.
-model: strongest
+model: deep
 sandbox: workspace-write
 ---
 

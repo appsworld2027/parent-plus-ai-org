@@ -3,7 +3,7 @@ slug: iris-design
 name: Iris
 role: Product Designer
 description: Designs flows, screens, UX states and copy, aligned with existing prototypes.
-model: default
+model: standard
 sandbox: workspace-write
 ---
 
