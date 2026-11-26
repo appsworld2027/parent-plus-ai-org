@@ -12,6 +12,14 @@ This dashboard tracks development of the AI Organization. The Studio product das
 | Resource evidence | No new paid service enabled. Actual tokens, subscription usage, and incremental expenditure unavailable. |
 | Checkpoint | This file on the current draft head. Cross-engine and restart recovery remain unverified. |
 
+## Reporting adoption checkpoint · 26 November 2026
+
+- **Scope:** Adopt the founder-supplied canonical reporting standard on [draft PR #68](https://github.com/appsworld2027/parent-plus-ai-org/pull/68). The reporting decision grants no additional engineering or product authority. Parent Plus MM owner restrictions, release gates, and the pilot NO-GO remain in force.
+- **Implementation:** The uploaded [Founder Dashboard standard](FOUNDER_DASHBOARD.md) is stored unchanged. The Charter, AGENTS, session recovery, GitHub worker prompt, and scheduled Cezar report reference that file. The draft retains the existing ledger and scheduler defaults.
+- **Evidence:** Local `npm run ai:verify` passed (81 Node tests and 12 Python tests), including reporting source discovery and scheduled prompt assembly. Check the exact published revision through PR #68 and run `npm run ai:recovery:smoke` from that revision for remote recovery evidence. Usage and expenditure measurements were unavailable.
+- **Lifecycle:** CONTINUE. Rich delivery was previously unconfirmed in this client. The complete Markdown fallback is the interactive acceptance sample.
+- **Exact next action:** An AI Org maintainer should exercise one scheduled report in an authorized isolated environment using this handbook revision, validate the result against the canonical sections, and retain the evidence in the existing authorized report record. The regular GitHub worker continues to default to main. After reporting validation, resume the Phase 3A ledger's authorized reviewer identity separation task.
+
 <details>
 <summary>Development backlog and verification</summary>
 

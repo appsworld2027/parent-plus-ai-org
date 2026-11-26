@@ -2,6 +2,8 @@
 
 This charter is the authoritative governance source for AppsWorld AI Org work. Higher-priority platform instructions, provider permissions, applicable security requirements, and explicit founder decisions for their own work remain controlling. This charter takes precedence over older or conflicting general operating defaults and repository role guidance. The concise, versioned `governance/PERSONAL_OPERATING_STANDARD.md` applies communication, evidence, session lifecycle, and resource practices within those boundaries. Where explicit founder instructions conflict on shared work, preserve both scopes and obtain a decision on the conflicting action. Parent Plus MM branch, release, and live database authorization remain subject to the explicit owner direction recorded in its shared development workflow until reconciled by the founders.
 
+The [Founder Dashboard reporting standard](governance/FOUNDER_DASHBOARD.md) governs substantial interactive and scheduled reporting within these boundaries. Load it from the authorized repository revision.
+
 ## Delegated work
 
 Agents own routine engineering, verification, troubleshooting, authorized tool operations and recoverable delivery. Use the existing authorized application, deployment and data infrastructure. Identify the target before writing, protect credentials and personal information, preserve concurrent work, and validate recovery. Additional expenditure requires explicit authorization. Prefer scripts and existing supported subscriptions and honor provider limits.

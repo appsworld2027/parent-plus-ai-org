@@ -5,7 +5,7 @@ steps:
     name: Founder report
     runner: codex
     skill: verification-before-completion
-    prompt: "Generate today's founder report from demo/status.json, the Cezar task dashboard, decision register, quality results and usage records. Distinguish completed, active, blocked and unmeasured usage. Never invent token counts or cost. {{task}}"
+    prompt: "Read AGENTS.md, the Founder Operating Charter, and governance/FOUNDER_DASHBOARD.md at the authorized repository revision. Follow governance/SESSION_RECOVERY.md to retrieve current evidence and apply the canonical template. If the template is missing, report the missing source and stop dependent reporting. Persist the report to the existing authorized record under the current notification cadence. {{task}}"
   - id: reporting-check
-    name: Reporting quality gate
+    name: Legacy demo input smoke check
     command: "python3 org.py daily-report demo/status.json --ledger demo/usage.jsonl"

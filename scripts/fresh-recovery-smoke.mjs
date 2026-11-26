@@ -30,6 +30,10 @@ try {
   const agents = git(org, 'show', 'HEAD:AGENTS.md')
   const charter = git(org, 'show', 'HEAD:FOUNDER_OPERATING_CHARTER.md')
   const standard = git(org, 'show', 'HEAD:governance/PERSONAL_OPERATING_STANDARD.md')
+  const reportingStandard = git(org, 'show', 'HEAD:governance/FOUNDER_DASHBOARD.md')
+  for (const source of [agents, charter, standard, guide]) assert.match(source, /FOUNDER_DASHBOARD\.md/)
+  assert.match(reportingStandard, /Exact response template/)
+  assert.match(reportingStandard, /When rich delivery is unsupported or unconfirmed/)
   const decisions = git(org, 'show', 'HEAD:governance/decisions/LOG.md')
   const adoptedTipBefore = remoteSha(cwd, orgRepo, 'refs/heads/main')
   git(org, 'fetch', '--quiet', '--depth=1', 'origin', 'refs/heads/main')
@@ -74,6 +78,7 @@ try {
 
   const pr = JSON.parse(run(cwd, 'gh', 'api', 'repos/appsworld2027/parent-plus-ai-org/pulls/68'))
   const draftTip = remoteSha(cwd, orgRepo, `refs/heads/${draftBranch}`)
+  assert.equal(git(org, 'rev-parse', 'HEAD'), draftTip, 'retrieved draft instructions match the live branch tip')
   assert.equal(pr.head.sha, draftTip, 'live PR head matches its branch')
   const checks = JSON.parse(run(cwd, 'gh', 'api', `repos/appsworld2027/parent-plus-ai-org/commits/${pr.head.sha}/check-runs`))
   assert.ok(Array.isArray(checks.check_runs), 'live CI response is available')
@@ -90,9 +95,10 @@ try {
   console.log(JSON.stringify({
     result: 'PASS',
     initialWorkspace: 'empty; no checkout was present before recovery',
-    sourceLoading: { automaticallyLoaded: [], explicitlyRetrieved: ['AI Org main AGENTS', 'active-branch AGENTS, charter, standard and decisions', 'phase3a ledger and Command Centre', 'Parent Plus owner workflow', 'live PR and check-runs'] },
+    sourceLoading: { automaticallyLoaded: [], explicitlyRetrieved: ['AI Org main AGENTS', 'active-branch AGENTS, charter, personal standard, Founder Dashboard and decisions', 'phase3a ledger and Command Centre', 'Parent Plus owner workflow', 'live PR and check-runs'] },
     adoptedInstructionSource: `appsworld2027/parent-plus-ai-org@${adoptedTip}:AGENTS.md`,
     instructionSource: `appsworld2027/parent-plus-ai-org@${draftTip}:AGENTS.md`,
+    reportingStandardSource: `appsworld2027/parent-plus-ai-org@${draftTip}:governance/FOUNDER_DASHBOARD.md`,
     checkpointSource: `appsworld2027/parent-plus-ai-org@${ledgerTip}:governance/phase3a-execution.json`,
     commandCentreSource: `appsworld2027/parent-plus-ai-org@${ledgerTip}:governance/PHASE_3A_CHECKPOINT.md`,
     recoveredTask: latest.taskId,
