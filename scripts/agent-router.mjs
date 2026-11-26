@@ -7,6 +7,8 @@ import { readFileSync, appendFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { realpathSync } from "node:fs";
 
+const AUTONOMY_POLICY = JSON.parse(readFileSync(fileURLToPath(new URL("../governance/AUTONOMY_POLICY.json", import.meta.url)), "utf8"));
+
 // True when this file is the program being run (also through symlinked paths such as a mounted handbook).
 function isMain(url) { try { return !!process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(url)); } catch { return false; } }
 
@@ -31,9 +33,9 @@ const STAGE_ORDER = [...NO_AGENT, ...Object.keys(STAGE_ROLE)];
 
 // Engine preference when no engine:* label is set, among the allowed engines.
 export const ENGINES = ["claude", "codex", "free"];
-// Founder decision 2026-11-26: no paid models for now. Subscription engines are never used, even if connected or labelled;
-// without the free engine the item pauses. Changing this list is a founder (spend) decision.
-export const ALLOWED_ENGINES = ["free"];
+// Canonical engine policy comes from governance/AUTONOMY_POLICY.json.
+// No paid fallback is permitted. Background execution remains separately gated below.
+export const ALLOWED_ENGINES = Object.freeze([...AUTONOMY_POLICY.execution.allowedEngines]);
 
 // Free engine = Claude Code through Free Claude Code (FCC) on free NVIDIA NIM models.
 // Measured 2026-11-20 from GitHub runners: Nemotron 3 Ultra and Mistral Large 4 answer in ~1s and pass
@@ -78,7 +80,8 @@ export function route({ labels = [], body = "", isPR = false, engines = { claude
   if (!engine) return { action: "pause", stage, role, reason: "no allowed engine is connected (free models only)" };
   // Testing only (founder decision 2026-11-26): the free endpoints run only in a supervised trial on synthetic data.
   // No workflow sets this flag today, so background, chained and resumed runs pause.
-  if (engine === "free" && !supervisedTrial) return { action: "pause", stage, role, reason: "free engine is limited to supervised synthetic-data trials" };
+  if (AUTONOMY_POLICY.execution.backgroundEnabled !== true && !supervisedTrial) return { action: "pause", stage, role, reason: "background execution is disabled pending security prerequisites" };
+  if (engine === "free" && !supervisedTrial && AUTONOMY_POLICY.execution.requireApprovedProviderForConfidentialCode) return { action: "pause", stage, role, reason: "free provider is not approved for confidential-code background execution" };
   const out = { action: "run", stage, role, engine, fallback: engine !== preferred, seat: STAGE_SEAT[stage] || "" };
   // Writing tests is authoring work: use the faster builder model. Verdicts (ai:qa, ai:review) stay on the reviewer model,
   // so the code is still judged by a different model than the one that wrote it. (2026-11-23: Quinn on the reviewer model
