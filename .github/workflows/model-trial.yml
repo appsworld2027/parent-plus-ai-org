@@ -1,10 +1,16 @@
 name: Model trial
 on:
   workflow_dispatch:
+    inputs:
+      review_only:
+        type: boolean
+        description: Review the retained, previously tested candidate
+        default: false
 permissions:
   contents: read
 jobs:
   autonomy:
+    if: ${{ !inputs.review_only }}
     runs-on: ubuntu-latest
     timeout-minutes: 17
     steps:
@@ -82,3 +88,20 @@ jobs:
         with:
           name: autonomy-pilot-evidence
           path: ${{ runner.temp }}/evidence/
+  review_retained_candidate:
+    if: inputs.review_only
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Verify the retained candidate
+        run: node trial/autonomy/acceptance.mjs trial/autonomy/waitlist.mjs
+      - name: Get Rex's independent review directly from NVIDIA
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: node trial/autonomy/review.mjs
