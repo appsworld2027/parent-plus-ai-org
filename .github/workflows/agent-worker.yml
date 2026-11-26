@@ -136,7 +136,7 @@ jobs:
           gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" --jq "[.[] | select(.created_at > \"$SINCE\") | select(.body | contains(\"ai-org:failed\"))] | last | .body // \"\"" > /tmp/attempt.md 2>/dev/null || true
           printf 'Item #%s, stage %s, seat %s. Read the item: gh issue view %s --comments\n' "$NUMBER" "$STAGE" "${SEAT:-none}" "$NUMBER" > /tmp/task.md
           node .ai-org-handbook/scripts/onboarding-pack.mjs --role "$ROLE" --stage "$STAGE" --slug "$SLUG" --seat "$SEAT" --feature "$FEATURE" \
-            --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md
+            --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md --max 12000
           cp /tmp/onboarding.md /tmp/agent-logs/onboarding.md
           echo "onboarding pack: $(wc -c < /tmp/onboarding.md) characters for $ROLE ($STAGE, seat ${SEAT:-none}, feature ${SLUG:-none})"
           echo "slug=$SLUG" >> "$GITHUB_ENV"
@@ -162,6 +162,7 @@ jobs:
           FREE_MODEL: ${{ steps.router.outputs.free_model }}
           PROMPT: ${{ steps.router.outputs.prompt }}
           AGENT_NAME: ${{ steps.router.outputs.agent_name }}
+          STAGE: ${{ steps.router.outputs.stage }}
         run: |
           set -uo pipefail
           mkdir -p /tmp/agent-logs
@@ -218,9 +219,18 @@ jobs:
           fi
           [ -d node_modules ] && PROMPT="$PROMPT
           11. Dependencies (node_modules) and the Playwright Chromium browser are already installed. Do not reinstall them and do not read dependency source code."
+          cp .ai-org-handbook/prompts/free-agent-system.md /tmp/agent-system.md
+          TOOLS="Bash,Read,Write,Glob,Grep"
+          case "$STAGE" in
+            ai:tests|ai:build|ai:fix) TOOLS="Bash,Read,Edit,Write,Glob,Grep" ;;
+          esac
+          CONTEXT_CHARS=$(wc -c < /tmp/onboarding.md)
+          CONTEXT_EST_TOKENS=$(( (CONTEXT_CHARS + 3) / 4 ))
+          echo "Compact context: ${CONTEXT_CHARS} chars (~${CONTEXT_EST_TOKENS} tokens); tools: ${TOOLS}" | tee -a "$GITHUB_STEP_SUMMARY"
           start=$(date +%s)
           ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
-            timeout 3600 claude -p "$PROMPT" --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch" --max-turns 150 \
+            timeout 3600 claude -p "$PROMPT" --system-prompt-file /tmp/agent-system.md --safe-mode \
+            --tools "$TOOLS" --allowedTools "$TOOLS" --max-turns 60 \
             --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr
           rc=$?
           secs=$(( $(date +%s) - start ))
