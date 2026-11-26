@@ -54,14 +54,15 @@
     }
   ],
   "continuation": {
-    "updatedAt": "2026-11-26T04:04:21Z",
-    "status": "ready",
-    "taskId": "codex-worker-authentication-boundary-audit",
+    "updatedAt": "2026-11-26T04:11:39Z",
+    "status": "blocked",
+    "taskId": "codex-worker-sandbox-validation",
     "founderDecision": "Independent reviewer authorization is deferred. Keep PR #68 draft; do not request review or assign or impersonate reviewer, challenger, or sign-off identities. Parent Plus pilot remains NO-GO.",
-    "completed": "PR #68 commit 5e488c0adbffc5d4732975bd80c8e8ca47f03d03 requires assigned AI verdict evidence to come from a GitHub User and match the exact reviewed commit. Negative tests cover spoofed role labels, Bot principals, unauthorized approvers, stale evidence, duplicate role IDs, and excluded author identity.",
-    "verification": "npm run ai:verify passed: 83 Node tests and 12 Python tests. PR #68 commit 0909b0e8769c8be02beb72c8098de19ceda4b6ad has successful quality and adapter checks. Empty-workspace recovery smoke passed against reporting tip e0267537e045360350283e43edb6e7594a41b1f9 and recovered the current continuation, owner restriction, pilot NO-GO, and live PR checks.",
+    "completed": "PR #68 commit 5e488c0adbffc5d4732975bd80c8e8ca47f03d03 requires assigned AI verdict evidence to come from a GitHub User and match the exact reviewed commit. Negative tests reject spoofed role labels, Bot principals, unauthorized approvers, stale evidence, duplicate role IDs, and excluded author identity. Commit 17663cfcd22e02cea2ecc4b6c6b9b97add28170b adds workflow regression coverage ensuring provider credential values stay within their engine step.",
+    "verification": "npm run ai:verify passed: 84 Node tests and 12 Python tests. PR #68 commit 17663cfcd22e02cea2ecc4b6c6b9b97add28170b has successful quality and adapter checks: https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45753550402 and https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45753550381.",
     "authentication": "codex login status reports a ChatGPT login, but the last fresh ephemeral codex exec failed with HTTP 401 and token refresh failure. Supported CLI login modes were inspected. No credential was read, copied, exposed, or transferred.",
-    "deferred": "Independent PR review and real reviewer/challenger/sign-off IDs (founder deferred); strict identity gate end-to-end; production branch settings; hosted MCP preview; isolated scheduled-worker validation; credential refresh or worker permission changes without a testable non-production boundary.",
-    "nextAction": "Audit .github/workflows/agent-worker.yml Codex invocation and credential-refresh path (--dangerously-bypass-approvals-and-sandbox, CODEX_AUTH_JSON); add focused static or negative tests only for concrete safe invariants, without changing credential handling or worker permissions absent a testable non-production boundary."
+    "deferred": "Independent PR review and real reviewer/challenger/sign-off IDs (founder deferred); strict role-gate end-to-end; production branch settings; hosted MCP preview; actual scheduled-worker validation; credential refresh or worker permission changes without a testable non-production boundary.",
+    "blockedOn": "No authorized isolated non-production worker environment or disposable Codex credential is available to test sandbox and auth-refresh behavior safely. Do not use production credentials or broaden access to test.",
+    "nextAction": "Once an authorized isolated non-production worker and disposable Codex credential are available, validate the worker sandbox and auth-refresh behavior, then make only a least-privilege correction backed by passing tests. Until then, leave .github/workflows/agent-worker.yml credential handling and execution permissions unchanged."
   }
 }
