@@ -7,6 +7,8 @@ Read the [Founder Operating Charter](FOUNDER_OPERATING_CHARTER.md) first for cur
 
 The Founder Operating Charter is the canonical AI Org governance policy. The versioned `governance/PERSONAL_OPERATING_STANDARD.md` supplies concise session, reporting, and resource rules; apply both within higher-priority platform/security requirements and explicit founder decisions. This handbook implements those sources and must not redefine their precedence.
 
+Machine-readable autonomy, execution, release and escalation authority lives in `governance/AUTONOMY_POLICY.json`. Runtime code must consume that policy (or a generated derivative) rather than silently redefining it. Human-readable guidance may explain the policy but must not contradict it.
+
 ## 0. Native first — this section overrides everything below
 Claude Code and Codex are already excellent. The AI Org must never make them slower or lower quality.
 - **Live session (a founder is in the conversation):** work exactly as you normally would — your own planning,

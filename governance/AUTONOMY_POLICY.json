@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "status": "security-prerequisites-pending",
+  "authority": {
+    "strategyApprovalRequired": true,
+    "routinePostStrategyFounderApprovalRequired": false,
+    "generalUserReleaseApprovalRequired": true,
+    "escalateOnly": [
+      "material-product-or-strategy-change",
+      "new-paid-spend",
+      "irreversible-or-destructive-action",
+      "material-security-privacy-or-legal-risk",
+      "contradictory-founder-instructions",
+      "human-only-authentication-or-authorization"
+    ]
+  },
+  "execution": {
+    "backgroundEnabled": false,
+    "allowedEngines": ["free"],
+    "allowPaidFallback": false,
+    "requirePrivateRepositoriesForConfidentialCode": true,
+    "requireApprovedProviderForConfidentialCode": true,
+    "maxConcurrentDeliveryLanes": 2
+  },
+  "release": {
+    "founderOnlyDeploymentMayBeAutonomousAfterVerification": true,
+    "generalUserReleaseRequiresFounderDecision": true,
+    "requireExactCommit": true,
+    "requireProductionSmoke": true,
+    "requireRollbackOrDisableProof": true
+  },
+  "memory": {
+    "garageMustBePrivate": true,
+    "persistOnlyCuratedContext": true,
+    "neverPersistSecretsOrCustomerPersonalData": true
+  },
+  "notes": [
+    "This policy is the machine-readable authority contract for AI Org.",
+    "Background execution remains disabled until repository privacy and provider-usage prerequisites are verified."
+  ]
+}

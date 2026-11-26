@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+
+const autonomyPolicy = JSON.parse(readFileSync(new URL("../governance/AUTONOMY_POLICY.json", import.meta.url), "utf8"));
 import { route as policyRoute, ENGINES, ALLOWED_ENGINES, agentInfo, buildPrompt, pauseComment, PAUSE_MARKER, FREE_MODELS, testsBrief, buildBrief, STAGE_SEAT } from "../scripts/agent-router.mjs";
 
 // Engine-selection mechanics are tested with every engine allowed; the free-only policy is tested at the end.
@@ -98,6 +101,13 @@ test("v3: QA stages carry seats, onboarding + handover rules, and the right brie
   const so = buildPrompt({ agent: a, number: 42, isPR: false, repo: "o/r", stage: "ai:tests-signoff" });
   assert.match(so, /Verdict: APPROVE/); assert.match(so, /Memory proposals/); assert.match(so, /ai:founder-decision/);
   assert.match(buildPrompt({ agent: q, number: 42, isPR: false, repo: "o/r", stage: "ai:tests" }), /challenger or CPTO verdict of CHANGES/);
+});
+
+test("policy: canonical autonomy policy is the engine source of truth and remains fail-closed", () => {
+  assert.deepEqual(ALLOWED_ENGINES, autonomyPolicy.execution.allowedEngines);
+  assert.equal(autonomyPolicy.execution.backgroundEnabled, false);
+  assert.equal(autonomyPolicy.execution.allowPaidFallback, false);
+  assert.equal(autonomyPolicy.execution.requirePrivateRepositoriesForConfidentialCode, true);
 });
 
 test("policy: paid engines never run, even when connected or labelled", () => {

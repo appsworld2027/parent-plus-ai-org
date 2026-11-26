@@ -61,9 +61,10 @@ test("reusable agent workflows keep provider credential values scoped to their e
   const caller = read(".github/workflows/ai-agents.yml");
   assert.match(caller, /permissions:\s*\{\}/);
   assert.doesNotMatch(caller, /secrets:\s*inherit/);
-  assert.match(caller, /CLAUDE_CODE_OAUTH_TOKEN: \$\{\{ secrets\.CLAUDE_CODE_OAUTH_TOKEN \}\}/);
-  assert.match(caller, /CODEX_AUTH_JSON: \$\{\{ secrets\.CODEX_AUTH_JSON \}\}/);
+  assert.doesNotMatch(caller, /CLAUDE_CODE_OAUTH_TOKEN:/);
+  assert.doesNotMatch(caller, /CODEX_AUTH_JSON:/);
   assert.match(caller, /NVIDIA_NIM_API_KEY: \$\{\{ secrets\.NVIDIA_NIM_API_KEY \}\}/);
+  assert.doesNotMatch(caller, /id-token:\s*write/);
 
   const routeStart = worker.indexOf("      - name: Route");
   const prepareStart = worker.indexOf("      - name: Prepare the product workspace", routeStart);

@@ -24,14 +24,12 @@ jobs:
       issues: write
       pull-requests: write
       actions: write
-      id-token: write
     if: vars.UNATTENDED_AGENTS == 'on' && (github.event_name == 'workflow_dispatch' || ((github.event_name == 'issues' || github.event_name == 'pull_request') && startsWith(github.event.label.name, 'ai:')))
     uses: ./.github/workflows/agent-worker.yml
     with:
       number: ${{ github.event.issue.number || github.event.pull_request.number || inputs.number }}
+    # Current canonical policy is free-only. Do not delegate paid-engine credentials.
     secrets:
-      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
       NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
 
   resume:
@@ -42,6 +40,4 @@ jobs:
     if: vars.UNATTENDED_AGENTS == 'on' && github.event_name == 'schedule'
     uses: ./.github/workflows/agent-resume.yml
     secrets:
-      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-      CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
       NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}

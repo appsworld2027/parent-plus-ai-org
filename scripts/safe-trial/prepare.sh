@@ -20,6 +20,8 @@ cp "$HB/org/agents/dev-coder.md" "$HB/org/agents/rex-reviewer.md" .ai-org-handbo
 # The judge's own copy: scripts, prompts and settings, readable by the runner only. Then the full checkout goes away.
 mkdir -p "$ROOT/judge" && chmod 700 "$ROOT/judge"
 cp -r "$HB/scripts" "$ROOT/judge/scripts"
+mkdir -p "$ROOT/judge/governance"
+cp "$HB/governance/AUTONOMY_POLICY.json" "$ROOT/judge/governance/AUTONOMY_POLICY.json"
 node "$HB/scripts/safe-trial.mjs" builder-prompt > "$ROOT/judge/builder-prompt.txt"
 { echo "TRIAL_SLUG=$TRIAL_SLUG"; echo "TRIAL_BUILDER=$TRIAL_BUILDER"; echo "TRIAL_REVIEWER=$TRIAL_REVIEWER"; echo "BASE_SHA=$(git rev-parse HEAD)"; } > "$ROOT/judge/trial.env"
 cat "$ROOT/judge/trial.env" >> "${GITHUB_ENV:-/dev/null}"
