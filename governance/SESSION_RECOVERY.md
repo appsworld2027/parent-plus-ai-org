@@ -12,14 +12,14 @@ For Parent Plus owner authority, retrieve `ai-workspace/development/SHARED_DEVEL
 
 Retrieve both files from the existing AI Org reporting branch `codex/phase3a-execution`:
 
-- `governance/phase3a-execution.json` — durable batch ledger; the last non-skipped batch and its `nextAction` are the execution checkpoint.
+- `governance/phase3a-execution.json` — durable batch ledger. If it contains a current `continuation` pointer, that pointer and its `nextAction` supersede the last non-skipped batch's historical next action; otherwise use the last non-skipped batch.
 - `governance/PHASE_3A_CHECKPOINT.md` — existing Development Command Centre, including the recorded Parent Plus pilot NO-GO/hold and MM restriction reminder.
 
-Check the reporting branch's current tip first. At this checkpoint both records were present at `5df2575553d7998cb4429038301f762a7a2dbecb` (ledger batch 3 records result commit `3a2d962cb3848fe6cb2fbdedda6a38cb812facae`). The branch is independent of the active draft branch. Do not initialize a replacement ledger, copy decision text into a new memory file, or treat a local uncommitted copy as durable.
+Check the reporting branch's current tip first. Batch 3 records result commit `3a2d962cb3848fe6cb2fbdedda6a38cb812facae`; subsequent authorized continuation is recorded in the same ledger without rewriting batch history. The reporting branch is independent of the active draft branch. Do not initialize a replacement ledger, copy decision text into a new memory file, or treat a local uncommitted copy as durable.
 
 ## 3. Current PR and CI evidence
 
-Only after reading the durable checkpoint, retrieve the active PR head, state, checks, reviews, and any newer commits. The current AI Org draft is PR #68 on `codex/founder-charter-mcp-retirement`; `a93fbe96447594bdd9f9f3d6e426accec1576bd7` was the observed head at this checkpoint. Always query GitHub for live state instead of assuming this SHA or an old CI result is still current.
+Only after reading the durable checkpoint, retrieve the active PR head, state, checks, reviews, and any newer commits. The AI Org draft is PR #68 on `codex/founder-charter-mcp-retirement`. Always query GitHub for live state instead of assuming a previously observed SHA or CI result is still current.
 
 PR/CI evidence updates implementation status; it does not waive founder decisions, Parent Plus owner restrictions, release approvals, security gates, or the pilot hold.
 
@@ -33,4 +33,4 @@ If the ledger, Command Centre, PR, or CI evidence is missing or stale, say which
 
 In the handover or Founder Dashboard, name the path, repository, branch/commit used for each important fact and mark the source as **automatically loaded** or **explicitly retrieved**. Repository files are not automatically loaded when the workspace starts without a checkout; use GitHub first, then clone if local inspection or edits are needed. Keep actual decisions in their existing owner/decision records.
 
-Run `npm run ai:recovery:smoke` to validate this order from an empty temporary workspace. It retrieves the current draft instructions, reporting branch ledger and Command Centre, Parent Plus owner workflow, and current PR/check data; it fails if checkpoint data is missing, the dashboard disagrees with the latest ledger batch, or fetched branch refs are stale. The smoke test is read-only and removes its temporary clones.
+Run `npm run ai:recovery:smoke` to validate this order from an empty temporary workspace. It retrieves the current draft instructions, reporting branch ledger and Command Centre, Parent Plus owner workflow, and current PR/check data; it fails if checkpoint data is missing, the dashboard disagrees with the current ledger continuation (or the latest ledger batch when no continuation exists), or fetched branch refs are stale. The smoke test is read-only and removes its temporary clones.

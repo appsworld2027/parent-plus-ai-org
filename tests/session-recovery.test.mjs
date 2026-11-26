@@ -26,7 +26,8 @@ test('recovery points to existing ledger, Command Centre, and authoritative Pare
   assert.match(recovery, /ai-workspace\/development\/SHARED_DEVELOPMENT_WORKFLOW\.md/)
   assert.match(recovery, /MM\/development/)
   assert.match(recovery, /pilot NO-GO\/hold/)
-  assert.match(recovery, /5df2575553d7998cb4429038301f762a7a2dbecb/)
+  assert.match(recovery, /3a2d962cb3848fe6cb2fbdedda6a38cb812facae/)
+  assert.match(recovery, /current `continuation` pointer/)
   assert.match(recovery, /710082b2d8cf3c1007086df31f87b34ae8e02573/)
 })
 
@@ -62,4 +63,16 @@ test('freshness validator rejects missing or stale checkpoints and surfaces conf
     { authority: 'owner', scope: 'shared-scope', value: 'hold' },
     { authority: 'historical', scope: 'shared-scope', value: 'approved' },
   ]), [], 'historical notes cannot override or conflict with current authority')
+})
+
+test('current ledger continuation supersedes a historical completed batch action', () => {
+  const historical = { taskId: 'identity-assignment', nextAction: 'assign reviewer and role IDs', status: 'successful' }
+  const continuation = { taskId: 'worker-auth-audit', nextAction: 'audit the existing worker authentication and sandbox path', status: 'ready' }
+  const ledger = { sprintId: 'test-sprint', batches: [historical], continuation }
+  assert.equal(latestExecutionCheckpoint(ledger), continuation)
+  assert.equal(validateCheckpointFreshness({
+    liveRefSha: 'same', fetchedRefSha: 'same', ledger,
+    dashboard: `test-sprint ${continuation.taskId} ${continuation.nextAction}`,
+  }), continuation)
+  assert.throws(() => latestExecutionCheckpoint({ ...ledger, continuation: { taskId: 'worker-auth-audit' } }), /no actionable continuation checkpoint/)
 })

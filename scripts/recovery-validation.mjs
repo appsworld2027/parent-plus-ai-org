@@ -1,5 +1,9 @@
 export function latestExecutionCheckpoint(ledger) {
   if (!ledger || !Array.isArray(ledger.batches)) throw new Error('Missing durable execution ledger')
+  if (ledger.continuation !== undefined) {
+    if (!ledger.continuation?.taskId || !ledger.continuation?.nextAction) throw new Error('Ledger has no actionable continuation checkpoint')
+    return ledger.continuation
+  }
   const latest = ledger.batches.filter(batch => batch?.status !== 'skipped').at(-1)
   if (!latest?.taskId || !latest?.nextAction) throw new Error('Ledger has no actionable checkpoint')
   return latest
