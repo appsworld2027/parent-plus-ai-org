@@ -7,6 +7,9 @@ as_agent() {
     EXPO_PUBLIC_SUPABASE_URL=https://example.supabase.co EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_example_public_test_key \
     "$@"
 }
+# The engine's user also starts from a clean environment: GitHub sets variables (such as XDG_CONFIG_HOME) that point
+# into the runner's closed folders and would otherwise follow through sudo.
+as_proxy() { sudo -u trialproxy env -i HOME=/home/trialproxy PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin LANG=C.UTF-8 "$@"; }
 kill_agent() { for _ in 1 2 3 4 5; do sudo pkill -KILL -u trialagent 2>/dev/null || break; sleep 1; done; return 0; }
 # Hand the workspace to the agent. Files that judge the work stay root-owned and cannot be changed, renamed or replaced.
 # Fails if the agent could change any program or system file that the judge or a secret step might run.
