@@ -44,7 +44,7 @@
 - CONTINUE. Single focused QA task; context small, no repeated failures, no model/environment change. Token/usage metrics are not reported by this runtime -> unavailable (stated, not invented).
 
 ## Persistence
-- VERIFIED: this packet committed and pushed on branch refs/heads/ai/69-qa-handover at docs/product/_none_/handoffs/01-ai-qa-quinn-qa.md (commit PENDING-SHA); validated with `node .ai-org-handbook/scripts/handoff.mjs validate` -> "handover OK". QA comment posted on https://github.com/appsworld2027/parent-plus-ai-org/issues/69.
+- VERIFIED: this packet committed and pushed on branch refs/heads/ai/69-qa-handover at docs/product/_none_/handoffs/01-ai-qa-quinn-qa.md (HEAD of that branch after this run's push); validated with `node .ai-org-handbook/scripts/handoff.mjs validate` -> "handover OK". QA comment posted on https://github.com/appsworld2027/parent-plus-ai-org/issues/69.
 
 ## Resources and next action
 - Engine/model: nvidia_nim/mistralai/mistral-large-4-1t-a52b served free by NVIDIA NIM via Free Claude Code, as given by the runtime; token usage / subscription / cost not reported -> unavailable.
