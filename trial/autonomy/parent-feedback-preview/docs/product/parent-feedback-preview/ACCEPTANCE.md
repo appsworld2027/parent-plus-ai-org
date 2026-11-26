@@ -1,6 +1,6 @@
 # Feature Contract — Coach-reviewed feedback preview
 
-Status: draft, awaiting founder approval. Screen reference: proposed Aurora Parent feedback list.
+Status: approved by the founder on 26 November 2026 in Codex (“Go ahead..”). Screen reference: proposed Aurora Parent feedback list.
 
 | ID | Given | When | Then |
 |---|---|---|---|

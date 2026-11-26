@@ -1,6 +1,6 @@
 # Coach-reviewed feedback preview
 
-Draft for founder approval.
+Approved by the founder on 26 November 2026.
 
 **Founder objective for discovery:** Use a feature relevant to Parent Plus in the isolated autonomy pilot.
 
