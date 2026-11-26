@@ -6,17 +6,17 @@
       "number": 1,
       "runId": "846a1138-110c-4b5e-956c-00681efd680a",
       "taskId": "workflow-specific-required-checks",
-      "status": "running",
+      "status": "blocked",
       "baseCommit": "08ae977803be4c8d824448bc9d62ada24fc00ba2",
       "resultCommit": null,
       "startedAt": "2026-11-26T01:14:20.166Z",
-      "completedAt": null,
+      "completedAt": "2026-11-26T01:16:12.421Z",
       "lockOwner": "3758af46a95b4c1ee3ff386936387dc02cabd70a",
-      "verification": null,
-      "recovery": null,
+      "verification": "70 Node tests and 12 Python tests passed. Draft commit 501b2df was published. Live GitHub CLI smoke check exposed --slurp incompatibility; tested compatibility fix bf99ac7 is on the recovery ref. CI for the published increment: https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45734491180 and https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45734491172.",
+      "recovery": "refs/heads/codex/recovery/846a1138-110c-4b5e-956c-00681efd680a at bf99ac7; same-run second publication uses the original base so must resume from the updated draft.",
       "remainingRetries": 1,
       "resources": {},
-      "nextAction": "Implement and persist recovery commit"
+      "nextAction": "Retry workflow-specific-required-checks from draft 501b2df. Fetch the recovery ref, reapply bf99ac7, rerun ai:verify, then publish through the ledger."
     }
   ]
 }

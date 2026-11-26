@@ -4,7 +4,7 @@ Sprint **phase3a-continuity-20261126** · **Sprint in progress**
 
 | Batch | Task | Outcome | Published commit | Verification and CI | Recovery / blocker | Resources | Next action |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| 1 | workflow-specific-required-checks | running | Unavailable | Unavailable | Unavailable | {} | Implement and persist recovery commit |
+| 1 | workflow-specific-required-checks | blocked | Unavailable | 70 Node tests and 12 Python tests passed. Draft commit 501b2df was published. Live GitHub CLI smoke check exposed --slurp incompatibility; tested compatibility fix bf99ac7 is on the recovery ref. CI for the published increment: https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45734491180 and https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45734491172. | refs/heads/codex/recovery/846a1138-110c-4b5e-956c-00681efd680a at bf99ac7; same-run second publication uses the original base so must resume from the updated draft. | {} | Retry workflow-specific-required-checks from draft 501b2df. Fetch the recovery ref, reapply bf99ac7, rerun ai:verify, then publish through the ledger. |
 
 The Parent Plus pilot remains **NO-GO**. MM restrictions and independent review remain in effect.
 
