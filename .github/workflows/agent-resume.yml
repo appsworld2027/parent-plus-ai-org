@@ -19,8 +19,9 @@ on:
 
 jobs:
   resume:
-    # Off with the master switch: no hourly polling or re-dispatch unless UNATTENDED_AGENTS=on in the calling repo.
-    if: vars.UNATTENDED_AGENTS == 'on'
+    # PAUSED BY POLICY (founder decision 2026-11-26): background agents cannot run, so retrying paused items every hour
+    # only loops. Restore `if: vars.UNATTENDED_AGENTS == 'on'` in the same reviewed change that allows background runs.
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:

@@ -1,0 +1,208 @@
+# Safe trial: can free models BUILD and REVIEW a real-sized Parent Plus feature? Evaluation only.
+#  - started by hand, on main, by the repository owner, with a typed confirmation; nothing triggers it automatically;
+#  - read-only token, no Parent Plus credentials, nothing is pushed; the model's code stays in a run artifact;
+#  - Parent Plus public code at one fixed commit, made-up test data, placeholder database address;
+#  - free NVIDIA models only (NVIDIA trial terms: evaluation, not production);
+#  - the model and all model-written code run as a user with no sudo and no internet; another user holds the key;
+#  - graded on a fresh machine without any secret. A pass is provisional until the diff is read.
+# Rules: scripts/safe-trial.mjs and scripts/safe-trial/.
+name: Safe trial (build and review)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type EVALUATION ONLY (code is never shipped; synthetic test data only)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safe-trial
+  cancel-in-progress: false
+
+jobs:
+  baseline:
+    if: >-
+      inputs.confirm == 'EVALUATION ONLY' && github.ref == 'refs/heads/main' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - &handbook
+        uses: actions/checkout@v5
+        with:
+          path: handbook
+          persist-credentials: false
+      - &node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - &workspace
+        name: Prepare the same starting workspace
+        run: bash handbook/scripts/safe-trial/prepare.sh handbook
+      - &install
+        name: Install product dependencies and the browser, then isolate
+        run: |
+          set -euo pipefail
+          cd /srv/trial/product
+          npm ci --no-audit --no-fund
+          PLAYWRIGHT_BROWSERS_PATH=/srv/trial/browsers npx playwright install --with-deps chromium
+          chmod -R a+rX /srv/trial/browsers
+          bash /srv/trial/judge/scripts/safe-trial/isolate.sh
+      - name: Baseline must be healthy, and the new tests must fail before the build (no model involved)
+        run: |
+          set -uo pipefail
+          . /srv/trial/judge/scripts/safe-trial/lib.sh
+          lock_workspace grading
+          bash /srv/trial/judge/scripts/safe-trial/run-tests.sh /srv/trial/out
+          [ "$(cat /srv/trial/out/check.exit)" = 0 ] || { echo "::error::Baseline type check or unit tests fail. No model is run."; exit 1; }
+          jq -e '.stats.expected > 0' /srv/trial/out/all.json >/dev/null || { echo "::error::No browser test passed on the baseline."; exit 1; }
+          jq -e '.stats.unexpected > 0' /srv/trial/out/acceptance.json >/dev/null || { echo "::error::Acceptance tests do not fail before the build."; exit 1; }
+          echo "baseline: $(jq -c .stats /srv/trial/out/all.json)"; echo "acceptance before: $(jq -c .stats /srv/trial/out/acceptance.json)"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: baseline
+          path: /srv/trial/out/
+          retention-days: 14
+
+  build:
+    needs: baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - *handbook
+      - *node
+      - *workspace
+      - *install
+      - name: Start the free engine (separate user holds the key)
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: bash /srv/trial/judge/scripts/safe-trial/engine.sh "$TRIAL_BUILDER"
+      - name: Build with the free builder model (no secret in this step)
+        run: |
+          . /srv/trial/judge/scripts/safe-trial/lib.sh
+          lock_workspace
+          bash /srv/trial/judge/scripts/safe-trial/agent.sh builder "$TRIAL_BUILDER" /srv/trial/judge/builder-prompt.txt 3600 150 \
+            --allowedTools "Bash,Read,Edit,Write,Glob,Grep"
+          bash /srv/trial/judge/scripts/safe-trial/collect.sh
+      - name: Scan the output before upload
+        id: scan
+        if: always()
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: bash /srv/trial/judge/scripts/safe-trial/scan.sh /srv/trial/out
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.scan.outcome == 'success'
+        with:
+          name: build
+          path: /srv/trial/out/
+          retention-days: 14
+
+  grade:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - *handbook
+      - *node
+      - *workspace
+      - &getbuild
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: in/build
+      - uses: actions/download-artifact@v4
+        with:
+          name: baseline
+          path: in/baseline
+      - *install
+      - name: Grade on a clean machine with no secrets
+        run: |
+          bash /srv/trial/judge/scripts/safe-trial/grade.sh in/build/change.patch in/baseline
+          cat /srv/trial/out/grade.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: grade
+          path: /srv/trial/out/
+          retention-days: 14
+
+  review:
+    needs: [build, grade]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - *handbook
+      - *node
+      - *workspace
+      - *getbuild
+      - uses: actions/download-artifact@v4
+        with:
+          name: grade
+          path: in/grade
+      - name: Apply and re-check the change before any engine or key
+        id: apply
+        run: |
+          set -euo pipefail
+          if bash /srv/trial/judge/scripts/safe-trial/apply.sh "$PWD/in/build/change.patch"; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+            cp in/build/change.patch /srv/trial/product/.trial/change.patch
+            node /srv/trial/judge/scripts/safe-trial.mjs reviewer-prompt in/grade/grade.txt > /srv/trial/judge/reviewer-prompt.txt
+          else
+            mkdir -p /srv/trial/out; echo "NO REVIEW: the change was refused or empty" | tee /srv/trial/out/review.txt
+          fi
+          # Read-only review: the product's build hook and local agent settings do not belong in this workspace.
+          rm -rf /srv/trial/product/.claude
+      - name: Isolate
+        if: steps.apply.outputs.ok == 'true'
+        run: bash /srv/trial/judge/scripts/safe-trial/isolate.sh
+      - name: Start the free engine (separate user holds the key)
+        if: steps.apply.outputs.ok == 'true'
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: bash /srv/trial/judge/scripts/safe-trial/engine.sh "$TRIAL_REVIEWER"
+      - name: Review with the free reviewer model (read-only tools, no secret in this step)
+        if: steps.apply.outputs.ok == 'true'
+        run: |
+          . /srv/trial/judge/scripts/safe-trial/lib.sh
+          sudo chown -R root:root /srv/trial/product; sudo chmod -R a+rX,go-w /srv/trial/product
+          bash /srv/trial/judge/scripts/safe-trial/agent.sh reviewer "$TRIAL_REVIEWER" /srv/trial/judge/reviewer-prompt.txt 1800 60 \
+            --allowedTools "Read,Glob,Grep" --disallowedTools "Bash,Edit,Write,WebFetch,WebSearch"
+          jq -r 'select(.type=="result") | .result // ""' /srv/trial/out/reviewer.jsonl | tail -c 6000 > /srv/trial/out/review.txt || true
+      - name: Scan the output before upload
+        id: scan
+        if: always()
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: bash /srv/trial/judge/scripts/safe-trial/scan.sh /srv/trial/out
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.scan.outcome == 'success'
+        with:
+          name: review
+          path: /srv/trial/out/
+          retention-days: 14
+
+  report:
+    needs: [baseline, build, grade, review]
+    if: always() && needs.baseline.result != 'skipped'
+    runs-on: ubuntu-latest
+    steps:
+      - *handbook
+      - uses: actions/download-artifact@v4
+        with:
+          path: in
+      - name: Result (this run page is the record; nothing is posted or pushed)
+        run: |
+          set -uo pipefail
+          {
+            echo "## Safe trial result (evaluation only; code is not shipped)"
+            echo "Stages: baseline=${{ needs.baseline.result }} build=${{ needs.build.result }} grade=${{ needs.grade.result }} review=${{ needs.review.result }}"
+            cat in/build/builder-run.txt 2>/dev/null || echo "Builder: no result"
+            cat in/grade/grade.txt 2>/dev/null || echo "Grade: no result"
+            cat in/review/reviewer-run.txt 2>/dev/null || echo "Reviewer: no result"
+            echo "Reviewer verdict: $(node handbook/scripts/safe-trial.mjs review-verdict in/review/review.txt)"
+            echo '```'; tail -c 3000 in/review/review.txt 2>/dev/null || echo 'no review text'; echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"

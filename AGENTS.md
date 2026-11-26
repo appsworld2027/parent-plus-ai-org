@@ -76,8 +76,13 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
 - NVIDIA's API trial terms limit free access to testing and evaluation, not production use. **Testing only (founder
   decision, 2026-11-26):** use it only for supervised trials on synthetic data. Do not use it to build or ship a real
   product feature until the founder records that this use is permitted.
+- **Safe trial (founder decision, 2026-11-26):** `safe-trial.yml` may use the Parent Plus feature `needs-you-fees-overdue` as
+  an evaluation subject: public code at a fixed commit, made-up test data, placeholder database address, started by hand
+  by the repository owner. The output is graded and set aside; it is never pushed, merged or shipped to Parent Plus.
+  `model-trial.yml` accepts any repository and is not covered: do not point it at a real product.
 - In code: the router pauses every background run unless `SUPERVISED_SYNTHETIC_TRIAL=1`. No workflow sets it, so
   unattended work is paused. Where other sections describe background agents or subscription engines, this section wins.
+- Hourly resume of paused work (`agent-resume.yml`) is switched off while background agents are paused.
 - The tier table below is a task-difficulty guide. Its Claude and Codex settings apply only when the founder is working in
   those tools; on the free engine the router picks the model.
 
