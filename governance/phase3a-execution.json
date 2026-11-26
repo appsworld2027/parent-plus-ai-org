@@ -23,17 +23,17 @@
       "number": 2,
       "runId": "e5715701-9d7d-4bf8-a346-51a326bf1ac4",
       "taskId": "workflow-specific-required-checks",
-      "status": "running",
+      "status": "successful",
       "baseCommit": "501b2df846072bd3108fc11722211b29ca4c681a",
-      "resultCommit": null,
+      "resultCommit": "bf99ac74d5c404a248bde1d756e3509bd7e1c783",
       "startedAt": "2026-11-26T01:44:03.590Z",
-      "completedAt": null,
+      "completedAt": "2026-11-26T01:45:06.666Z",
       "lockOwner": "bfeefcc32b1ba9ddaabab235d70b398f5150e02a",
-      "verification": null,
-      "recovery": null,
+      "verification": "70 Node and 12 Python tests passed. Live paginated Actions jobs and PR review responses parsed using the installed GitHub CLI. Both GitHub checks passed: https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45737793809 and https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45737794578.",
+      "recovery": "Fetched prior recovery ref in a fresh checkout and published bf99ac7 to draft PR #68. Retained recovery ref refs/heads/codex/recovery/e5715701-9d7d-4bf8-a346-51a326bf1ac4.",
       "remainingRetries": 0,
       "resources": {},
-      "nextAction": "Implement and persist recovery commit"
+      "nextAction": "Implement independent AI verdict provenance using the latest draft. Keep Parent Plus pilot and release authorization gates in force."
     }
   ]
 }
