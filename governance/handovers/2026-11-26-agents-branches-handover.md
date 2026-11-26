@@ -2,7 +2,7 @@
 
 Product: AppsWorld AI Org (ai-org, Studio, Garage) + Parent Plus
 Feature ID: SAFE-AGENTS-01 (safe unattended agents) and BRANCH-CLEAN-01
-Current stage: Cleanup DONE; first supervised run DONE (PR #70 awaiting disposal)
+Current stage: Cleanup DONE; supervised run DONE; Studio standards, agent roster and usage ledger merged; Parent Plus switch set by founder
 Responsible agent: Sam (Release), with Quinn (independent QA)
 Repository / branch / commit SHA: appsworld2027/parent-plus-ai-org main 6e3c520; ai-org-studio main e388feb; Parent-plus- main 46b625e; studio-garage main (unchanged)
 Checkpoint status: Synced to GitHub (Verified only after a fresh session reads it back)
@@ -54,3 +54,12 @@ Remaining: dispose of PR #70 (close; the added line is low value); decide enabli
 
 ## 10. Memory updates
 Founder mandate and the decisions in section 2 apply to all products. Append one line to `governance/decisions/LOG.md` for the switch design.
+
+## 11. Update 2026-11-26 (end of day)
+- Standing founder rule: take every Recommended option on non-product decisions and report afterwards; ask only for product decisions, spend, and irreversible or privacy risk.
+- Merged to main: ai-org PR #71 (handover/LOG), #72 (Maya PRODUCT_THINKING report, evaluation/readiness templates, dashboard on every work reply); Studio PR #12 (product-thinking + response rules + usage ledger), #13 (Agents view with tool/model), #14 (11-agent roster, tests and deployment per feature, hides no-op hourly runs).
+- Founder set `UNATTENDED_AGENTS=on` on Parent-plus- (not verified from here: Actions variables are unreadable through the cloud proxy). Codex stays off.
+- Awaiting founder: `/approve` of contract `ai/contract-needs-you-fees-overdue` (product gate) so the loop can build, test, review and deploy a preview.
+- Not verified: Studio changes on a live machine; token counts for GitHub Actions runs (tool shown, tokens Unknown); Parent-plus- run logs (repo attached read-only).
+- Cloud-session limits: can create issues, PRs, merges and read runs; cannot delete branches or read/set Actions variables.
+- Founder works only from cloud Claude Code and Cloud Shell; never suggest a local machine.
