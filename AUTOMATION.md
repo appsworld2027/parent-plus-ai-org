@@ -2,21 +2,23 @@
 
 ## Mental model
 
-Founder or GitHub event → Cezar automation → isolated Git worktree → Codex role
-workflow → Superpowers engineering method → deterministic checks → independent QA
-→ human-controlled pull request and merge.
+Founder or GitHub event → AI Org GitHub Actions orchestration → isolated worktree
+→ named role agent on Groq free-tier models through FCC → deterministic checks
+→ independent QA on a different model family → pull request and verified release gate.
 
 ## Installation
 
-Requirements: Node 20+, Git, an authenticated Codex CLI for live inference, and
-authenticated GitHub access for issue and pull-request events.
+Requirements: Node 22+, Git, GitHub Actions access, and a Groq API key kept on
+the free tier. No Codex subscription, Claude subscription or paid inference API
+is required by unattended AI Org agents.
 
 ```bash
 npm ci --ignore-scripts --no-audit --no-fund
 npm run ai:verify
 ```
 
-Cezar is pinned in `package-lock.json`. Superpowers is installed as 15 vendored
+The free-model adapter is pinned to `free-claude-code==6.19.56` in the reusable
+agent worker. Superpowers is installed as 15 vendored
 repository-local skills under `.ai/skills/superpowers`; its exact upstream version,
 commit and MIT license are under `third_party/superpowers`.
 
