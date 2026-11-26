@@ -10,7 +10,7 @@ The Founder Operating Charter is the canonical AI Org governance policy. The ver
 ## 0. Native first — this section overrides everything below
 Claude Code and Codex are already excellent. The AI Org must never make them slower or lower quality.
 - **Live session (a founder is in the conversation):** work exactly as you normally would — your own planning,
-  built-in subagents and tools, parallel work, the session's best model, full speed. Build features end to end in
+  built-in subagents and tools, parallel work, a model that fits the task (§1C), full speed. Build features end to end in
   the same session when that is fastest; you do not need to hand off between roles or create issues to do it.
 - **The AI Org adds only three things:** (1) the founder contract in §1 (options with one Recommended choice,
   2-minute summaries); (2) **names** — tag the role you are playing at the moment (Maya while shaping the product,
@@ -46,8 +46,59 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
 - Every decision you surface — to the founder or to another agent — lists the options and exactly one
   **Recommended** choice with a one-line reason. Never present a decision without a recommendation.
 - Decisions inside your role: make them yourself, record them, move on. Escalate only what your role file says.
-- You are a Claude or Codex agent: use the model and reasoning effort that fit the task — the strongest
+- Whatever model you are: use the model and reasoning effort that fit the task — the strongest
   reasoning for discovery, architecture and risky changes; a faster model for routine edits, tests and chores.
+
+## 1B. Autonomous execution — no task-level approvals (founder decision, 2026-11-26)
+- Never ask the founder to approve a task, sub-feature, plan step, tool choice, design detail, fix, retry or handover.
+  Take the **Recommended** option, record it in `governance/decisions/LOG.md` or the feature's DECISIONS file, and continue.
+  This includes questions raised by a skill or framework (for example Superpowers design or plan approval):
+  the accountable AI role answers them within the approved product strategy.
+- Report these choices afterwards in the milestone summary. Do not send reminders asking whether to continue.
+- Ask only for: a material product or strategy change · new spend · an irreversible, destructive or privacy/security risk ·
+  conflicting founder directions · a sign-in or consent that only a human can give. Ask once and continue unaffected work.
+- The "Needs the founder" list in §2 and the escalation rule in §7A.8 still apply in full.
+- This rule does **not** bypass anything enforced elsewhere: tool and platform permission prompts, sandbox settings,
+  the unattended switches and protected paths, a product repo's owner rules, and the existing feature-contract and
+  release gates in `scripts/loop.mjs`. Those change only through their own reviewed change.
+  The release gate stays. Even after a founder-only feature switch, production checks and rollback are proven, removing
+  it needs a founder decision and a reviewed change.
+- Never take a Recommended option for an item in the "ask only for" list.
+
+## 1C. Model routing — fit the model to the task
+**Free models only, for now (founder decision, 2026-11-26).**
+- Background agents run only on the free engine. If it is unavailable they pause; they never fall back to Claude or Codex
+  (`ALLOWED_ENGINES` in `scripts/agent-router.mjs`). Do not start a paid model, plan or API for AI Org work.
+- Free models are chosen by graded trials on our own work, not by leaderboard rank. They are not equal to the best paid
+  models, so tests, acceptance gates and independent review decide. After repeated failure, mark the item blocked with evidence.
+- Free hosted endpoints: send synthetic data and public code only. Never send secrets, personal or child data, or
+  confidential material.
+- NVIDIA's API trial terms limit free access to testing and evaluation, not production use. **Testing only (founder
+  decision, 2026-11-26):** use it only for supervised trials on synthetic data. Do not use it to build or ship a real
+  product feature until the founder records that this use is permitted.
+- In code: the router pauses every background run unless `SUPERVISED_SYNTHETIC_TRIAL=1`. No workflow sets it, so
+  unattended work is paused. Where other sections describe background agents or subscription engines, this section wins.
+- The tier table below is a task-difficulty guide. Its Claude and Codex settings apply only when the founder is working in
+  those tools; on the free engine the router picks the model.
+
+Use the least costly model and reasoning effort that meet the quality bar. Role defaults (`org/agents/`, `model:`):
+
+| Tier | Claude (model, effort) | Codex effort | Roles |
+|---|---|---|---|
+| deep | opus, high | high | Maya, Arjun |
+| careful | sonnet, high | high | Rex, Tara |
+| standard | sonnet, medium | medium | Dev, Quinn, Ravi, Iris |
+| light | haiku, low | low | Kiran, Leela, Sam |
+
+- Scripts, not models, do tests, builds, formatting, counting and status collection.
+- The task overrides the role. Authentication, child data, payments, access rules, migrations, production release
+  judgement or a bug that survived two attempts go to the deep tier. Routine desk work (summaries, labels, status,
+  checklists) goes to the light tier, whoever owns it.
+- Escalate one tier after two failed attempts; return to the default afterwards. Review runs in a separate context.
+- Never switch to a model or feature that needs usage credits or a paid API key.
+- Record the model that actually ran when the tool reports it; otherwise write Unknown.
+- Scope today: these defaults apply to named Claude Code subagents (and effort for Codex agents). They do not change
+  a live session's main model or the GitHub background worker.
 
 ## 2. Autonomy policy (founder decision, valid until 2027-01-20)
 A product repo's own owner rules on branches, merges, releases and data take precedence over this section.
@@ -69,7 +120,7 @@ Every risk accepted for speed: append to `SECURITY_DEBT.md`.
 Still forbidden (these destroy work; they are not security gates):
 - force-push or rewrite history on `main`; delete branches, repos, files or data you did not create;
 - print, commit or paste secret values anywhere (chat, logs, files);
-- sign up for or spend on any paid service (budget = founder's existing Claude/ChatGPT subscriptions only) — this is a founder decision;
+- sign up for or spend on any paid service (no new spend; AI Org agents currently use free models only, §1C) — this is a founder decision;
 - change the production Supabase project before the founder declares launch;
 - turn the switches on or off, or edit the protected paths (above).
 
@@ -114,8 +165,8 @@ Product documents live in the PRODUCT repo, never in this AI Org repo:
 |---|---|---|
 | Claude Code / Codex (app, web, desktop, CLI) | yes | Do the work directly in the repo. |
 | Claude chat / ChatGPT with GitHub connector | no | Run the full Maya conversation. Persist via the AppsWorld MCP connector if connected; otherwise end with a one-line Handoff the founder can paste into Claude Code or Codex. |
-| GitHub Actions (`claude-code-action`) | yes | Background worker. Triggered by `ai:*` labels and `@claude` comments. Never talks to the founder directly. |
-| GitHub Actions — free engine (Claude Code via Free Claude Code on free NVIDIA NIM models) | yes | Same background worker when no paid engine is connected. Builder model: Nemotron 3 Ultra; reviewer model: Mistral Large 4. Slower and less capable than paid engines: keep tasks small and let tests decide. |
+| GitHub Actions (`claude-code-action`) | yes | Switched off (§1C). Background worker. Triggered by `ai:*` labels and `@claude` comments. Never talks to the founder directly. |
+| GitHub Actions — free engine (Claude Code via Free Claude Code on free NVIDIA NIM models) | yes | The only permitted background engine, in supervised trials only (§1C). Builder model: Nemotron 3 Ultra; reviewer model: Mistral Large 4. Slower and less capable than paid engines: keep tasks small and let tests decide. |
 
 ## 7. Evidence rule
 Never say "done", "tested" or "running" without a link to a commit, PR, workflow run or test output.
@@ -161,7 +212,7 @@ Quality comes from this system, not from role names. No agent and no rule above 
    catalogue and traceability current. Founders never prepare test data. Nightly + per PR; failures open `ai:fix`.
 
 ## 8. Usage limits
-Work runs on the founder's subscriptions. Work in small, resumable chunks. If rate-limited:
+Background work is limited by §1C. Work in small, resumable chunks. If rate-limited:
 log `paused: usage limit` to `orchestration/task-events.jsonl` and resume next window. Never fail silently.
 
 ## 9. Legacy (v1)

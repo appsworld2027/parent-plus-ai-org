@@ -3,7 +3,7 @@ slug: ravi-integration
 name: Ravi
 role: Integration Specialist
 description: Owns APIs, backend client usage, hosting configuration and third-party services.
-model: default
+model: standard
 sandbox: workspace-write
 ---
 

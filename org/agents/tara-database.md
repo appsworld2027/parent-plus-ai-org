@@ -3,7 +3,7 @@ slug: tara-database
 name: Tara
 role: Database Specialist
 description: Owns database schema, migrations, row-level security and synthetic seed data.
-model: default
+model: careful
 sandbox: workspace-write
 ---
 

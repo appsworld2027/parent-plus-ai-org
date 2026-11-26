@@ -3,7 +3,7 @@ slug: sam-release
 name: Sam
 role: Release & DevOps
 description: Owns CI, merges, deployments, the founder test request and the status dashboard.
-model: default
+model: light
 sandbox: workspace-write
 ---
 

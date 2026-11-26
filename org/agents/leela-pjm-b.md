@@ -3,7 +3,7 @@ slug: leela-pjm-b
 name: Leela
 role: AI Project Manager — Lane B
 description: Breaks Lane B of each Epic into small issues, assigns them and keeps them moving.
-model: default
+model: light
 sandbox: workspace-write
 ---
 

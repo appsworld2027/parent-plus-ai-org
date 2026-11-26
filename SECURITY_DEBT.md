@@ -15,7 +15,7 @@ Founder decision (2026-11-20): agents get unrestricted access for speed. Risks a
 | S7 | ChatGPT login file (`auth.json`) stored as a secret for the Codex worker; OpenAI advises against this on public repos; refresh write-back needs a token with secrets write access | Zero-budget requirement | Make repos private or switch to an API key |
 | S8 | Personal email `spngmm@gmail.com` visible in public commit history | Already published | Use GitHub noreply emails (done for new commits from 2026-11-20) |
 | S9 | Historic commits authored by the shared identity "Anuman" — unclear which founder made them | Historic | `Requested-by:` trailers and per-founder identities (in place from 2026-11-20) |
-| S10 | Free engine sends prompts and repo content to NVIDIA NIM (free tier: evaluation/prototyping terms) through Free Claude Code, a third-party AGPL proxy installed unpinned from PyPI on every run | Zero-budget requirement; repos are public anyway | Pin the FCC version; move to a paid engine or a self-hosted model |
+| S10 | Free engine sends prompts and repo content to NVIDIA NIM (free tier: evaluation/prototyping terms) through Free Claude Code, a third-party AGPL proxy installed unpinned from PyPI on every run | Zero-budget requirement; repos are public anyway | Pin the FCC version; move to a paid engine or a self-hosted model. Limit since 2026-11-26: supervised trials on synthetic data only |
 | S11 | Product repos call the reusable `contract-lock.yml` at `@main`: a bad change to AI Org `main` reaches every product at once | No release process yet; fastest to iterate | Pin callers to a version tag or commit SHA |
 
 **2026-11-23 update:** the 11 v1 workflows were retired (Actions audit). This removes S3 (shell injection), R1–R4, and the

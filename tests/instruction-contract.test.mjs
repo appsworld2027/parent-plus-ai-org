@@ -104,3 +104,16 @@ test("interactive recovery and scheduled reports resolve the same canonical temp
     ],
   );
 });
+
+test("autonomy rule keeps its escalation limits; role models are routed and the registry matches the 11 roles", () => {
+  assert.match(agents, /Never ask the founder to approve a task, sub-feature/);
+  assert.match(agents, /does \*\*not\*\* bypass anything enforced elsewhere/);
+  assert.match(agents, /irreversible, destructive or privacy\/security risk/);
+  const registry = JSON.parse(read("orchestration/agent-registry.json")).agents;
+  assert.equal(registry.length, 11);
+  const model = (slug) => read(`.claude/agents/${slug}.md`).match(/^model: (\w+)\neffort: (\w+)$/m).slice(1).join(" ");
+  assert.equal(model("arjun-cpto"), "opus high");
+  assert.equal(model("dev-coder"), "sonnet medium");
+  assert.equal(model("kiran-pjm-a"), "haiku low");
+  for (const a of registry) assert.doesNotMatch(read(`.claude/agents/${a.agentId}.md`), /^model: inherit$/m);
+});
