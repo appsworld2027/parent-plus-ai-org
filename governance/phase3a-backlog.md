@@ -21,3 +21,10 @@
 </details>
 
 
+## Recovery baseline
+
+- The first scheduled attempt used a detached checkout based on `00459e4`. Its local commit `4a7d637` could not fast-forward the draft at `1c271a0`. The rejection showed divergence from the checkout base. It did not establish that the remote had advanced during the batch.
+- The next attempt applied the same commit onto `1c271a0`. Only the dashboard conflicted because functional changes were already in the draft via `0eab827`. The final attempt reported an unavailable local object. Git resolved and published the recovered object during this repair. [Recovery commit](https://github.com/appsworld2027/parent-plus-ai-org/commit/4a7d637b1ac8acb78d90360a0d0ccb10a50bf580)
+- The execution ledger and independent reporting branch are available. An isolated Git integration test exercised fresh clone startup, interrupted recovery, independent reporting edits, an owner-only lock, published code, persistent batch counting, and the final dashboard. 69 Node tests and 12 Python tests passed. Both GitHub checks passed on the repair. [Repair](https://github.com/appsworld2027/parent-plus-ai-org/commit/08ae977803be4c8d824448bc9d62ada24fc00ba2) · [Quality CI](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45733569000) · [Adapter CI](https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/45733568994)
+- Founder decisions pending in this repair: none. Existing product release authorization applies. Token, quota and expenditure measurements were unavailable.
+- The next eligible development work remains workflow-specific required checks and independent AI verdict provenance on draft PR #68. Preserve the existing automatic staging path.
