@@ -6,17 +6,29 @@ const providers = {
   nvidia: { key: process.env.NVIDIA_NIM_API_KEY, url: "https://integrate.api.nvidia.com/v1/chat/completions",
     model: "moonshotai/kimi-k3.1-pro", reasoning: { reasoning_effort: "medium" } },
   groq: { key: process.env.GROQ_API_KEY, url: "https://api.groq.com/openai/v1/chat/completions",
-    model: "llama-3.3-70b-versatile", reasoning: {} },
+    candidates: ["openai/gpt-oss-120b", "qwen/qwen3-32b", "llama-3.3-70b-versatile"], reasoning: {} },
 };
 const providerName = process.env.REVIEW_PROVIDER || "nvidia";
 const provider = providers[providerName];
 if (!provider?.key) throw new Error(`No GitHub Actions credential configured for ${providerName}`);
+const auth = `Authorization: Bearer ${provider.key}`;
+if (provider.candidates) {
+  const catalog = spawnSync("curl", [
+    "--silent", "--show-error", "--fail-with-body", "--max-time", "20",
+    "-H", auth, provider.url.replace(/chat\/completions$/, "models"),
+  ], { encoding: "utf8" });
+  if (catalog.error || catalog.status !== 0) throw new Error(`Groq catalog request failed (curl exit ${catalog.status})`);
+  const available = (JSON.parse(catalog.stdout).data || []).filter((entry) => entry.active !== false).map((entry) => entry.id);
+  provider.model = provider.candidates.find((id) => available.includes(id));
+  if (!provider.model) throw new Error(`No approved Groq reviewer is available. Catalog IDs: ${available.join(", ")}`);
+  console.error(`Selected active Groq reviewer: ${provider.model}`);
+}
 const candidate = process.argv[2] || "trial/autonomy/waitlist.mjs";
 const response = spawnSync("curl", [
   "--silent", "--show-error", "--fail-with-body", "--no-buffer",
   "--connect-timeout", "15", "--max-time", "105",
   "--write-out", "%{stderr}HTTP %{http_code}; connect %{time_connect}s; TLS %{time_appconnect}s; first byte %{time_starttransfer}s; total %{time_total}s\n",
-  "-H", `Authorization: Bearer ${provider.key}`, "-H", "Content-Type: application/json",
+  "-H", auth, "-H", "Content-Type: application/json",
   "--data-binary", "@-", provider.url,
 ], {
   encoding: "utf8",
@@ -33,7 +45,12 @@ const response = spawnSync("curl", [
   }),
 });
 console.error(response.stderr || "");
-if (response.error || response.status !== 0) throw new Error(`Reviewer request failed (curl exit ${response.status})`);
+if (response.error || response.status !== 0) {
+  let code;
+  try { code = JSON.parse(response.stdout)?.error?.code; } catch { /* no structured provider error */ }
+  const hint = typeof code === "string" && /^[a-z0-9_]+$/i.test(code) ? `, provider code ${code}` : "";
+  throw new Error(`Reviewer request failed (curl exit ${response.status}${hint})`);
+}
 
 let model = null, usage = null, verdict = "", complete = false;
 for (const line of response.stdout.split("\n")) {

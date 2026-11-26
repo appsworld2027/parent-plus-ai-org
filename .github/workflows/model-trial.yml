@@ -33,7 +33,6 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Dev autonomously implements the fictional waitlist
         id: build
-        continue-on-error: true
         env:
           NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
         run: |
@@ -55,21 +54,15 @@ jobs:
           git show "$GITHUB_SHA:trial/autonomy/acceptance.mjs" > "$RUNNER_TEMP/acceptance.mjs"
           node "$RUNNER_TEMP/acceptance.mjs" "$RUNNER_TEMP/pilot/waitlist.mjs" | tee "$RUNNER_TEMP/evidence/acceptance.txt"
           cp "$RUNNER_TEMP/pilot/waitlist.mjs" "$RUNNER_TEMP/evidence/waitlist.mjs"
-      - name: Rex independently reviews the result
+      - name: Rex reviews the exact candidate that passed acceptance
         env:
-          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          REVIEW_PROVIDER: ${{ inputs.review_provider }}
+          NVIDIA_NIM_API_KEY: ${{ inputs.review_provider == 'nvidia' && secrets.NVIDIA_NIM_API_KEY || '' }}
+          GROQ_API_KEY: ${{ inputs.review_provider == 'groq' && secrets.GROQ_API_KEY || '' }}
         run: |
           set -euo pipefail
-          kill "$(cat "$RUNNER_TEMP/adapter.pid")" || true
-          sleep 2
-          umask 077
-          printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=nvidia_nim/mistralai/mistral-large-4-1t-a52b\nFCC_OPEN_BROWSER=false\nREASONING_POLICY=low\n' "$NVIDIA_NIM_API_KEY" > "$HOME/.fcc/.env"
-          fcc-server > "$RUNNER_TEMP/review-adapter.log" 2>&1 &
-          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8082/v1/models >/dev/null 2>&1 && break; sleep 1; done
-          prompt="$(cat org/agents/rex-reviewer.md trial/autonomy/objective.md; printf '\nReview the source below. Do not edit. Give PASS or CHANGES and specific observations about correctness, maintainability and remaining gaps.\n'; cat "$RUNNER_TEMP/evidence/waitlist.mjs")"
-          cd "$RUNNER_TEMP/pilot"
-          printf '%s\n' "$prompt" | env -u NVIDIA_NIM_API_KEY ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc DISABLE_AUTOUPDATER=1 \
-            timeout 240 claude -p --tools "" --max-turns 4 --output-format stream-json --verbose > "$RUNNER_TEMP/review.jsonl"
+          sha256sum "$RUNNER_TEMP/evidence/waitlist.mjs" | tee "$RUNNER_TEMP/evidence/candidate.sha256"
+          node trial/autonomy/review.mjs "$RUNNER_TEMP/evidence/waitlist.mjs" | tee "$RUNNER_TEMP/evidence/review.json"
       - name: Report evidence
         if: always()
         run: |
