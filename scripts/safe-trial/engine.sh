@@ -21,4 +21,7 @@ for i in $(seq 1 90); do
   case "$code" in 000|403|502) sleep 1;; *) break;; esac
 done
 case "$code" in 000|403|502) echo "::error::engine did not start (HTTP $code)"; exit 1;; esac
-npm install -g @anthropic-ai/claude-code >/dev/null && claude --version
+(umask 022; npm install -g @anthropic-ai/claude-code >/dev/null)
+harden_system
+assert_system_readonly  # fail here, before any model session, if the install left something open
+claude --version

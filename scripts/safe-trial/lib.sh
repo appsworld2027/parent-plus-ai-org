@@ -12,6 +12,14 @@ as_agent() {
 as_proxy() { sudo -u trialproxy env -i HOME=/home/trialproxy PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin LANG=C.UTF-8 "$@"; }
 kill_agent() { for _ in 1 2 3 4 5; do sudo pkill -KILL -u trialagent 2>/dev/null || break; sleep 1; done; return 0; }
 # Hand the workspace to the agent. Files that judge the work stay root-owned and cannot be changed, renamed or replaced.
+# Removes group and other write access from every tree the check below inspects. Run again after anything is
+# installed: on GitHub's images a global npm install creates files that everyone can change.
+harden_system() {
+  local d
+  for d in $PROTECTED_TREES $(echo "$PATH" | tr ':' ' '); do
+    if [ -d "$d" ]; then sudo find "$d" -xdev ! -type l -perm /022 -exec chmod go-w {} + 2>/dev/null || true; fi
+  done  # assert_system_readonly decides
+}
 # Fails if the agent could change any program or system file that the judge or a secret step might run.
 PROTECTED_TREES=${TRIAL_PROTECTED_TREES:-"/opt /usr /etc"}
 assert_system_readonly() {
@@ -39,7 +47,7 @@ lock_workspace() {
   sudo chown -R trialagent: "$p"
   # The root folder is locked below, so git must be told this workspace is expected.
   # Commands run as another user must start in a folder that user can open; the runner's folders are closed to it.
-  (cd / && sudo -u trialagent -H git config --global --replace-all safe.directory "$p")
+  (cd / && as_agent git config --global --replace-all safe.directory "$p")
   for f in $JUDGE_PATHS; do sudo chown -R root:root "$p/$f"; sudo chmod -R go-w "$p/$f"; done
   # Sticky, root-owned folders: new files are allowed, replacing someone else's entry is not.
   sudo chown root:root "$p" "$p/e2e"; sudo chmod 1777 "$p" "$p/e2e"
