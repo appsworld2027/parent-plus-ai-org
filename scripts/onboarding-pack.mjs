@@ -31,25 +31,29 @@ export function raciText(row, stage) {
   return [`| Stage | Responsible | Reviewer | Consulted | Accountable | Informed |`, `|---|---|---|---|---|---|`,
     `| ${stage} | ${f("responsible")} | ${f("reviewer")} | ${f("consulted")} | ${f("accountable")} | ${f("informed")} |`].join("\n");
 }
-export function buildPack({ role, stage, slug, seat = "", handbook = ".ai-org-handbook", product = ".", feature = "", attempt = "", task = "", max = 60000 }) {
+export function buildPack({ role, stage, slug, seat = "", handbook = ".ai-org-handbook", product = ".", feature = "", attempt = "", task = "", max = 12000 }) {
   const manifest = (() => { try { return JSON.parse(read(join(product, ".ai-org/manifest.json"))); } catch { return {}; } })();
   const docs = manifest?.product?.docsFolder || "docs/product";
   const memDir = join(product, manifest?.memory?.folder || "docs/ai-memory");
-  const memory = existsSync(memDir) ? readdirSync(memDir).filter((f) => f.endsWith(".md")).sort()
-    .map((f) => `### ${f}\n${read(join(memDir, f)).trim()}`).join("\n\n") : "";
+  // Memory is an index, not a bulk dump. The agent reads only a relevant memory file on demand.
+  const memoryFiles = slug && existsSync(memDir) ? readdirSync(memDir).filter((f) => f.endsWith(".md")).sort() : [];
+  const memory = memoryFiles.length
+    ? memoryFiles.slice(0, 12).map((f) => `- ${f}`).join("\n") + "\nRead only the relevant memory file if this task needs it."
+    : "No product memory loaded. Read a relevant memory file only if the task requires it.";
   const featureDir = feature || join(product, docs, slug || "_none_");
   const handoffDir = join(featureDir, "handoffs");
-  const handoffs = packetsIn(handoffDir).map((p) => `### ${p.split("/").pop()}\n${read(p).trim()}`).join("\n\n");
+  const handoffs = packetsIn(handoffDir).slice(-2).map((p) => `### ${p.split("/").pop()}\n${cap(read(p).trim(), 900)}`).join("\n\n");
+  const contract = slug ? cap(read(join(featureDir, "ACCEPTANCE.md")).trim() || "no contract file", 2600) : "no feature slug";
   const parts = [
-    ["1. Your role and RACI", 6000, `${read(join(handbook, "org/agents", `${role}.md`)).trim()}\n\n${seat ? `**Your seat in this stage: ${seat}.**\n\n` : ""}${raciText(raciFor(manifest, stage), raciStage(stage))}`],
-    ["2. Lessons for your role (from earlier features)", 6000, read(join(handbook, "org/lessons", `${role}.md`)).trim() || "none yet"],
-    ["3. Product memory (verified facts about this product)", 20000, memory || "none yet"],
-    ["4. Feature contract and handovers so far", 20000, `${slug ? read(join(featureDir, "ACCEPTANCE.md")).trim() || "no contract file" : "no feature slug"}\n\n${handoffs || "No handovers yet — you are the first role on this feature."}`],
-    ["5. Previous attempt (why it failed — do not repeat it)", 6000, read(attempt).trim() || "First attempt."],
-    ["6. Your task now", 8000, read(task).trim() || "See the issue."],
+    ["1. Your role and RACI", 3000, `${read(join(handbook, "org/agents", `${role}.md`)).trim()}\n\n${seat ? `**Your seat in this stage: ${seat}.**\n\n` : ""}${raciText(raciFor(manifest, stage), raciStage(stage))}`],
+    ["2. Your task now", 1500, read(task).trim() || "Read the issue and its comments."],
+    ["3. Feature contract and latest handovers", 3500, `${contract}\n\n${handoffs || "No handovers yet — you are the first role on this feature."}`],
+    ["4. Previous attempt", 1000, read(attempt).trim() || "First attempt."],
+    ["5. Lessons for your role", 800, read(join(handbook, "org/lessons", `${role}.md`)).trim() || "No role-specific lessons yet."],
+    ["6. Product memory index", 500, memory],
   ];
   let body = parts.map(([h, n, t]) => `## ${h}\n\n${cap(t, n)}`).join("\n\n");
-  body = cap(`# Onboarding pack — ${role} — ${stage}${slug ? ` — ${slug}` : ""}\n\nRead all of this before acting. Your first output must be the 5-line Understanding (goal · constraints · known traps · what you must not touch · how you will prove it is done).\n\n${body}`, max);
+  body = cap(`# Onboarding pack — ${role} — ${stage}${slug ? ` — ${slug}` : ""}\n\nRead this compact context before acting. Open referenced source files only when they are relevant. Your first output must be the 5-line Understanding (goal · constraints · known traps · what you must not touch · how you will prove it is done).\n\n${body}`, max);
   return body;
 }
 
