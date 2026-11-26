@@ -14,6 +14,9 @@ on:
         description: Comma-separated folders that hold locked acceptance tests
         type: string
         default: tests/acceptance/
+    secrets:
+      AI_ORG_HANDBOOK_TOKEN:
+        required: false
 
 jobs:
   contract-lock:
@@ -26,12 +29,23 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+      - name: Check handbook access
+        if: github.repository != 'appsworld2027/parent-plus-ai-org'
+        env:
+          HANDBOOK_ACCESS: ${{ secrets.AI_ORG_HANDBOOK_TOKEN != '' }}
+        run: |
+          if [ "$HANDBOOK_ACCESS" != true ]; then
+            echo "::error::AI_ORG_HANDBOOK_TOKEN is missing from the caller."
+            exit 1
+          fi
       - name: Check out AI Org tools
         uses: actions/checkout@v5
         with:
           repository: appsworld2027/parent-plus-ai-org
           ref: main
           path: .ai-org-tools
+          token: ${{ github.repository == 'appsworld2027/parent-plus-ai-org' && github.token || secrets.AI_ORG_HANDBOOK_TOKEN }}
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: 22
