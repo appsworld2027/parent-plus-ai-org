@@ -1,5 +1,7 @@
 # AppsWorld AI Organization — Operating Handbook (v2)
 
+Read the [Founder Operating Charter](FOUNDER_OPERATING_CHARTER.md) first for current development-stage policy and precedence.
+
 > Every AI (Claude Code, Codex, Claude chat, ChatGPT, GitHub Actions agents) MUST read this file
 > before responding to the founder. v2 takes precedence over every older file in this repo.
 

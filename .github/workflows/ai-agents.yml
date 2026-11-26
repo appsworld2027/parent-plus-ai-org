@@ -15,22 +15,33 @@ on:
   schedule:
     - cron: "17 * * * *"
 
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  actions: write
-  id-token: write
+permissions: {}
 
 jobs:
   agent:
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+      actions: write
+      id-token: write
     if: github.event_name == 'workflow_dispatch' || ((github.event_name == 'issues' || github.event_name == 'pull_request') && startsWith(github.event.label.name, 'ai:'))
     uses: ./.github/workflows/agent-worker.yml
     with:
       number: ${{ github.event.issue.number || github.event.pull_request.number || inputs.number }}
-    secrets: inherit
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+      NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
 
   resume:
+    permissions:
+      issues: read
+      pull-requests: read
+      actions: write
     if: github.event_name == 'schedule'
     uses: ./.github/workflows/agent-resume.yml
-    secrets: inherit
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
+      NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}

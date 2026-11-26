@@ -86,12 +86,13 @@ export function parseAddedLines(diffText) {
 
 function main() {
   const base = process.env.BASE_REF || "origin/main";
+  const head = process.env.CONTRACT_LOCK_HEAD || "HEAD";
   const labels = (process.env.PR_LABELS || "").split(",").map((s) => s.trim()).filter(Boolean);
   const lockedPaths = (process.env.CONTRACT_LOCK_PATHS || DEFAULT_LOCKED_PATHS.join(","))
     .split(",").map((s) => s.trim()).filter(Boolean)
     .map((p) => (p.endsWith("/") ? p : p + "/"));
   const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-  const range = `${base}...HEAD`;
+  const range = `${base}...${head}`;
   const changes = parseNameStatus(git("diff", "--name-status", "--find-renames", range));
   const addedLines = parseAddedLines(git("diff", "-U0", "--no-color", range));
   let commits = [], lockedDrift = [];
@@ -99,7 +100,7 @@ function main() {
     const shas = git("log", "--no-merges", "--format=%H", range.replace("...", "..")).split("\n").filter(Boolean);
     commits = shas.map((sha) => ({ sha, files: git("diff-tree", "--no-commit-id", "--name-only", "-r", sha).split("\n").filter(Boolean) }));
     const contract = commits.find((c) => isContractCommit(c.files, lockedPaths));
-    if (contract) lockedDrift = git("diff", "--name-only", contract.sha, "HEAD", "--", ...lockedPaths).split("\n").filter(Boolean);
+    if (contract) lockedDrift = git("diff", "--name-only", contract.sha, head, "--", ...lockedPaths).split("\n").filter(Boolean);
   }
   const result = checkContractLock({ changes, addedLines, labels, lockedPaths, commits, lockedDrift });
 
