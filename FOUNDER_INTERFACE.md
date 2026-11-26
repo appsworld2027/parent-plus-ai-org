@@ -30,7 +30,7 @@ You never need to open GitHub, Vercel, Supabase, a terminal or a workflow for ro
 | "Go with your recommendation" | The agent proceeds with the recommended option |
 
 ## What every agent reply looks like
-`[Agent name — role]` · what happened (with evidence links) · what I need from you (options + one Recommended) · what happens next.
+See [`standards/FOUNDER_RESPONSE.md`](standards/FOUNDER_RESPONSE.md). Setup per app: [`setup/CLAUDE_SURFACES.md`](setup/CLAUDE_SURFACES.md).
 
 ## When you will be nudged
 Only for (a) a product decision or (b) a build ready to test. Everything technical is decided by the agents and logged in `governance/decisions/LOG.md`.

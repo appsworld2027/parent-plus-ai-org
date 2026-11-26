@@ -1,4 +1,6 @@
-# Founder Dashboard --- Canonical Reporting Standard
+# Founder Dashboard --- Long-form report template
+
+> For scheduled reports and substantive operating reviews only. The short in-conversation dashboard and reply format are defined in [`standards/FOUNDER_RESPONSE.md`](../standards/FOUNDER_RESPONSE.md), which wins where the two differ.
 
 Version: 1.0 \| Scope: interactive and scheduled AI Org development reporting
 

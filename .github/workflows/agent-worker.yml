@@ -31,6 +31,9 @@ on:
 
 jobs:
   agent:
+    # Master off switch (founder decision 2026-11-26). Runs only if the CALLING repo sets the Actions
+    # variable UNATTENDED_AGENTS=on. Unset or anything else = no unattended agent runs. See AGENTS.md section 2.
+    if: vars.UNATTENDED_AGENTS == 'on'
     runs-on: ubuntu-latest
     timeout-minutes: 95
     concurrency:
@@ -208,7 +211,8 @@ jobs:
           exit $rc
 
       - name: Run agent with Codex (experimental until verified with a ChatGPT subscription)
-        if: steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'codex'
+        # Second switch: Codex stays off until a sandboxed run is verified in CI (set UNATTENDED_CODEX=on to try it).
+        if: steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'codex' && vars.UNATTENDED_CODEX == 'on'
         env:
           CODEX_AUTH_JSON: ${{ secrets.CODEX_AUTH_JSON }}
           PROMPT: ${{ steps.router.outputs.prompt }}
@@ -217,7 +221,8 @@ jobs:
           npm install -g @openai/codex >/dev/null
           export CODEX_HOME="$RUNNER_TEMP/codex-home"; mkdir -p "$CODEX_HOME"
           printf '%s' "$CODEX_AUTH_JSON" > "$CODEX_HOME/auth.json"; chmod 600 "$CODEX_HOME/auth.json"
-          codex exec --dangerously-bypass-approvals-and-sandbox "$PROMPT"
+          # Sandboxed: writes limited to the workspace; network on so gh/git work. Never the bypass flag.
+          codex exec --sandbox workspace-write -c sandbox_workspace_write.network_access=true "$PROMPT"
           echo "::warning::Codex may have refreshed its login. Saving it back to the CODEX_AUTH_JSON secret needs a bot token (SECURITY_DEBT S7)."
 
       # Independent check of Quinn's locked tests: they must be red for the right reason (scripts/grade-acceptance.mjs).

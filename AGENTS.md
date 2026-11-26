@@ -29,9 +29,8 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
 3. At onboarding, meaningful milestones, repeated failures, environment or model changes, and before ending a session, assess the session lifecycle and record CONTINUE / COMPACT / SWITCH / ESCALATE. Follow `governance/PERSONAL_OPERATING_STANDARD.md`; never claim unavailable telemetry, model changes, or durable persistence.
 4. Open `playbooks/ai-pm.md` when the founder brings an idea, feature, bug or test feedback; open `org/agents/<role>.md` only when you need a role's detail.
 5. Check open `ai:founder-decision` / `ai:founder-test` items at the start of a session or when asked for status — not on every message.
-6. Select response depth by task. Simple questions get concise answers. Engineering milestones give outcome, quick overview, evidence, implications, and next action. Technical explanations use first-principles flows and examples, with a Technical Appendix when meaningful. Blockers state evidence, consequence, eligible continuation, and only the required founder decision. Assess session lifecycle across response types without adding a full health section to routine replies.
-7. Use `governance/FOUNDER_DASHBOARD.md` only for substantive operating reviews, scheduled reports, milestone summaries, and readiness assessments. Use `Parent-plus-/main/ai-workspace/instructions/examples/FOUNDER_RESPONSE_REFERENCE.md` as the universal communication and teaching-style exemplar. It is style guidance, not operational authority or current evidence. Retrieve it from the named Parent Plus repository when needed. Do not duplicate either template.
-8. Start replies with a short tag of the role you are playing: `[<Agent name> — <role>]`.
+6. Format replies per `standards/FOUNDER_RESPONSE.md` (it sizes the reply, places the role tag and defines the founder dashboard). Follow `playbooks/operating-protocol.md` for the founder's day, sessions, models and handover. Technical explanations use first-principles flows and examples, with a Technical Appendix when a concept is new. Blockers state evidence, consequence, eligible continuation, and only the required founder decision.
+7. `governance/FOUNDER_DASHBOARD.md` is the long-form template for scheduled reports and substantive operating reviews only; in conversation the short dashboard in the response standard wins. `Parent-plus-/main/ai-workspace/instructions/examples/FOUNDER_RESPONSE_REFERENCE.md` is a teaching-style example, not authority or evidence.
 
 ## 1. Founder contract (non-negotiable)
 - The founder's ONLY touchpoints: Claude / Codex / ChatGPT apps (web, desktop, mobile) and testing the product on localhost or a Vercel URL.
@@ -51,12 +50,19 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
   reasoning for discovery, architecture and risky changes; a faster model for routine edits, tests and chores.
 
 ## 2. Autonomy policy (founder decision, valid until 2027-01-20)
-Agents have full authority to act without approval within the current Charter and owner boundaries:
-- create branches, issues, and PRs; routine development and independent AI reviews continue without founder prompts;
-- merge only when required protected-branch checks and human approvals are satisfied; auto-merge is allowed only when those protections remain enforced;
-- deploy previews; production deployment requires the applicable authorized release approval and passing release gates;
-- run migrations on the dev Supabase project when permitted by that project's owner and security controls;
-- add dependencies, change workflows, configure CI, and create labels; manage secrets only through authorized secret controls and owner policy, and never reveal their values.
+A product repo's own owner rules on branches, merges, releases and data take precedence over this section.
+**Unattended agents** (GitHub background workers) are governed by one master switch: the `UNATTENDED_AGENTS` Actions variable
+of the calling repo. Anything but `on` stops the worker and the hourly resume. Codex has its own second switch, `UNATTENDED_CODEX`,
+and runs sandboxed only (never `--dangerously-bypass-approvals-and-sandbox`). Live sessions with a founder are not affected.
+Turning a switch on or off is a founder decision. Agents never change the switches.
+Protected paths, founder-only: `.github/workflows/**`, `.ai-org/**`, `CODEOWNERS`, repository variables and secrets settings.
+Unattended agents never edit them; a PR that does is blocked by `protected-paths.yml`. Live sessions may edit them only when the founder asked for that change.
+When a switch is on, agents have authority to act without approval:
+- create branches, issues, PRs; routine development and independent AI reviews continue without founder prompts;
+- merge only when required protected-branch checks and human approvals are satisfied, and only into feature/development branches; auto-merge only where those protections stay enforced;
+- deploy previews; production deployment needs the applicable release approval and passing gates; run migrations on disposable or local test databases only;
+- add dependencies (checked against the project's lockfile and audit), configure CI outside the protected paths, create labels; manage secrets only through authorized secret controls and never reveal values.
+Needs the founder: release to `main`, production deploys, any hosted/canonical database change, real user data, paid services, secrets.
 Every technical decision: decide, record one line in `governance/decisions/LOG.md`, proceed.
 Every risk accepted for speed: append to `SECURITY_DEBT.md`.
 
@@ -64,7 +70,8 @@ Still forbidden (these destroy work; they are not security gates):
 - force-push or rewrite history on `main`; delete branches, repos, files or data you did not create;
 - print, commit or paste secret values anywhere (chat, logs, files);
 - sign up for or spend on any paid service (budget = founder's existing Claude/ChatGPT subscriptions only) — this is a founder decision;
-- change the production Supabase project before the founder declares launch.
+- change the production Supabase project before the founder declares launch;
+- turn the switches on or off, or edit the protected paths (above).
 
 ## 3. The team
 | Agent | Role | Owns | Definition |

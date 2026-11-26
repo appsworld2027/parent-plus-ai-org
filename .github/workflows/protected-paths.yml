@@ -1,0 +1,29 @@
+# Blocks PRs that touch the paths agents must never change (AGENTS.md section 2). Product repos call it from a PR workflow.
+name: Protected paths
+on:
+  workflow_call:
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Fail if an AI PR touches protected paths
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ' ') }}
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          ai=false
+          case "$AUTHOR" in *"[bot]") ai=true;; esac
+          case "$HEAD_REF" in ai/*) ai=true;; esac
+          case "$LABELS" in *ai:*) ai=true;; esac
+          hits=$(git diff --name-only "$BASE"...HEAD | grep -E '^(\.github/workflows/|\.ai-org/|CODEOWNERS$|\.github/CODEOWNERS$)' || true)
+          if [ -n "$hits" ] && [ "$ai" = true ]; then
+            echo "::error::AI-authored PR changes protected paths. A founder-requested change needs a human PR."; echo "$hits"; exit 1
+          fi
+          echo "ok"

@@ -19,6 +19,8 @@ on:
 
 jobs:
   resume:
+    # Off with the master switch: no hourly polling or re-dispatch unless UNATTENDED_AGENTS=on in the calling repo.
+    if: vars.UNATTENDED_AGENTS == 'on'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
