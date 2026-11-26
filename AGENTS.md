@@ -67,51 +67,29 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
   it needs a founder decision and a reviewed change.
 - Never take a Recommended option for an item in the "ask only for" list.
 
-## 1C. Model routing — fit the model to the task
-**Free models only, for now (founder decision, 2026-11-26).**
-- Background agents run only on the free engine. If it is unavailable they pause; they never fall back to Claude or Codex
-  (`ALLOWED_ENGINES` in `scripts/agent-router.mjs`). Do not start a paid model, plan or API for AI Org work.
-- Free models are chosen by graded trials on our own work, not by leaderboard rank. They are not equal to the best paid
-  models, so tests, acceptance gates and independent review decide. After repeated failure, mark the item blocked with evidence.
-- Free hosted endpoints: send synthetic data and public code only. Never send secrets, personal or child data, or
-  confidential material.
-- NVIDIA's API trial terms limit free access to testing and evaluation, not production use. **Testing only (founder
-  decision, 2026-11-26):** use it only for supervised trials on synthetic data. Do not use it to build or ship a real
-  product feature until the founder records that this use is permitted.
-- **Safe trial (founder decision, 2026-11-26):** `safe-trial.yml` may use the Parent Plus feature `needs-you-fees-overdue` as
-  an evaluation subject: public code at a fixed commit, made-up test data, placeholder database address, started by hand
-  by the repository owner. The output is graded and set aside; it is never pushed, merged or shipped to Parent Plus.
-  `model-trial.yml` accepts any repository and is not covered: do not point it at a real product.
-- In code: the router pauses every background run unless `SUPERVISED_SYNTHETIC_TRIAL=1`. No workflow sets it, so
-  unattended work is paused. Where other sections describe background agents or subscription engines, this section wins.
-- Hourly resume of paused work (`agent-resume.yml`) is switched off while background agents are paused.
-- The tier table below is a task-difficulty guide. Its Claude and Codex settings apply only when the founder is working in
-  those tools; on the free engine the router picks the model.
-
-Use the least costly model and reasoning effort that meet the quality bar. Role defaults (`org/agents/`, `model:`):
-
-| Tier | Claude (model, effort) | Codex effort | Roles |
-|---|---|---|---|
-| deep | opus, high | high | Maya, Arjun |
-| careful | sonnet, high | high | Rex, Tara |
-| standard | sonnet, medium | medium | Dev, Quinn, Ravi, Iris |
-| light | haiku, low | low | Kiran, Leela, Sam |
-
+## 1C. Model routing — free models only
+**Founder decision: all AI Org background agents use free models only.**
+- The only unattended inference provider is the Groq free tier through Free Claude Code (FCC). FCC is an adapter; it does not make the underlying model a Claude model or consume a Claude subscription.
+- Builder/default model: `groq/openai/gpt-oss-120b`. Independent QA/reviewer model: `groq/qwen/qwen3.8-27b`. These are distinct model families so the reviewer is not the builder model.
+- The router and worker enforce `allowedEngines: ["free"]`. Claude subscription, Codex subscription, OpenAI API, Anthropic API and paid fallbacks are not agent execution routes. A missing key, provider outage, unsupported model or exhausted free quota pauses work; there is no paid fallback, automatic account upgrade or purchase.
+- Keep the Groq account on its free tier. Provider limits can change; respect 429 responses and `Retry-After`. Never create multiple accounts or route around published limits.
+- Hosted model requests may contain the task and source-code context needed for development. Never send API keys, passwords, production credentials, customer data, child personal data or unrelated private records. Do not use the agent provider for end-user runtime inference.
+- NVIDIA NIM Developer API access remains limited to development/testing/evaluation under its trial terms; it is not the unattended product-build provider. Keep NVIDIA trials synthetic and separate from real product delivery.
+- Free models are selected by graded trials on our own engineering tasks, not leaderboard rank. Tests, acceptance gates and independent review decide quality. After repeated failure, mark the item blocked with evidence.
 - Scripts, not models, do tests, builds, formatting, counting and status collection.
-- The task overrides the role. Authentication, child data, payments, access rules, migrations, production release
-  judgement or a bug that survived two attempts go to the deep tier. Routine desk work (summaries, labels, status,
-  checklists) goes to the light tier, whoever owns it.
-- Escalate one tier after two failed attempts; return to the default afterwards. Review runs in a separate context.
-- Never switch to a model or feature that needs usage credits or a paid API key.
-- Record the model that actually ran when the tool reports it; otherwise write Unknown.
-- Scope today: these defaults apply to named Claude Code subagents (and effort for Codex agents). They do not change
-  a live session's main model or the GitHub background worker.
+- Record the model that actually ran when the runtime reports it; otherwise write Unknown.
+- These routes apply to every unattended AI Org agent. Founder conversations and any separately chosen interactive tool are not agent execution routes.
+
+| Work class | Default free model | Quality control |
+|---|---|---|
+| Discovery, planning, implementation and test authoring | Groq GPT-OSS 120B | Acceptance criteria, deterministic tests and bounded repair |
+| Independent QA, challenge and code review | Groq Qwen 3.8 27B | Different model family from the builder |
 
 ## 2. Autonomy policy (founder decision, valid until 2027-01-20)
 A product repo's own owner rules on branches, merges, releases and data take precedence over this section.
-**Unattended agents** (GitHub background workers) are governed by one master switch: the `UNATTENDED_AGENTS` Actions variable
-of the calling repo. Anything but `on` stops the worker and the hourly resume. Codex has its own second switch, `UNATTENDED_CODEX`,
-and runs sandboxed only (never `--dangerously-bypass-approvals-and-sandbox`). Live sessions with a founder are not affected.
+**Unattended agents** (GitHub background workers) are enabled by default when the free Groq key is present. Set the
+`UNATTENDED_AGENTS` Actions variable to `off` in a caller repo for the emergency stop. If the free key is absent,
+the router pauses without starting a paid engine. Live founder conversations are not affected.
 Turning a switch on or off is a founder decision. Agents never change the switches.
 Protected paths, founder-only: `.github/workflows/**`, `.ai-org/**`, `CODEOWNERS`, repository variables and secrets settings.
 Unattended agents never edit them; a PR that does is blocked by `protected-paths.yml`. Live sessions may edit them only when the founder asked for that change.
@@ -127,7 +105,7 @@ Every risk accepted for speed: append to `SECURITY_DEBT.md`.
 Still forbidden (these destroy work; they are not security gates):
 - force-push or rewrite history on `main`; delete branches, repos, files or data you did not create;
 - print, commit or paste secret values anywhere (chat, logs, files);
-- sign up for or spend on any paid service (no new spend; AI Org agents currently use free models only, §1C) — this is a founder decision;
+- sign up for or spend on any paid service (AI Org agents use free models only, §1C) — this is a founder decision;
 - change the production Supabase project before the founder declares launch;
 - turn the switches on or off, or edit the protected paths (above).
 
