@@ -11,7 +11,7 @@ export function workerUsage(log, route, { item, attempt, at } = {}) {
     } catch { /* a failed worker can leave an incomplete final line */ }
   }
   const metric = (x) => Number.isFinite(x) && x >= 0 ? x : null;
-  return { version: 2, item, attempt, at, rows: Object.entries(result?.modelUsage || {}).map(([clientModelAlias, u]) => ({
+  return { version: 1, item, attempt, at, rows: Object.entries(result?.modelUsage || {}).map(([clientModelAlias, u]) => ({
     engine: "github:groq", provider: "groq", role: route.agent_name,
     model: route.free_model || "unknown", modelSource: "router", clientModelAlias,
     requestedModel: route.free_model || "unknown",
