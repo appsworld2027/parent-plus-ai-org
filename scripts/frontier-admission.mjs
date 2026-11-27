@@ -63,7 +63,7 @@ function outcome(status, rows, problems, integrated=null) {
  * Input:
  * {plan:{payload:{schema,scope,rubricHash,sourceSha,slots:[{role,variant,fixtureHash,promptHash}]},receiptId},
  *  runs:[{execution:{schema,scope,planHash,sourceSha,role,variant,fixtureHash,promptHash,
- *     runId,agentInstance,provider,model,routeReceiptHash,toolReceiptHash,artifactHash},
+ *     runId,agentInstance,kind,provider,model,routeReceiptHash,toolReceiptHash,artifactHash,attemptHistoryHash},
  *     executionReceiptId, evaluation:{schema,executionHash,evaluatorId,evaluatorRunId,mode,
  *     checks:{cN:{verdict,reason,evidenceHash}},hardGates:{gate:{...}}},
  *     evaluationReceiptId}],
@@ -117,9 +117,9 @@ export function assessFrontierAdmission(input, {verifyReceipt}={}) {
     if(!bundle) { incomplete=true; continue; }
     const x=bundle.execution, e=bundle.evaluation, spec=expected.get(row.slot), role=roleById.get(spec.role);
     const invalid = message => {row.status="invalid";problem(row.slot+": "+message);};
-    if(x.schema!==1||x.scope!==rubric.scope||x.planHash!==planHash||x.sourceSha!==plan.sourceSha||
+    if(x.schema!==1||x.kind!=="actual-model-artifact"||x.scope!==rubric.scope||x.planHash!==planHash||x.sourceSha!==plan.sourceSha||
         x.fixtureHash!==spec.fixtureHash||x.promptHash!==spec.promptHash||!id(x.runId)||!id(x.agentInstance)||
-        !id(x.provider)||!id(x.model)||!sha64(x.routeReceiptHash)||!sha64(x.toolReceiptHash)||!sha64(x.artifactHash)||
+        !id(x.provider)||!id(x.model)||!sha64(x.routeReceiptHash)||!sha64(x.toolReceiptHash)||!sha64(x.artifactHash)||!sha64(x.attemptHistoryHash)||
         usedRuns.has(x.runId)||usedAssessments.has(x.runId)) {invalid("execution identity/version/receipt mismatch");continue;}
     usedRuns.add(x.runId);
     if(!object(e)||e.schema!==1||e.executionHash!==canonicalHash(x)||!id(e.evaluatorId)||e.evaluatorId===x.agentInstance||
