@@ -354,6 +354,10 @@ jobs:
           fi
           [ -d node_modules ] && PROMPT="$PROMPT
           13. Dependencies (node_modules) and the Playwright Chromium browser are already installed. Do not reinstall them and do not read dependency source code."
+          if [ "$TOOL_MODE" = "readonly" ]; then
+            PROMPT="$PROMPT
+8. Reporting: provide a concise final report in your assistant response. The workflow publishes it as the issue comment; do not attempt GitHub writes or shell commands."
+          fi
           case "$TOOL_MODE" in
             readonly)
               TOOLS="Bash,Read"
@@ -397,7 +401,7 @@ jobs:
           tail -c 1500 /tmp/agent-logs/agent.stderr
           exit $rc
 
-      - name: Verify read-only completion comment
+      - name: Publish and verify read-only completion report
         if: success() && inputs.tool_mode == 'readonly' && steps.router.outputs.action == 'run'
         env:
           NUMBER: ${{ steps.item.outputs.number }}
@@ -407,14 +411,20 @@ jobs:
         run: |
           set -euo pipefail
           STARTED_AT=$(cat /tmp/agent-logs/started-at)
+          RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           MARKER="[$AGENT_NAME — $AGENT_ROLE]"
-          if ! gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | \
-            jq -e --arg marker "$MARKER" --arg started "$STARTED_AT" \
-              'any(.[]; .user.login == "github-actions[bot]" and (.body | startswith($marker)) and (.created_at >= $started))' >/dev/null; then
-            echo "::error::Read-only agent exited without posting its required issue comment; process exit alone is not completion."
-            exit 1
+          has_report() {
+            gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -e --arg marker "$MARKER" --arg started "$STARTED_AT" 'any(.[]; .user.login == "github-actions[bot]" and (.body | startswith($marker)) and (.created_at >= $started))' >/dev/null
+          }
+          if ! has_report; then
+            REPORT=$(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -c 5000)
+            [ -n "$REPORT" ] || { echo "::error::No final assistant report was available to publish."; exit 1; }
+            if ! printf '%s' "$REPORT" | grep -Fq "$MARKER"; then REPORT="$MARKER\n\n$REPORT"; fi
+            if ! printf '%s' "$REPORT" | grep -Fq "$RUN_URL"; then REPORT="$REPORT\n\nRun: $RUN_URL"; fi
+            gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "$REPORT"
           fi
-          echo "Verified the read-only agent report comment."
+          has_report || { echo "::error::Workflow could not verify its read-only report comment."; exit 1; }
+          echo "Published and verified the read-only agent report."
 
       - name: Export free-model worker usage
         if: always() && steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'free'
