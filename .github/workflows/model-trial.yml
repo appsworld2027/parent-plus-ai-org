@@ -2387,3 +2387,30 @@ jobs:
           name: course-declarative-author-verification
           path: /srv/trial/out/indexed-verification-receipt.json
           retention-days: 14
+
+
+  quinn-declarative-challenger:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE DECLARATIVE CHALLENGE' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Independent distinct-model coverage challenge of exact generated test artifact
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: node trial/controls/quinn-declarative-challenge.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-declarative-challenge
+          path: ${{ runner.temp }}/decl-challenge/
+          retention-days: 14
