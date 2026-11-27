@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
+import { parseDocument } from "yaml";
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 
 test("cross-repository private handbook consumers require the read-only deploy key", () => {
@@ -137,4 +138,14 @@ test("the canonical organization workflow delegates only approved free providers
   assert.ok(workflow.includes("NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}"));
   assert.ok(!workflow.includes("ANTHROPIC_API_KEY"));
   assert.ok(!workflow.includes("OPENAI_API_KEY"));
+});
+
+test("all GitHub workflow YAML parses without errors", () => {
+  const dir = new URL("../.github/workflows/", import.meta.url);
+  for (const file of readdirSync(dir).filter(f => /[.]ya?ml$/.test(f))) {
+    const document = parseDocument(readFileSync(new URL(file,dir),"utf8"));
+    assert.deepEqual(document.errors.map(e => e.message), [], file);
+    assert.ok(document.get("jobs"), file);
+    assert.ok(document.get("on"), file);
+  }
 });
