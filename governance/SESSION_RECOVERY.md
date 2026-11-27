@@ -10,6 +10,11 @@ For Parent Plus owner authority, retrieve `ai-workspace/development/SHARED_DEVEL
 
 ## 2. Latest active execution checkpoint and ledger
 
+**Current AI Org / Studio / Garage programme (27 November 2026):** recover from existing [programme issue #82](https://github.com/appsworld2027/parent-plus-ai-org/issues/82) and its latest verified checkpoint comments, then validate the current default branch tips, exact-head PR checks, reviews, and run receipts on GitHub. The issue is the ongoing programme record; older status text in its body is historical where contradicted by newer verified comments. Do not create a second programme ledger. The founder's latest scope excludes Parent Plus implementation until separately authorized.
+
+The former reporting branch `codex/phase3a-execution` was not resolvable on GitHub during the 27 November audit. Its Phase 3A Parent Plus checkpoint below is retained as historical context only; an unavailable source never lifts its previously recorded hold. Recover against the live programme source for AI Org, Studio and Garage work; pause only actions that require the unavailable Parent Plus authority or evidence.
+
+
 Retrieve both files from the existing AI Org reporting branch `codex/phase3a-execution`:
 
 - `governance/phase3a-execution.json` — durable batch ledger. If it contains a current `continuation` pointer, that pointer and its `nextAction` supersede the last non-skipped batch's historical next action; otherwise use the last non-skipped batch.
@@ -21,7 +26,7 @@ Check the reporting branch's current tip first. Batch 3 records result commit `3
 
 Only after reading the durable checkpoint, retrieve the active PR head, state, checks, reviews, and any newer commits. The AI Org draft is PR #68 on `codex/founder-charter-mcp-retirement`. Always query GitHub for live state instead of assuming a previously observed SHA or CI result is still current.
 
-PR/CI evidence updates implementation status; it does not waive founder decisions, Parent Plus owner restrictions, release approvals, security gates, or the pilot hold.
+For the current AI Org / Studio / Garage programme, query open PRs and the latest #82 checkpoint rather than the historical draft #68. PR/CI evidence updates implementation status; it does not waive founder decisions, Parent Plus owner restrictions, release approvals, security gates, or the pilot hold.
 
 ## 4. Historical context last
 
