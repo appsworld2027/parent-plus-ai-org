@@ -72,8 +72,9 @@ test("the canonical background worker uses approved free providers with bounded 
   const outputCap = Number(worker.match(/CLAUDE_CODE_MAX_OUTPUT_TOKENS=(\d+)/)?.[1] || 0);
   assert.equal(outputCap, 512, "free-tier output must leave headroom below the observed 1,000 output TPM limit");
   assert.ok(worker.includes("--max-turns 60"));
-  assert.ok(worker.includes("tokens per minute"));
-  assert.ok(worker.includes("rate_limit_exceeded"));
+  const classifier = read("../scripts/classify-worker-result.mjs");
+  assert.ok(classifier.includes("tokens per minute"));
+  assert.ok(classifier.includes("rate_limit_exceeded"));
   assert.ok(worker.includes("groq-probe-retryable"));
   assert.ok(worker.includes("nvidia-probe-retryable"));
   assert.ok(worker.includes("unset GROQ_API_KEY NVIDIA_NIM_API_KEY"));
