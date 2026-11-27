@@ -32,7 +32,7 @@ function validatePacket(chunk,a){
  const sequence=(...s)=>{let i=-1;for(const [k,v,w] of s){i=at(k,v,w,i);if(i<0)return false}return true};
  const expected={ 'saved-draft':[7,13],'publish-first':[4,8],'publish-second':[7,14],'immutable-history':[9,12] }[chunk.key];
  if(o.length<expected[0]||o.length>expected[1])throw Error('Packet operation count outside scoped bounds');
- if(o.some(p=>['B','VB','NB'].includes(p[0])&&!chunk.allowed.includes(p[1])||['T','VT','NET','O','NX','NB'].includes(p[0])))throw Error('Packet crossed allowed transition boundary');
+ if(o.some(p=>['B','VB','NB'].includes(p[0])&&!chunk.allowed.includes(p[1])||['T','VT','NET','O','NX','NB'].includes(p[0])||p[0]==='H'&&p[1]!=='Courses'))throw Error('Packet crossed allowed transition or source-bound heading boundary');
  let ok=false;
  if(chunk.key==='saved-draft'){
  const f=at('B','Create course'),s=at('B','Save draft',undefined,f);
@@ -94,15 +94,16 @@ function resumePacket(chunk,context,dir){
  if(!bundle||chunk.key!=='saved-draft')return null;
  const read=n=>{const f=bundle.files.find(x=>x.file===chunk.key+'/'+n);if(!f)throw Error('Missing checkpoint file '+n);return f.utf8};
  const raw=read('raw.txt'),artifact=JSON.parse(read('artifact.json')),receipt=JSON.parse(read('receipt.json'));
- if(receipt.schema!=='course-author-chunk/v1'||receipt.key!==chunk.key||receipt.id!==id||receipt.source!==source||receipt.contractHash!==contractHash||receipt.provider!==provider||receipt.actualModel!==model||receipt.contextSha256!==sha(prompt+'\n'+context)||receipt.artifactSha256!==sha(JSON.stringify(artifact))||receipt.rawSha256!==sha(raw)||JSON.stringify(parse(raw))!==JSON.stringify(artifact)||!Number.isSafeInteger(receipt.usage?.total_tokens))throw Error('Resume artifact identity or context mismatch');
- validatePacket(chunk,artifact);
+ if(receipt.schema!=='course-author-chunk/v1'||receipt.key!==chunk.key||receipt.id!==id||receipt.source!==source||receipt.contractHash!==contractHash||receipt.provider!==provider||receipt.actualModel!==model||receipt.contextSha256!=='e1d27efc7dcc8833590ee6f90d5fd94313716dfc5570b5c4de9f89028079d782'||receipt.artifactSha256!==sha(JSON.stringify(artifact))||receipt.rawSha256!==sha(raw)||JSON.stringify(parse(raw))!==JSON.stringify(artifact)||!Number.isSafeInteger(receipt.usage?.total_tokens))throw Error('Resume artifact identity or context mismatch');
+ try{validatePacket(chunk,artifact)}catch(e){if(!artifact.operations.some(x=>x[0]==='H'&&x[1]==='Today'))throw e;writeFileSync(join(dir,'resume-rejected.json'),JSON.stringify({priorRun:46055915920,artifactSha256:receipt.artifactSha256,reason:'Actual pinned App.tsx line 165 renders coachGreeting, not a Today heading; new author repair required.'}));console.log('Prior packet integrity verified but source assertion rejected; repair only, not accepted resume');if(dry)throw Error('Prior packet is not executable-source sound');return null;}
+ if(receipt.contextSha256!==sha(prompt+'\n'+context))throw Error('Context changed; no silent resume');
  for(const n of ['raw.txt','artifact.json','receipt.json'])writeFileSync(join(dir,n),read(n));
  writeFileSync(join(dir,'resume-origin.json'),JSON.stringify({runId:46055915920,commit:'f166a54afe30c39251f846768cee3689c3ec65b4',file:'trial/evidence/course/46055915920/chunk-partial-bundle.json',receiptSha256:sha(read('receipt.json'))}));
  return {artifact,receipt};
 }
 for(const chunk of chunks){
  const dir=join(root,chunk.key);mkdirSync(dir,{recursive:true});
- const context=JSON.stringify({source,contractHash,scenario:id,fixture:chunk,buttons:chunk.allowed,labels:labels.slice(0,3),ui:'Save draft returns to list; local publishing requires confirmation; View history shows immutable versions.'});
+ const context=JSON.stringify({source,contractHash,scenario:id,fixture:chunk,buttons:chunk.allowed,labels:labels.slice(0,3),ui:'Pinned App.tsx lines 164–166: Today displays a dynamic greeting, NOT a heading named Today. Do not assert a Today heading; no start-screen assertion is required. The only allowed exact heading assertion is Courses. Save draft returns to list; local publishing requires confirmation; View history shows immutable versions.',repairFeedback:replay&&chunk.key==='saved-draft'?'Prior authored packet actually failed source inspection by asserting Today as a heading; correct the scenario as a fresh author.':null});
  const restored=resumePacket(chunk,context,dir);if(restored){parts.push(restored);console.log(JSON.stringify({key:chunk.key,checkpointRestored:true,inference:false,priorRun:46055915920}));if(dry){console.log('PASS: exact checkpoint verified; no model credential or inference needed');process.exit(0)}continue;}
  const start=Date.now(),response=provider==='opencode'?await oc(context,dir):await groq(context,dir);
  const {raw,...observed}=response;writeFileSync(join(dir,'raw.txt'),raw+'\n');
