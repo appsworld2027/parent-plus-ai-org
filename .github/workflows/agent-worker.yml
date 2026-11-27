@@ -120,8 +120,12 @@ jobs:
           LABELS=$(jq -r '[.labels[].name] | join(",")' /tmp/item.json)
           STAGE=$(jq -r '[.labels[].name | select(startswith("ai:"))] | first // ""' /tmp/item.json)
           if [ -n "$STAGE_OVERRIDE" ]; then
-            if [ "$GITHUB_REPOSITORY" != "appsworld2027/parent-plus-ai-org" ] || [ "$TOOL_MODE" != "readonly" ] || [ "$STAGE_OVERRIDE" != "ai:discovery" ] || [[ ! "$TITLE" =~ ^\[SMOKE\ TEST\] ]]; then
+            if [ "$GITHUB_REPOSITORY" != "appsworld2027/parent-plus-ai-org" ] || [ "$TOOL_MODE" != "readonly" ] || { [ "$STAGE_OVERRIDE" != "ai:discovery" ] && [ "$STAGE_OVERRIDE" != "ai:review" ]; } || [[ ! "$TITLE" =~ ^\[SMOKE\ TEST\] ]]; then
               echo "::error::Synthetic stage override is restricted to read-only AI Org smoke-test issues."
+              exit 1
+            fi
+            if [ "$STAGE_OVERRIDE" = "ai:review" ] && [[ "$TITLE" != "[SMOKE TEST] Reviewer "* ]]; then
+              echo "::error::Reviewer smoke requires a dedicated Reviewer smoke issue."
               exit 1
             fi
             STAGE="$STAGE_OVERRIDE"
