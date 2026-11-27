@@ -3,14 +3,24 @@ on:
   workflow_dispatch:
     inputs:
       issue_number:
-        description: Existing AI Org issue with an ai:* stage label
-        required: true
+        description: Existing read-only smoke-test issue (title must start [SMOKE TEST])
+        required: false
+        default: "92"
         type: string
       handbook_ref:
         description: AI Org handbook commit, branch or tag
         required: false
         default: main
         type: string
+  pull_request:
+    branches:
+      - fix/public-handbook-checkout-20261127
+    paths:
+      - .github/workflows/agent-worker.yml
+      - .github/workflows/free-agent-smoke.yml
+      - scripts/agent-router.mjs
+      - scripts/onboarding-pack.mjs
+      - governance/FREE_AGENT_SYSTEM_PROMPT.md
 permissions:
   contents: read
   issues: write
@@ -19,10 +29,10 @@ permissions:
   statuses: read
 jobs:
   smoke:
-    if: github.event_name == 'workflow_dispatch' && vars.UNATTENDED_AGENTS == 'on' && github.event.repository.private == true
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
     uses: ./.github/workflows/agent-worker.yml
     with:
-      number: ${{ github.event_name == 'workflow_dispatch' && inputs.issue_number || '91' }}
+      number: ${{ github.event_name == 'workflow_dispatch' && inputs.issue_number || '92' }}
       handbook_ref: ${{ github.event_name == 'workflow_dispatch' && inputs.handbook_ref || github.event.pull_request.head.sha }}
       dispatch_workflow: ai-agents.yml
       tool_mode: readonly
