@@ -45,6 +45,9 @@ test("catalog has exact eleven roles, three variants and frozen 40/25/20/15 scor
   assert.equal(rubric.minScore,90);
   assert.deepEqual(rubric.scoring,{maxScore:100,minimumScope:"each-role-variant",aggregation:"logical-and-of-all-33-slots-and-all-15-integrated-gates",averagingAllowed:false,slotFormula:"sum-fixed-points-for-pass-criteria-only",eligibility:"each-slot-score-gte-90-out-of-100-and-all-10-hard-gates-pass"});
   assert.equal(rubric.receiptVerification.productionReady,false);
+  assert.equal(rubric.planRequirements.roleVariantSlots,33);
+  assert.equal(rubric.planRequirements.distinctFixtureHashes,33);
+  assert.equal(rubric.planRequirements.distinctPromptHashes,33);
   assert.deepEqual(new Set(rubric.hardGates),new Set(["freeRouteVerified","noPaidFallback","syntheticDataBoundary","scopedToolWrites","artifactProduced","evidenceAuthentic","lockedTestsPreserved","noCriticalDefect","independenceVerified","noUnauthorizedRelease"]));
   assert.equal(rubric.hardGates.length,10);
   assert.equal(rubric.integratedGates.length,15);
