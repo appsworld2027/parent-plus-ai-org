@@ -38,13 +38,12 @@ export const ENGINES = ["claude", "codex", "free"];
 export const ALLOWED_ENGINES = Object.freeze([...AUTONOMY_POLICY.execution.allowedEngines]);
 
 // Free engine = Claude Code CLI through the pinned Free Claude Code adapter, backed by Groq's free tier.
-// Measured 2026-11-20 from GitHub runners: Nemotron 3 Ultra and Mistral Large 4 answer in ~1s and pass
-// Claude Code tool use; Kimi K3.1 Pro passes but queues 20-90s per call.
+// Builder and reviewer are distinct Groq free-tier model families; model quality is tracked by regression evidence.
 export const FREE_MODELS = {
   builder: "groq/openai/gpt-oss-120b",
   reviewer: "groq/qwen/qwen3.8-27b",
 };
-// One line, NVIDIA only, optional effort suffix: the worker writes this value into the proxy's .env file.
+// Groq free-tier model override with an optional reasoning-effort suffix.
 const FREE_OVERRIDE = /^groq\/(openai\/gpt-oss-120b|qwen\/qwen3\.8-27b)(@(off|low|medium|high|xhigh|max))?$/;
 const REVIEW_ROLES = ["quinn-qa", "rex-reviewer"];
 
@@ -79,8 +78,7 @@ export function route({ labels = [], body = "", isPR = false, engines = { claude
   const engine = engines[preferred] ? preferred : ENGINES.find((e) => engines[e]) || null;
 
   if (!engine) return { action: "pause", stage, role, reason: "no allowed engine is connected (free models only)" };
-  // Testing only (founder decision 2026-11-26): the free endpoints run only in a supervised trial on synthetic data.
-  // No workflow sets this flag today, so background, chained and resumed runs pause.
+  // Enforce the machine-readable autonomy gate. If background execution is disabled, only an explicit supervised trial may run.
   if (AUTONOMY_POLICY.execution.backgroundEnabled !== true && !supervisedTrial) return { action: "pause", stage, role, reason: "background execution is disabled pending security prerequisites" };
   if (engine === "free" && !supervisedTrial && AUTONOMY_POLICY.execution.requireApprovedProviderForConfidentialCode) return { action: "pause", stage, role, reason: "free provider is not approved for confidential-code background execution" };
   const out = { action: "run", stage, role, engine, fallback: engine !== preferred, seat: STAGE_SEAT[stage] || "" };
@@ -88,7 +86,7 @@ export function route({ labels = [], body = "", isPR = false, engines = { claude
   // so the code is still judged by a different model than the one that wrote it. (2026-11-23: Quinn on the reviewer model
   // made 52 tool calls in 50 minutes and timed out on #42; the builder model averaged ~10 s per call on #37.)
   if (engine === "free") out.free_model = REVIEW_ROLES.includes(role) && stage !== "ai:tests" ? FREE_MODELS.reviewer : FREE_MODELS.builder;
-  // Overrides are limited to the NVIDIA free endpoints, so a product setting cannot route to a billed provider.
+  // Overrides are limited to approved Groq free-tier endpoints; a product setting cannot route to a billed provider.
   if (engine === "free" && FREE_OVERRIDE.test(freeModel)) out.free_model = freeModel; // explicit override (model trials, manifest choice)
   return out;
 }
