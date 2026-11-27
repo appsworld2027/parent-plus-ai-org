@@ -41,15 +41,19 @@ test("agent onboarding pack stays inside the workspace and is ignored by Git", (
   assert.ok(!router.includes("FIRST read `/tmp/onboarding.md`"));
 });
 
-test("the canonical background worker is Groq free-tier only with bounded output and stage-aware tools", () => {
+test("the canonical background worker uses approved free providers with bounded output and stage-aware tools", () => {
   const worker = read("../.github/workflows/agent-worker.yml");
   assert.ok(worker.includes("GROQ_API_KEY:") && worker.includes("required: false"));
-  assert.ok(!worker.includes("NVIDIA_NIM_API_KEY"));
+  assert.ok(worker.includes("NVIDIA_NIM_API_KEY:") && worker.includes("required: false"));
+  assert.ok(worker.includes("ENGINE_GROQ:") && worker.includes("ENGINE_NVIDIA:"));
   assert.ok(!worker.includes("ANTHROPIC_API_KEY"));
   assert.ok(!worker.includes("OPENAI_API_KEY"));
   assert.ok(!worker.includes("CODEX_AUTH_JSON"));
   assert.ok(!worker.includes("CLAUDE_CODE_OAUTH_TOKEN"));
   assert.ok(worker.includes("api.groq.com"));
+  assert.ok(worker.includes("integrate.api.nvidia.com"));
+  assert.ok(worker.includes("nvidia_nim/"));
+  assert.ok(worker.includes("retrying once on the approved Groq free builder"));
   assert.ok(worker.includes("claude --bare -p"));
   assert.ok(worker.includes("--system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md"));
   assert.ok(worker.includes("TOOL_MODE: ${{ inputs.tool_mode }}"));
@@ -63,18 +67,20 @@ test("the canonical background worker is Groq free-tier only with bounded output
   assert.ok(worker.includes('--allowedTools "$ALLOWED_TOOLS"'));
   assert.ok(worker.includes('ALLOWED_TOOLS="Read,Bash(grep:*),Bash(sed:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(git status:*),Bash(pwd:*),Bash(head:*),Bash(tail:*),Bash(wc:*)'));
   assert.ok(!worker.includes('--allowedTools "$TOOLS"'), "read-only mode must not pre-authorize unrestricted Bash");
-  assert.equal((worker.match(/- name: Run agent with the free Groq model/g) || []).length, 1, "one workflow run starts one model worker");
+  assert.equal((worker.match(/- name: Run agent with the selected free provider/g) || []).length, 1, "one workflow run starts one model worker");
   const outputCap = Number(worker.match(/CLAUDE_CODE_MAX_OUTPUT_TOKENS=(\d+)/)?.[1] || 0);
   assert.equal(outputCap, 512, "free-tier output must leave headroom below the observed 1,000 output TPM limit");
   assert.ok(worker.includes("--max-turns 60"));
   assert.ok(worker.includes("tokens per minute"));
   assert.ok(worker.includes("rate_limit_exceeded"));
   assert.ok(worker.includes("groq-probe-retryable"));
+  assert.ok(worker.includes("nvidia-probe-retryable"));
+  assert.ok(worker.includes("unset GROQ_API_KEY NVIDIA_NIM_API_KEY"));
   const packMax = Number(worker.match(/--max (\d+)/)?.[1] || 0);
   assert.ok(packMax >= 1000 && packMax <= 10000, "onboarding pack must have a finite explicit size cap");
   const systemPrompt = read("../governance/FREE_AGENT_SYSTEM_PROMPT.md");
-  assert.ok(systemPrompt.includes("Groq free-tier"));
-  assert.ok(systemPrompt.includes("Never call another provider"));
+  assert.ok(systemPrompt.includes("approved free-only provider set"));
+  assert.ok(systemPrompt.includes("Never call an unapproved provider"));
   assert.ok(systemPrompt.includes("single-quoted"));
   assert.ok(systemPrompt.includes("unescaped backticks"));
   assert.ok(worker.includes("Verify read-only completion comment"));
@@ -115,10 +121,10 @@ test("resume covers every routed role; only AI Org self-work may run in a public
   assert.ok(loop.includes("github.event.repository.private == true"));
 });
 
-test("the canonical organization workflow delegates only the free Groq engine", () => {
+test("the canonical organization workflow delegates only approved free providers", () => {
   const workflow = read("../.github/workflows/ai-agents.yml");
   assert.ok(workflow.includes("GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}"));
-  assert.ok(!workflow.includes("NVIDIA_NIM_API_KEY"));
+  assert.ok(workflow.includes("NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}"));
   assert.ok(!workflow.includes("ANTHROPIC_API_KEY"));
   assert.ok(!workflow.includes("OPENAI_API_KEY"));
 });
