@@ -19,7 +19,7 @@ Live pilot example from the organization directory:
 
     python3 org.py run A qa demo/brief.md --ledger /tmp/ai-org-usage.jsonl
 
-Unattended agent execution is free-provider-only: NVIDIA NIM free endpoint for builder work when available, with Groq free-tier builder fallback and independent review. No Codex, ChatGPT Work, subscription login, paid inference API or paid fallback is used. Keep production credentials and customer data out of hosted model prompts. GitHub merge enforcement depends on the selected repository plan; a founder verifies current-commit evidence before production release.
+Unattended agent execution is free-provider-only: Groq free-tier builder and independent reviewer for normal work. NVIDIA NIM free developer endpoints are limited to validated supervised synthetic evaluations; the approved Groq builder is the only fallback. No Codex, ChatGPT Work, subscription login, paid inference API or paid fallback is used. Keep production credentials and customer data out of hosted model prompts. GitHub merge enforcement depends on the selected repository plan; a founder verifies current-commit evidence before production release.
 
 
 Run `python3 org.py gate demo/blocked.json` for an example decision from
