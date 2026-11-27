@@ -44,15 +44,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check handbook access
-        if: github.repository != 'appsworld2027/parent-plus-ai-org'
-        env:
-          HANDBOOK_ACCESS: ${{ secrets.AI_ORG_HANDBOOK_SSH_KEY != '' }}
-        run: |
-          if [ "$HANDBOOK_ACCESS" != true ]; then
-            echo "::error::Private AI Org handbook access requires AI_ORG_HANDBOOK_SSH_KEY (read-only deploy key for the AI Org repository)."
-            exit 1
-          fi
       - name: Load AI Org handbook
         uses: actions/checkout@v5
         with:
@@ -60,7 +51,6 @@ jobs:
           ref: ${{ inputs.handbook_ref }}
           path: .ai-org-handbook
           token: ${{ github.token }}
-          ssh-key: ${{ github.repository == 'appsworld2027/parent-plus-ai-org' && '' || secrets.AI_ORG_HANDBOOK_SSH_KEY }}
           persist-credentials: false
 
       - uses: actions/setup-node@v5
