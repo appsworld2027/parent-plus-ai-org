@@ -17,7 +17,7 @@ on:
           - ravi-v1
           - quinn-v1
           - rex-v1
-          - sam-v1
+          - sam-v2
       issue_number:
         description: Dedicated [ROLE QUALIFICATION] issue number
         required: true

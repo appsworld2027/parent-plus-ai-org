@@ -22,6 +22,21 @@ test("all eleven canonical roles have unique versioned fixtures and stable hashe
   }
   assert.throws(()=>fixtureFor("unknown"));
 });
+test("qualification prompts declare exact JSON types and retain a prompt hash",()=>{
+  for(const f of fixtures){
+    const p=prepareFixture(f.id);
+    for(const [key,value] of Object.entries(f.expected)) assert.ok(p.prompt.includes(`${key}:${typeof value}`),`${f.id} declares ${key}:${typeof value}`);
+    assert.match(p.promptHash,/^[a-f0-9]{64}$/);
+    assert.equal(scoreFixture(f.id,result(f),goodRoute(f)).promptHash,p.promptHash);
+  }
+  const sam=fixtureFor("sam-v2");
+  assert.equal(sam.version,2);
+  assert.equal(sam.expected.publicFlag,false);
+  assert.match(sam.task,/false means OFF, true means ON/);
+  assert.equal(scoreFixture(sam.id,result(sam),goodRoute(sam)).passed,true);
+  assert.equal(scoreFixture(sam.id,"QUALIFICATION_JSON: "+JSON.stringify({...sam.expected,publicFlag:"off"}),goodRoute(sam)).passed,false);
+});
+
 test("missing, malformed, contradictory markers, extra keys, wrong decisions and unavailable routes fail closed",()=>{
   const f=fixtureFor("dev-v1"), route=goodRoute(f);
   for(const r of ["", "QUALIFICATION_JSON: broken", result(f)+"\n"+result(f), "QUALIFICATION_JSON: "+JSON.stringify({...f.expected,extra:true}), "QUALIFICATION_JSON: "+JSON.stringify({...f.expected,A:false})]) assert.equal(scoreFixture(f.id,r,route).passed,false);

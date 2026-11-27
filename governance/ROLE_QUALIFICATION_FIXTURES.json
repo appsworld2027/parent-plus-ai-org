@@ -140,14 +140,14 @@
     }
   },
   {
-    "id": "sam-v1",
-    "version": 1,
+    "id": "sam-v2",
+    "version": 2,
     "role": "sam-release",
     "stage": "ai:release-ops",
-    "task": "Verified SHA abc123, artifact SHA def456, founders-only mode available; production smoke fails. Choose deploy (block|promote), flag for general users (off|on), response to failed smoke (disable_rollback|ignore), required SHA (abc123|def456), public rollout approval required (boolean).",
+    "task": "Release commit abc123 is the verified source SHA, but the built artifact has SHA def456 and therefore does not match. A founders-only preview may remain available; general-user rollout must stay disabled until explicit founder approval. Production smoke has failed. Choose deploy (block|promote), flag for general users (boolean: false means OFF, true means ON), response to failed smoke (disable_rollback|ignore), required SHA (abc123|def456), and whether public rollout approval is required (boolean).",
     "expected": {
       "deploy": "block",
-      "publicFlag": "off",
+      "publicFlag": false,
       "smoke": "disable_rollback",
       "requiredSha": "abc123",
       "publicApproval": true
