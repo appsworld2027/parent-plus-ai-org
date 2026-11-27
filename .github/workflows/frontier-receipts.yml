@@ -29,3 +29,12 @@ jobs:
           echo "Controller-selected CI Node image digest: $FRONTIER_TEST_NODE_IMAGE"
           export FRONTIER_TEST_NODE_IMAGE
           node --test tests/frontier-board-evaluator.test.mjs tests/frontier-review-evaluator.test.mjs tests/frontier-release-evaluator.test.mjs
+
+      - name: Verify isolated PostgreSQL migration behavior and mutation controls
+        run: |
+          set -euo pipefail
+          docker pull postgres:16-alpine
+          FRONTIER_TEST_POSTGRES_IMAGE="$(docker image inspect --format '{{index .RepoDigests 0}}' postgres:16-alpine)"
+          test -n "$FRONTIER_TEST_POSTGRES_IMAGE"
+          export FRONTIER_TEST_POSTGRES_IMAGE
+          node --test tests/frontier-database-evaluator.test.mjs
