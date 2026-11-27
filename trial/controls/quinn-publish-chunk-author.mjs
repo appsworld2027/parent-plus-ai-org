@@ -28,7 +28,7 @@ const clean=(v)=>v.trim().replace(/^\x60\x60\x60(?:json)?\s*|\s*\x60\x60\x60$/g,
 function parse(raw){const a=JSON.parse(clean(raw));if(Object.keys(a).sort().join()!=='limitations,operations'||typeof a.limitations!=='string'||!Array.isArray(a.operations)||a.operations.length<3||a.operations.length>16)throw Error('Invalid chunk shape');return {operations:a.operations.map(op=>{if(!Array.isArray(op)||!Object.hasOwn(map,op[0]))throw Error('Unknown operation');const v=[map[op[0]],...op.slice(1)];compileCourseOperation(v);return v}),limitations:a.limitations}}
 async function groq(context,dir){
  const key=process.env.GROQ_API_KEY;if(!key)throw Error('Missing configured approved free credential');
- let r;try{r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({model,temperature:0,max_completion_tokens:1400,...(model==='openai/gpt-oss-120b'?{reasoning_effort:'low'}:{}),messages:[{role:'system',content:prompt},{role:'user',content:context}]}),redirect:'error',signal:AbortSignal.timeout(75000)})}catch(e){writeFileSync(join(dir,'provider-status.json'),JSON.stringify({provider,model,transportError:e.name,retried:false}));throw e}
+ let r;try{r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({model,temperature:0,max_completion_tokens:model==='qwen/qwen3.8-27b'?1800:1400,...(model==='openai/gpt-oss-120b'?{reasoning_effort:'low'}:{}),messages:[{role:'system',content:prompt},{role:'user',content:context}]}),redirect:'error',signal:AbortSignal.timeout(75000)})}catch(e){writeFileSync(join(dir,'provider-status.json'),JSON.stringify({provider,model,transportError:e.name,retried:false}));throw e}
  const limits=Object.fromEntries(['retry-after','x-ratelimit-reset-requests','x-ratelimit-reset-tokens','x-ratelimit-remaining-requests','x-ratelimit-remaining-tokens'].map(k=>[k,r.headers.get(k)]));
  if(!r.ok){writeFileSync(join(dir,'provider-status.json'),JSON.stringify({provider,model,status:r.status,limits,retried:false}));throw Error('Approved free route HTTP '+r.status+'; checkpoint preserved; no automatic retry')}
  const j=await r.json(),c=j.choices?.[0];
@@ -75,6 +75,7 @@ for(const chunk of chunks){
  parts.push({artifact,receipt});console.log(JSON.stringify({key:chunk.key,actualModel:receipt.actualModel,usage:receipt.usage,ms:receipt.ms}));
 }
 const normalized={operations:parts.flatMap(p=>p.artifact.operations),limitations:parts.map(p=>p.artifact.limitations).join(' | ')};
+if(normalized.operations.length>46)throw Error('Combined operation count exceeds frozen compiler limit');
 const coverage=coverageIssues({cases:Object.fromEntries(COURSE_IDS.map(k=>[k,k===id?normalized.operations:[]]))}).filter(x=>x.id===id);
 const receipt={schema:'course-chunk-assembly/v1',source,contractHash,id,model,provider,chunks:parts.map(p=>p.receipt),artifactSha256:sha(JSON.stringify(normalized)),coveragePassed:coverage.length===0,coverageIssues:coverage,executableGradePassed:false,roleAdmission:false,lockApproved:false};
 writeFileSync(join(root,'normalized.json'),JSON.stringify(normalized,null,2));writeFileSync(join(root,'receipt.json'),JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));
