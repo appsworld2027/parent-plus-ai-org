@@ -86,6 +86,8 @@ test("resume covers every routed role; only AI Org self-work may run in a public
   assert.ok(caller.includes("vars.UNATTENDED_AGENTS == 'on'"));
   assert.ok(caller.includes("github.repository == 'appsworld2027/parent-plus-ai-org'"));
   assert.ok(caller.includes("github.event.repository.private == true"));
+  assert.ok(caller.includes("tool_mode: ${{ github.event_name == 'issues' && startsWith(github.event.issue.title || '', '[SMOKE TEST]') && 'readonly' || 'standard' }}"));
+  assert.ok(caller.includes("stage_override: ${{ github.event_name == 'issues' && startsWith(github.event.issue.title || '', '[SMOKE TEST]') && 'ai:discovery' || '' }}"));
   const loop = read("../.github/workflows/ai-loop.yml");
   assert.ok(loop.includes("github.repository == 'appsworld2027/parent-plus-ai-org'"));
   assert.ok(loop.includes("github.event.repository.private == true"));
