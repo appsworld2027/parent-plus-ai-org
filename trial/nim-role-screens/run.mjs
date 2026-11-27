@@ -81,6 +81,15 @@ if(mode==='author'){
   catch(e){receipt.failure=String(e.message).slice(0,100);if(/http-|transport|timeout|unexpected-model/.test(receipt.failure))held='prior-provider-failure-no-retry'}
   save(join(dir,'call.json'),receipt);console.log(JSON.stringify(receipt));
  }
+ }else if(mode==='diagnose'){
+ const pinned='627b8c789bf91df18169b09655cd5a2d0cdf41ee3ebecfa3481c2ea2afc59f5b';
+ const c=cases[0],dir=join(other,c.id),receipt=JSON.parse(read(join(dir,'call.json'))),raw=read(join(dir,'raw.txt'));
+ if(hash(raw)!==pinned||hash(raw)!==receipt.rawHash||receipt.reportedModel!==MODEL||receipt.finishReason!=='stop')throw Error('retry raw or receipt mismatch');
+ const r={role:c.role,variant:c.variant,rawHash:hash(raw),finish:receipt.finishReason,chars:raw.length,prefix:raw.slice(0,180),suffix:raw.slice(-180)};
+ try{const x=parse(raw);r.shape=Object.keys(x);r.files=Array.isArray(x.files)?x.files.map(f=>({keys:Object.keys(f),path:f.path,contentType:typeof f.content})):typeof x.files;
+  try{r.intake=Boolean(intakeFrontierArtifact(c.original.fixture,x));}catch(e){r.intakeError=String(e.message).slice(0,250);}
+ }catch(e){r.parseError=String(e.message).slice(0,250);}
+ console.log(JSON.stringify(r));save(join(root,c.id+'.json'),r);
 }else if(mode==='grade'){
  const results=[];
  for(const c of cases){try{results.push(assess(c,other))}catch(e){results.push({role:c.role,variant:c.variant,status:'controller-blocked',failure:String(e.message).slice(0,100),passed:0,expected:null})}}
