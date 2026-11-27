@@ -10,7 +10,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: course-p0-baseline-only
+  group: course-p0-${{ inputs.confirm }}
   cancel-in-progress: false
 env:
   TRIAL_PROFILE: course-pilot
