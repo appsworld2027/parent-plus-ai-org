@@ -34,7 +34,8 @@
     "garageFreshSessionRecovery",
     "failedSmokeRollbackVerified",
     "noPublicRelease",
-    "zeroRoutineFounderPrompts"
+    "zeroRoutineFounderPrompts",
+    "allAttemptsPreserved"
   ],
   "roles": [
     {
