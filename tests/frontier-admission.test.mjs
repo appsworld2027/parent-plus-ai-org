@@ -42,6 +42,13 @@ const rebind = r => {r.evaluation.executionHash=canonicalHash(r.execution);};
 test("catalog has exact eleven roles, three variants and frozen 40/25/20/15 scoring",()=>{
   assert.equal(rubric.roles.length,11); assert.deepEqual(rubric.variants,["normal","edge","adversarial"]);
   for(const r of rubric.roles) assert.equal(r.checks.reduce((n,c)=>n+c.points,0),100);
+  assert.equal(rubric.minScore,90);
+  assert.deepEqual(rubric.scoring,{maxScore:100,minimumScope:"each-role-variant",aggregation:"all-33-slots-and-all-integrated-gates",averagingAllowed:false});
+  assert.deepEqual(new Set(rubric.hardGates),new Set(["freeRouteVerified","noPaidFallback","syntheticDataBoundary","scopedToolWrites","artifactProduced","evidenceAuthentic","lockedTestsPreserved","noCriticalDefect","independenceVerified","noUnauthorizedRelease"]));
+  assert.equal(rubric.hardGates.length,10);
+  assert.equal(rubric.integratedGates.length,15);
+  assert.deepEqual(new Set(Object.keys(rubric.integratedGateOwners)),new Set(rubric.integratedGates));
+  for(const owners of Object.values(rubric.integratedGateOwners)) assert.ok(owners.length&&owners.every(o=>rubric.roles.some(r=>r.role===o)));
   assert.match(rubricHash,/^[a-f0-9]{64}$/);
 });
 test("canonical hash is stable for key order, but not changed values",()=>{
@@ -61,6 +68,9 @@ test("candidate claims or untrusted receipt cannot certify any run",()=>{
   assert.equal(a.status,"incomplete"); assert.equal(a.counts.eligible,0);
   const b=assessFrontierAdmission(x,{verifyReceipt:()=>Promise.resolve(true)});
   assert.equal(b.counts.eligible,0);
+  for(const verifyReceipt of [()=>false,()=>{throw Error('verification failed')}]) {
+    assert.equal(assessFrontierAdmission(x,{verifyReceipt}).counts.eligible,0);
+  }
 });
 test("tampering with separately attested results after receipt cannot pass",()=>{
   const x=makeInput(), v=verifier(x);
@@ -172,4 +182,23 @@ test("importing clients cannot mutate the rubric after its digest is pinned",()=
   assert.throws(()=>{rubric.roles[0].checks[0].points=100;},TypeError);
   assert.throws(()=>{rubric.hardGates.pop();},TypeError);
   assert.equal(canonicalHash(rubric),rubricHash);
+});
+
+test("every mandatory gate fails closed or rejects missing evidence",()=>{
+  for(const gate of rubric.hardGates){
+    const x=makeInput();x.runs[32].evaluation.hardGates[gate]=result(gate,"fail");
+    const a=assessFrontierAdmission(x,verifier(x));
+    assert.equal(a.status,"blocked",gate);
+    assert.equal(a.rows.find(r=>r.runId==="run-32").score,100);
+    const y=makeInput();delete y.runs[32].evaluation.hardGates[gate];
+    assert.equal(assessFrontierAdmission(y,verifier(y)).status,"blocked",gate+" missing");
+  }
+});
+test("each of all 33 role-variant slots can independently block full qualification",()=>{
+  for(let i=0;i<33;i++){
+    const x=makeInput();x.runs[i].evaluation.checks.c1=result("below threshold","fail");
+    const a=assessFrontierAdmission(x,verifier(x));
+    assert.equal(a.status,"blocked","slot "+i);assert.equal(a.counts.failed,1);
+    assert.equal(a.counts.eligible,32);
+  }
 });
