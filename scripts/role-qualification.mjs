@@ -14,12 +14,16 @@ export const fixtureHash = f => createHash("sha256").update(JSON.stringify(f)).d
 export function prepareFixture(id) {
   const f = fixtureFor(id);
   const keys = Object.keys(f.expected).join(", ");
+  const types = Object.entries(f.expected).map(([key, value]) => `${key}:${typeof value}`).join(", ");
   const prompt = "Synthetic qualification " + f.id + " (" + f.role + "). No real data or tools. " + f.task +
-    "\nUse EXACT JSON keys " + keys + ". Output a single line starting QUALIFICATION_JSON: followed by a JSON object with only those fields. Use JSON booleans/numbers, not strings. Do not reveal hidden answers or invoke tools.";
-  return { fixture: f.id, version: f.version, role: f.role, stage: f.stage, fixtureHash: fixtureHash(f), prompt };
+    "\nUse EXACT JSON keys " + keys + ". Use these exact JSON value types (key:type): " + types +
+    ". Keep enum and identifier values as JSON strings; use JSON booleans and numbers for their fields. Do not coerce types. Output a single line starting QUALIFICATION_JSON: followed by a JSON object with only those fields. Do not reveal hidden answers or invoke tools.";
+  const promptHash = createHash("sha256").update(prompt).digest("hex");
+  return { fixture: f.id, version: f.version, role: f.role, stage: f.stage, fixtureHash: fixtureHash(f), promptHash, prompt };
 }
 export function scoreFixture(id, report, route = {}, metadata = {}) {
   const f = fixtureFor(id);
+  const prepared = prepareFixture(id);
   const markers = report.split(/\r?\n/).map(s => s.trim()).filter(s => s.startsWith("QUALIFICATION_JSON:"));
   let answer = null;
   if (markers.length === 1) { try { answer = JSON.parse(markers[0].slice("QUALIFICATION_JSON:".length)); } catch {} }
@@ -29,7 +33,7 @@ export function scoreFixture(id, report, route = {}, metadata = {}) {
   const routeMatched = route.action === "run" && route.engine === "free" && route.role === f.role && route.stage === f.stage &&
     typeof route.free_model === "string" && /^(groq|nvidia)\//.test(route.free_model) && route.free_provider === route.free_model.split("/")[0];
   const objectiveChecksPassed = exactShape && checks.every(c => c.passed);
-  return { schema:1, fixture:f.id, version:f.version, fixtureHash:fixtureHash(f), role:f.role, stage:f.stage,
+  return { schema:1, fixture:f.id, version:f.version, fixtureHash:fixtureHash(f), promptHash:prepared.promptHash, role:f.role, stage:f.stage,
     mode:"synthetic-readonly", provider:route.free_provider || route.free_model?.split("/")[0] || null, model:route.free_model || null,
     checks, exactShape, routeMatched, objectiveChecksPassed, passed:objectiveChecksPassed && routeMatched,
     independentQualityAssessment:"not-assessed", billingStatus:"provider-billing-unverified", handbookSha:metadata.handbookSha, runId:metadata.runId, attempt:metadata.attempt, repository:metadata.repository };
