@@ -25,8 +25,9 @@
     "freeProvider": "nvidia-nim+groq",
     "freeModels": {
       "builder": "groq/openai/gpt-oss-120b",
-      "builderPreferred": "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
-      "reviewer": "groq/qwen/qwen3.8-27b"
+      "builderPreferred": "groq/openai/gpt-oss-120b",
+      "reviewer": "groq/qwen/qwen3.8-27b",
+      "nvidiaEvaluationBuilder": "nvidia/nvidia/nemotron-3-ultra-550b-a55b"
     },
     "maxConcurrentDeliveryLanes": 2,
     "freeProviders": [
@@ -38,13 +39,18 @@
       "paidFallback": false,
       "subscriptionAuthentication": false,
       "builderPreference": [
-        "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
         "groq/openai/gpt-oss-120b"
       ],
       "independentReviewer": "groq/qwen/qwen3.8-27b",
-      "reviewerProviderMustDifferFromBuilder": true,
+      "reviewerProviderMustDifferFromBuilder": false,
       "nvidiaReviewerEnabled": false,
-      "quotaExhaustion": "pause-or-approved-free-fallback-only"
+      "quotaExhaustion": "pause-or-approved-free-fallback-only",
+      "evaluationBuilderPreference": [
+        "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
+        "groq/openai/gpt-oss-120b"
+      ],
+      "nvidiaMode": "supervised-synthetic-evaluation-only",
+      "reviewerModelFamilyMustDifferFromBuilder": true
     }
   },
   "release": {
@@ -65,7 +71,7 @@
     "Unattended development agents use only the Groq free tier through the pinned Free Claude Code adapter.",
     "If the free key, model, or quota is unavailable, execution pauses; no paid fallback or automatic upgrade is permitted.",
     "Never send secrets, production credentials, customer data, or child personal data to hosted models.",
-    "NVIDIA NIM free Nemotron endpoint is preferred for builder turns when available; Groq GPT-OSS is the approved free builder fallback.",
+    "NVIDIA NIM free Nemotron is limited to supervised synthetic evaluation; ordinary delivery uses the approved Groq builder and pauses if unavailable.",
     "Groq Qwen is the independent reviewer. NVIDIA is not assigned reviewer work until separate latency and review-quality qualification passes.",
     "Only exact model IDs in the free-provider allowlist may execute. Paid API fallback, subscription sign-in, automatic upgrades and unapproved provider substitution are prohibited."
   ]
