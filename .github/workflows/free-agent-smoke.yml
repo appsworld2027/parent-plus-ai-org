@@ -12,15 +12,6 @@ on:
         required: false
         default: main
         type: string
-  pull_request:
-    branches:
-      - fix/public-handbook-checkout-20261127
-    paths:
-      - .github/workflows/agent-worker.yml
-      - .github/workflows/free-agent-smoke.yml
-      - scripts/agent-router.mjs
-      - scripts/onboarding-pack.mjs
-      - governance/FREE_AGENT_SYSTEM_PROMPT.md
 permissions:
   contents: read
   issues: write
@@ -29,7 +20,7 @@ permissions:
   statuses: read
 jobs:
   smoke:
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
+    if: vars.UNATTENDED_AGENTS == 'on' && (github.repository == 'appsworld2027/parent-plus-ai-org' || github.event.repository.private == true)
     uses: ./.github/workflows/agent-worker.yml
     with:
       number: ${{ github.event_name == 'workflow_dispatch' && inputs.issue_number || '93' }}

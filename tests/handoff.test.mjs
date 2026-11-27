@@ -68,8 +68,9 @@ test("onboarding pack: task, role/RACI, contract/handovers, attempt, lessons, me
   writeFileSync(join(p, "docs/product/fees/handoffs/01-ai-tests-quinn-qa-author.md"), "HANDOVER-ONE");
   writeFileSync(join(d, "attempt.md"), "LAST-RUN-TIMED-OUT"); writeFileSync(join(d, "task.md"), "DO-THE-REVIEW");
   const pack = buildPack({ role: "quinn-qa", stage: "ai:tests", slug: "fees", seat: "challenger", handbook: hb, product: p, attempt: join(d, "attempt.md"), task: join(d, "task.md") });
-  const order = ["DO-THE-REVIEW", "ROLE-CARD", "challenger", "quinn-qa@challenger", "CONTRACT-ACS", "HANDOVER-ONE", "LAST-RUN-TIMED-OUT", "LESSON-ONE", "FIXTURE-TRAP"];
+  const order = ["DO-THE-REVIEW", "ROLE-CARD", "challenger", "quinn-qa@challenger", "CONTRACT-ACS", "HANDOVER-ONE", "LAST-RUN-TIMED-OUT", "LESSON-ONE", "TEST_KNOWLEDGE.md"];
   let at = -1; for (const s of order) { const i = pack.indexOf(s); assert.ok(i > at, `${s} missing or out of order`); at = i; }
+  assert.ok(!pack.includes("FIXTURE-TRAP"), "memory contents are not bulk-loaded into the prompt");
   assert.match(pack, /5-line Understanding/);
   assert.ok(buildPack({ role: "quinn-qa", stage: "ai:tests", slug: "fees", handbook: hb, product: p, max: 300 }).length < 420, "whole pack is capped");
 });
