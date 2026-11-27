@@ -18,6 +18,7 @@ test("isolated runner detects real replay and tenant leakage defects",{skip:!ima
   for(const variant of ["edge","adversarial"]){
     const r=await evaluateBoardCode(code("rex-reviewer",variant),{image});
     assert.equal(r.status,"behavior-fail",JSON.stringify(r));assert.ok(r.counts.fail>0);
+    assert.match(r.diagnostic.stdout,/not ok/);assert.ok(r.diagnostic.stdout.length<=16000);
   }
 });
 test("isolated runner rejects incomplete suite/process exit without claiming pass",{skip:!image},async()=>{
