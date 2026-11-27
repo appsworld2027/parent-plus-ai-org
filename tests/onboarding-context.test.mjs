@@ -14,6 +14,7 @@ function fixture(t) {
   mkdirSync(join(handbook, "org", "agents"), { recursive: true });
   mkdirSync(join(handbook, "org", "lessons"), { recursive: true });
   mkdirSync(join(product, "docs", "ai-memory"), { recursive: true });
+  mkdirSync(join(product, ".ai-org"), { recursive: true });
   writeFileSync(join(handbook, "org", "agents", "maya-ai-pm.md"), "name: Maya\nrole: AI Product Manager\n\nUse evidence.");
   writeFileSync(join(handbook, "org", "lessons", "maya-ai-pm.md"), "Keep discovery focused.");
   writeFileSync(join(product, ".ai-org", "manifest.json"), JSON.stringify({ product: { docsFolder: "docs/product" }, memory: { folder: "docs/ai-memory" } }));
