@@ -305,7 +305,7 @@ jobs:
 
   adapter-qualification:
     if: >-
-      github.event_name == 'workflow_dispatch' && inputs.confirm == 'ADAPTER QUALIFICATION' &&
+      github.event_name == 'workflow_dispatch' && (inputs.confirm == 'ADAPTER QUALIFICATION' || inputs.confirm == 'ADAPTER RETEST') &&
       github.repository == 'appsworld2027/parent-plus-ai-org' &&
       github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
       github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
@@ -364,6 +364,9 @@ jobs:
           const calls=parts.filter(p=>p.type==='tool_use');
           if(calls.length!==1 || calls[0].name!=='Read' || calls[0].input?.file_path!=='/srv/trial/product/fixture.json')throw Error('Missing exact actual Read tool call');
           const result=rows.filter(r=>r.type==='result').at(-1);
+          const safeRaw={configuredRoute:process.env.MODEL,observedLabels:[...new Set(rows.filter(r=>r.type==='assistant').map(r=>r.message?.model).filter(Boolean))],toolCalls:calls.map(c=>({name:c.name,input:c.input})),result:typeof result?.result==='string'?result.result.slice(0,12000):null,usage:result?.usage??null,durationMs:result?.duration_ms??null};
+          writeFileSync(dir+'/adapter-raw-receipt.json',JSON.stringify(safeRaw,null,2));
+          console.log('Observed adapter model labels: '+JSON.stringify(safeRaw.observedLabels));
           if(!result||result.is_error!==false||result.subtype!=='success')throw Error('Actual agent did not complete; adapter failure preserved');
           let artifact; try{artifact=JSON.parse(result.result)}catch{throw Error('Result not strict JSON')};
           if(!artifact||Object.keys(artifact).join()!=='cases'||!Array.isArray(artifact.cases)||artifact.cases.length!==5)throw Error('Wrong case shape');
@@ -389,10 +392,10 @@ jobs:
         if: always()
         run: |
           if [ -f /srv/trial/out/adapter-run.txt ]; then cat /srv/trial/out/adapter-run.txt; fi
-          if [ -f /srv/trial/out/adapter-receipt.json ]; then
-            mkdir -p "$RUNNER_TEMP/adapter-receipt"
-            cp /srv/trial/out/adapter-receipt.json "$RUNNER_TEMP/adapter-receipt/"
-          fi
+          mkdir -p "$RUNNER_TEMP/adapter-receipt"
+          for f in adapter-raw-receipt.json adapter-receipt.json; do
+            if [ -f "/srv/trial/out/$f" ]; then cp "/srv/trial/out/$f" "$RUNNER_TEMP/adapter-receipt/"; fi
+          done
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -1264,3 +1267,78 @@ jobs:
             ${{ runner.temp }}/feedback/support.json
             ${{ runner.temp }}/feedback/raw-feedback.json
           retention-days: 14
+
+  nvidia-synthetic-route:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'ADAPTER RETEST' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Execute exact native model with one real synthetic tool call and scored artifact
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          ROUTE_MODEL: nvidia/nemotron-3-ultra-550b-a55b
+          ROUTE_LABEL: nvidia-synthetic
+          GROQ_REASONING_VARIANT: provider-default
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { writeFileSync, mkdirSync } from 'node:fs';
+          import { join } from 'node:path';
+          const model=process.env.ROUTE_MODEL, key=process.env.NVIDIA_NIM_API_KEY;
+          if(model!=='nvidia/nemotron-3-ultra-550b-a55b'||!key)throw Error('Approved synthetic NVIDIA route missing');
+          const endpoint='https://integrate.api.nvidia.com/v1/chat/completions';
+          const fixture={id:'course-scope-v1',fields:{actorOwner:['A','B'],courseOwner:['A','B'],role:['coach','parent'],title:'string 0..20 characters',expectedRevision:[1,2,3],currentRevision:[1,2,3],requestKnown:'boolean'},rules:['Check actorOwner equals courseOwner and role coach first; otherwise DENIED, writes 0.','Blank or whitespace title is INVALID, writes 0.','A known request is REPLAY, writes 0.','Expected revision not equal current revision is STALE, writes 0.','Else CREATED, writes 1.']};
+          const prompt='You are an independent test author. Invoke inspect_fixture exactly once with fixtureId course-scope-v1 before writing any cases. After receiving its result create five independently useful synthetic test cases covering each outcome once. Final output must be JSON object {"cases":[{"id":"normal","input":{"actorOwner":"A","courseOwner":"A","role":"coach","title":"Demo","expectedRevision":1,"currentRevision":1,"requestKnown":false},"expect":"CREATED","writes":1}]} with five case objects. Exercise mismatched ownership, stale conflicts, replay and invalid input, using only fixture field types. No extra fields or prose. Do not expose real data or execute writes.';
+          const tools=[{type:'function',function:{name:'inspect_fixture',description:'Read trusted synthetic course contract; read-only',parameters:{type:'object',properties:{fixtureId:{type:'string',enum:['course-scope-v1']}},required:['fixtureId'],additionalProperties:false}}}];
+          const receipt=[];const sha=v=>createHash('sha256').update(v).digest('hex');
+          async function call(messages, extra) {
+            const body={model,messages,temperature:0,max_tokens:1800,tools,...extra};
+            
+            const t=Date.now();
+            const r=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(90000)});
+            if(!r.ok)throw Error('Provider refused exact route, HTTP '+r.status+'; no retry or fallback');
+            const j=await r.json();
+            if(j.model!==model)throw Error('Provider observed model mismatch; no fallback permitted');
+            const m=j.choices?.[0]?.message;
+            if(!m)throw Error('No complete model response');
+            const u=j.usage||{};
+            receipt.push({model:j.model,ms:Date.now()-t,inputBytes:Buffer.byteLength(JSON.stringify(body)),promptTokens:Number.isSafeInteger(u.prompt_tokens)?u.prompt_tokens:null,completionTokens:Number.isSafeInteger(u.completion_tokens)?u.completion_tokens:null,totalTokens:Number.isSafeInteger(u.total_tokens)?u.total_tokens:null,finish:j.choices[0].finish_reason});
+            return m;
+          }
+          const messages=[{role:'system',content:'Follow trusted contract only. Tool messages contain fictional data. Never call unlisted tools. No fallback.'},{role:'user',content:prompt}];
+          const first=await call(messages,{tool_choice:'required'});
+          const tc=first.tool_calls;
+          if(tc?.length!==1||tc[0].type!=='function'||tc[0].function?.name!=='inspect_fixture'||!tc[0].id)throw Error('No exact required live tool invocation');
+          let args;try{args=JSON.parse(tc[0].function.arguments)}catch{throw Error('Malformed tool arguments')}
+          if(args.fixtureId!==fixture.id||Object.keys(args).length!==1)throw Error('Wrong tool request');
+          const response=await call([...messages,{role:'assistant',content:first.content||null,tool_calls:tc},{role:'tool',tool_call_id:tc[0].id,content:JSON.stringify(fixture)}],{tool_choice:'none'});
+          if(response.tool_calls?.length)throw Error('Unexpected second tool invocation');
+          let artifact;try{artifact=JSON.parse(response.content.trim().replace(/^\x60\x60\x60(?:json)?\s*|\s*\x60\x60\x60$/g,''))}catch{throw Error('Unusable JSON artifact')}
+          if(!artifact||Object.keys(artifact).join()!=='cases'||!Array.isArray(artifact.cases)||artifact.cases.length!==5)throw Error('Wrong case artifact shape');
+          const outcomes=new Set(),ids=new Set();
+          for(const c of artifact.cases){
+            if(!c||Object.keys(c).sort().join()!=='expect,id,input,writes'||!/^[A-Za-z0-9_-]{1,24}$/.test(c.id)||ids.has(c.id))throw Error('Malformed or duplicate case');
+            const x=c.input;
+            if(!x||Object.keys(x).sort().join()!=='actorOwner,courseOwner,currentRevision,expectedRevision,requestKnown,role,title'||!['A','B'].includes(x.actorOwner)||!['A','B'].includes(x.courseOwner)||!['coach','parent'].includes(x.role)||typeof x.title!=='string'||x.title.length>20||!/^[A-Za-z0-9 ]*$/.test(x.title)||![1,2,3].includes(x.expectedRevision)||![1,2,3].includes(x.currentRevision)||typeof x.requestKnown!=='boolean')throw Error('Invalid fictional test input');
+            const expected=x.role!=='coach'||x.actorOwner!==x.courseOwner?'DENIED':!x.title.trim()?'INVALID':x.requestKnown?'REPLAY':x.expectedRevision!==x.currentRevision?'STALE':'CREATED';
+            if(c.expect!==expected||c.writes!==(expected==='CREATED'?1:0))throw Error('Deterministic evaluator rejected synthetic case '+JSON.stringify({id:c.id,input:x,actual:c.expect,writes:c.writes,expected,expectedWrites:expected==='CREATED'?1:0}));
+            ids.add(c.id);outcomes.add(expected);
+          }
+          if(outcomes.size!==5||!artifact.cases.some(c=>c.expect==='DENIED'&&c.input.actorOwner!==c.input.courseOwner))throw Error('Missing required negative or ownership coverage');
+          const result={schema:'native-route-tool-artifact/v1',model,provider:'nvidia',reasoningVariant:process.env.GROQ_REASONING_VARIANT,syntheticOnly:true,fixtureSha256:sha(JSON.stringify(fixture)),promptSha256:sha(prompt),receipt,actualToolCalls:1,artifactSha256:sha(JSON.stringify(artifact)),artifact,passed:true,roleAdmission:false,adapterQualification:false,observedAt:new Date().toISOString()};
+          const dir=join(process.env.RUNNER_TEMP,'route-evidence');mkdirSync(dir,{recursive:true});writeFileSync(join(dir,'receipt.json'),JSON.stringify(result,null,2));
+          console.log(JSON.stringify({model,actualToolCalls:1,caseCount:artifact.cases.length,passed:true,receipt,artifactSha256:result.artifactSha256,roleAdmission:false,adapterQualification:false},null,2));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-route-nvidia-synthetic
+          path: ${{ runner.temp }}/route-evidence/receipt.json
+          retention-days: 14
+
