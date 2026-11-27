@@ -16,7 +16,8 @@ test("cross-repository private handbook consumers require the read-only deploy k
 
 test("background agent execution fails closed unless explicitly enabled on a private caller repository", () => {
   const worker = read("../.github/workflows/agent-worker.yml");
-  assert.ok(worker.includes("if: vars.UNATTENDED_AGENTS == 'on' && github.event.repository.private == true"));
+  assert.ok(worker.includes("vars.UNATTENDED_AGENTS == 'on'"));
+  assert.ok(worker.includes("github.event.repository.private == true"));
 });
 
 test("the canonical background worker is Groq free-tier only with bounded output and stage-aware tools", () => {

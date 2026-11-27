@@ -173,6 +173,7 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = 
     `2. Read ${kind} #${number} metadata and body only using ${cli} view ${number} --json title,body,labels,assignees. Read comments only when a retry or explicit task requires history.`,
     `3. Do your role's job for this ${kind} only. Keep changes small and reversible. Run the repo's checks before claiming anything.`,
     `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,
+    ...(toolMode === "readonly" ? [] : ["4a. Before creating or posting a handover, validate it with `node scripts/handoff.mjs validate --feature <slug>`. If no valid feature slug is assigned, do not create a handover."]),
     ...(toolMode === "readonly"
       ? ["5. Read-only mode: task scope overrides role-card suggestions. Do not modify files, branches, labels, commits, PRs, handoffs or any other issue. The workflow owns stage transitions. Only perform the specific issue comment explicitly requested by the task."]
       : ["5. Do not change issue stage labels or issue state; the workflow owns stage transitions. Apply only PR labels explicitly required by your role brief." ]),
