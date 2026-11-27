@@ -1,4 +1,5 @@
 name: GitLab Mirror
+# Trigger the initial mirror when this workflow is installed.
 
 on:
   workflow_dispatch:
