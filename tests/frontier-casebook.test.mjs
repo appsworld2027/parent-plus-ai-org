@@ -103,3 +103,17 @@ test("release fixtures exercise clean, stale and failed smoke states without ext
   assert.notEqual(edge.releaseSha,edge.ciSha);assert.equal(edge.founderOnly,false);assert.equal(edge.smoke,"unknown");
   assert.equal(bad.smoke,"fail");assert.equal(bad.publicFlag,false);assert.equal(bad.rollbackRehearsed,false);
 });
+
+test("canonical role mission becomes a hashed frozen prompt component; missing role rejected",()=>{
+  const roleDefinitions=Object.fromEntries(rubric.roles.map(({role})=>[role,"synthetic role-definition fixture for "+role]));
+  const a=prepareFrontierCasebook({...options,roleDefinitions});
+  assert.notEqual(a.planHash,book.planHash);
+  for(const c of a.cases){
+    assert.equal(c.fixture.roleDefinition.text,roleDefinitions[c.fixture.role]);assert.match(c.fixture.roleDefinition.sha256,/^[a-f0-9]{64}$/);
+    assert.ok(c.prompt.includes(c.fixture.roleDefinition.text));
+  }
+  const revised=prepareFrontierCasebook({...options,roleDefinitions:{...roleDefinitions,"dev-coder":"changed role"}});
+  assert.notEqual(a.planHash,revised.planHash);
+  delete roleDefinitions["sam-release"];
+  assert.throws(()=>prepareFrontierCasebook({...options,roleDefinitions}),/incomplete canonical role definitions/);
+});
