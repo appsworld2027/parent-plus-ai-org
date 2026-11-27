@@ -32,7 +32,8 @@ test("discovery without a feature slug never hydrates the _none_ handover folder
   const pack = buildPack({ role: "maya-ai-pm", stage: "ai:discovery", product: f.product, handbook: f.handbook, task: f.task });
 
   assert.ok(pack.includes("CURRENT_TASK_SENTINEL"));
-  assert.ok(pack.includes("No handovers yet"));
+  assert.ok(pack.includes("No feature slug is assigned yet"));
+  assert.ok(!pack.includes("docs/product/_none_"));
   assert.ok(!pack.includes("UNRELATED_NONE_HANDOVER_SENTINEL"));
 });
 
@@ -80,6 +81,8 @@ test("routine agent prompts do not reload full governance handbooks", () => {
 
   assert.ok(prompt.includes("Read the onboarding pack first"));
   assert.ok(!prompt.includes("--comments"));
+  assert.ok(!prompt.includes("ls -R"));
+  assert.ok(prompt.includes("Feature slug: not assigned"));
   assert.ok(!prompt.includes("then `.ai-org-handbook/org/agents/"));
   assert.ok(!prompt.includes("Read `.ai-org-handbook/governance/FOUNDER_DASHBOARD.md`"));
   assert.ok(!prompt.includes("Read `.ai-org-handbook/governance/PERSONAL_OPERATING_STANDARD.md`"));
