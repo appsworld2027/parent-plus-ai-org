@@ -456,8 +456,8 @@ jobs:
           if [ "${{ inputs.stage_override }}" = "ai:review" ]; then
             REVIEW=$(gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -er --arg marker "$MARKER" --arg receipt "$RECEIPT" '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith($marker) and contains($receipt)))][-1].body')
             # Synthetic fixture: a correct rejection must address the actual registration rule.
-            printf '%s' "$REVIEW" | grep -Eiq '^[[:space:]*-]*Verdict:[[:space:]*]*REJECT([[:space:]*.!]|$)' || { echo "::error::Synthetic reviewer did not reject the flawed rule."; exit 1; }
-            if printf '%s' "$REVIEW" | grep -Eiq '^[[:space:]*-]*Verdict:[[:space:]*]*APPROVE([[:space:]*.!]|$)'; then echo "::error::Synthetic reviewer produced contradictory verdicts."; exit 1; fi
+            printf '%s' "$REVIEW" | grep -Eiq '^[[:space:]]*(#{1,6}[[:space:]]+)?[[:space:]*-]*Verdict:[[:space:]*]*REJECT([[:space:]*.!]|$)' || { echo "::error::Synthetic reviewer did not reject the flawed rule."; exit 1; }
+            if printf '%s' "$REVIEW" | grep -Eiq '^[[:space:]]*(#{1,6}[[:space:]]+)?[[:space:]*-]*Verdict:[[:space:]*]*APPROVE([[:space:]*.!]|$)'; then echo "::error::Synthetic reviewer produced contradictory verdicts."; exit 1; fi
             for term in registration email password duplicate; do
               printf '%s' "$REVIEW" | grep -iq "$term" || { echo "::error::Synthetic reviewer omitted fixture term: $term"; exit 1; }
             done
