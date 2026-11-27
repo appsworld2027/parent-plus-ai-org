@@ -13,8 +13,8 @@ are complementary—not interchangeable.
 Files:
 - `governance/FRONTIER_ARTIFACT_RUBRIC.json` — versioned eight criteria for each
   canonical role: correctness 40, edge cases 25, evidence 20, efficiency 15;
-  three variants per role, per-run minimum 90; ten mandatory role gates and
-  fifteen integrated gates. The catalog describes public criteria, not hidden answers.
+  three variants per role, per-run minimum **90 out of 100**, never 90 maximum; ten mandatory role gates and
+  fifteen integrated gates with explicit accountable role mapping. The catalog describes public criteria, not hidden answers.
 - `scripts/frontier-admission.mjs` — canonical digest, frozen plan, per-slot
   independent evidence precheck, weighted scoring, aggregate and integration gate.
 - `tests/frontier-admission.test.mjs` — deterministic unit tests with synthetic
@@ -62,7 +62,7 @@ role+variant slots must occur exactly once; do not replace failed evidence by
 discarding attempts. All attempts and retry/requalification outcomes must be
 retained; the selected attempt references its verified history digest. New rubric,
 prompt, fixture, revision or model changes require appropriately versioned plans and
-re-evaluation. Gate accepts selected outcomes, not arbitrary per-role averages.
+re-evaluation. Gate accepts selected outcomes, not arbitrary per-role averages. The explicit catalog scoring policy is 90/100 at every one of the 33 role-variant slots; all 15 integrated gates must pass. No score may compensate for another slot's failure. The integrated gate owner mapping establishes accountability, not permission to self-certify. A role may use the same agent instance across repetitions or provider across roles, but each execution must have a unique run identity and scope-bound prompt/fixture. Independence from the subject and evidence authenticity are verified by the separate controller; a different string identity alone is insufficient.
 Each criterion accepts a typed pass/fail/unknown/not-applicable verdict plus reason
 and evidence digest. Only pass contributes the fixed points; there is no automatic
 renormalization. Any non-pass mandatory gate blocks full qualification even at 100.
