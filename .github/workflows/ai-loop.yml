@@ -28,6 +28,7 @@ on:
 
 jobs:
   loop:
+    if: github.event.repository.private == true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:

@@ -16,7 +16,7 @@ on:
 jobs:
   resume:
     # Default enabled; set UNATTENDED_AGENTS=off in the caller repo for the emergency stop.
-    if: vars.UNATTENDED_AGENTS != 'off'
+    if: github.event.repository.private == true && vars.UNATTENDED_AGENTS == 'on'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -29,7 +29,7 @@ jobs:
           set -euo pipefail
           if [ "$HAS_ENGINE" != "true" ]; then echo "No engine connected - nothing to resume." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
           count=0
-          for n in $(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --jq '.[] | select([.labels[].name] | index("ai:blocked") | not) | select([.labels[].name] | any(. == "ai:discovery" or . == "ai:plan" or . == "ai:tests" or . == "ai:tests-review" or . == "ai:tests-signoff" or . == "ai:build" or . == "ai:qa" or . == "ai:review" or . == "ai:fix")) | .number'); do
+          for n in $(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --jq '.[] | select([.labels[].name] | index("ai:blocked") | not) | select([.labels[].name] | any(. == "ai:discovery" or . == "ai:plan" or . == "ai:lane-a" or . == "ai:lane-b" or . == "ai:design" or . == "ai:tests" or . == "ai:tests-review" or . == "ai:tests-signoff" or . == "ai:build" or . == "ai:database" or . == "ai:integration" or . == "ai:qa" or . == "ai:review" or . == "ai:release-ops" or . == "ai:fix")) | .number'); do
             last=$(gh api "repos/$GITHUB_REPOSITORY/issues/$n/comments?per_page=100" --jq 'last | .body // ""')
             if printf '%s' "$last" | grep -q 'ai-org:paused'; then
               gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" -f number="$n"
