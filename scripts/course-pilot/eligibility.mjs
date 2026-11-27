@@ -18,7 +18,11 @@ export function checkEligibility(raw, now=Date.now()) {
   for(const id of ROUTES) {
     const m=x.routes.find(r=>r?.id===id);
     if(!m||m.observedIdentity!==id.slice(5)||m.toolArtifactVerified!==true||m.syntheticQualificationPassed!==true||!SHA.test(m.receiptSha256??'')) throw new Error('Missing observed identity/tool/qualification evidence for '+id);
-    requireEvidence(m.run,'synthetic qualification run');
+    requireEvidence(m.run,'native synthetic qualification run');
+    // Native API success does not qualify the actual agent adapter (both live FCC trials failed).
+    if(m.adapterQualificationPassed!==true||m.adapterObservedIdentity!==id.slice(5)||!SHA.test(m.adapterReceiptSha256??'')||m.adapterReceiptSha256===m.receiptSha256) throw new Error('Missing independent actual adapter qualification for '+id);
+    requireEvidence(m.adapterRun,'actual adapter qualification run');
+    if(m.adapterRun===m.run) throw new Error('Native and adapter receipts must be separate evidence for '+id);
   }
   return {schema:x.schema,provider:x.provider,adapter:x.adapter,verifiedAt:x.verifiedAt,expiresAt:x.expiresAt,routeIds:ROUTES,receiptSha256:createHash('sha256').update(raw).digest('hex')};
 }
