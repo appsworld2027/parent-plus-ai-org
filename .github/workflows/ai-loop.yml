@@ -28,7 +28,7 @@ on:
 
 jobs:
   loop:
-    if: github.event.repository.private == true
+    if: github.repository == 'appsworld2027/parent-plus-ai-org' || github.event.repository.private == true
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
