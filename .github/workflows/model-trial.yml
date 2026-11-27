@@ -75,7 +75,7 @@ jobs:
             if(i>0)await pause(65000); // Respect observed free TPM window. No retries.
             const p=parts[i],payload=Object.fromEntries(p.paths.map(path=>[path,{sha256:source[path].sha256,text:source[path].text}]));
             const prompt=p.instruction+'\nExact reviewed head: '+head+'\nAll files verified in exact checkout (inventory; only this part source is included): '+JSON.stringify(inventory)+'\nRequirement: isolated synthetic harness and independent evidence, not production admission; keep paid fallback disabled. Return only JSON {verdict:"APPROVE"|"CHANGES",findings:[{path,line,severity,problem,fix}],summary:string}. Use exact allowed path, integer line 0 for whole-file concern or if exact line unavailable, severity critical/high/medium/low, max 4 material findings; APPROVE only if no material defect. Allowed paths: '+JSON.stringify(p.paths)+'\n'+JSON.stringify(payload);
-            const body={model,temperature:0,max_completion_tokens:1800,reasoning_effort:'medium',messages:[{role:'system',content:system},{role:'user',content:prompt}]};
+            const body={model,temperature:0,max_completion_tokens:3000,reasoning_effort:'medium',messages:[{role:'system',content:system},{role:'user',content:prompt}]};
             const t=Date.now();
             const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(120000)});
             if(!res.ok){
@@ -84,6 +84,8 @@ jobs:
               throw Error('Exact model rejected request HTTP '+res.status+' code='+code+' type='+type+'; no fallback/retry');
             }
             const j=await res.json();
+            console.log(JSON.stringify({part:p.id,requestedModel:model,observedModel:j.model,finishReason:j.choices?.[0]?.finish_reason,usage:j.usage}));
+            writeFileSync(join(dir,p.id+'-attempt.json'),JSON.stringify({head,part:p.id,requestedModel:model,observedModel:j.model,finishReason:j.choices?.[0]?.finish_reason,usage:j.usage,qualification:false},null,2));
             if(j.model!==model||j.choices?.length!==1||j.choices[0].finish_reason!=='stop')throw Error('Incomplete response or unexpected observed model');
             const raw=j.choices[0].message?.content;
             if(typeof raw!=='string'||raw.length>10000||raw.includes(key))throw Error('Invalid or unsafe reviewer output');
