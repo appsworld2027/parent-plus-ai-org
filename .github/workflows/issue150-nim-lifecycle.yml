@@ -1,0 +1,261 @@
+name: Issue 150 isolated synthetic lifecycle (NEVER MERGE)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '.github/workflows/issue150-nim-lifecycle.yml'
+      - 'trial/issue150-lifecycle/**'
+permissions:
+  contents: read
+concurrency:
+  group: issue150-nim-isolated
+  cancel-in-progress: false
+env:
+  TRIAL_HEAD: ${{ github.event.pull_request.head.sha }}
+jobs:
+  preflight:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor == 'appsworld2027' && github.event.pull_request.head.ref == 'review/frontier-nim-lifecycle-20261128'
+    runs-on: ubuntu-22.04
+    timeout-minutes: 8
+    outputs:
+      image: ${{ steps.image.outputs.ref }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Existing canonical loop unit tests (no provider)
+        run: node --test tests/loop.test.mjs trial/issue150-lifecycle/release-contract.test.mjs
+      - name: Resolve controller-owned immutable sandbox image
+        id: image
+        run: |
+          set -euo pipefail
+          docker pull node:22-alpine
+          ref="$(docker image inspect --format '{{index .RepoDigests 0}}' node:22-alpine)"
+          [[ "$ref" =~ ^(docker.io/library/)?node@sha256:[a-f0-9]{64}$ ]]
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+      - name: Trusted reference, actual RED and three seeded defects
+        env:
+          TRIAL_NODE_IMAGE: ${{ steps.image.outputs.ref }}
+        run: node trial/issue150-lifecycle/controller.mjs preflight "$RUNNER_TEMP/preflight"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue150-preflight
+          path: ${{ runner.temp }}/preflight/
+          if-no-files-found: warn
+          retention-days: 30
+  plan:
+    needs: [preflight]
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-plan
+          run-id: 46062252932
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/prior-plan/
+      - name: Hash-verified replay of actual prior model plan (zero inference)
+        run: node trial/issue150-lifecycle/replay-plan.mjs "$RUNNER_TEMP/plan" "$RUNNER_TEMP/prior-plan"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue150-plan
+          path: ${{ runner.temp }}/plan/
+          if-no-files-found: warn
+          retention-days: 30
+  build:
+    needs: [plan]
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-plan
+          path: ${{ runner.temp }}/plan/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-build
+          run-id: 46062821591
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/prior-build/
+      - name: Hash-verified replay of exact previously accepted Dev implementation (zero inference)
+        run: node trial/issue150-lifecycle/replay-build.mjs "$RUNNER_TEMP/build" "$RUNNER_TEMP/prior-build" "$RUNNER_TEMP/plan"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue150-build
+          path: ${{ runner.temp }}/build/
+          if-no-files-found: warn
+          retention-days: 30
+  grade:
+    needs: [preflight, build]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-build
+          path: ${{ runner.temp }}/build/
+      - name: Pull exact preflight image
+        env:
+          TRIAL_NODE_IMAGE: ${{ needs.preflight.outputs.image }}
+        run: docker pull "$TRIAL_NODE_IMAGE"
+      - name: Grade actual candidate in key-free no-network container
+        env:
+          TRIAL_NODE_IMAGE: ${{ needs.preflight.outputs.image }}
+        run: node trial/issue150-lifecycle/controller.mjs grade "$RUNNER_TEMP/grade" "$RUNNER_TEMP/build"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue150-grade
+          path: ${{ runner.temp }}/grade/
+          if-no-files-found: warn
+          retention-days: 30
+  review:
+    needs: [build, grade]
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-build
+          path: ${{ runner.temp }}/build/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-grade
+          path: ${{ runner.temp }}/grade/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-review
+          run-id: 46063343920
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/prior-review/
+      - name: Restore independently approved exact review, verify current artifact and grade (zero inference)
+        run: node trial/issue150-lifecycle/replay-review.mjs "$RUNNER_TEMP/review" "$RUNNER_TEMP/prior-review" "$RUNNER_TEMP/build" "$RUNNER_TEMP/grade"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue150-review
+          path: ${{ runner.temp }}/review/
+          if-no-files-found: warn
+          retention-days: 30
+  release_plan:
+    needs: [build, grade, review]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-build
+          path: ${{ runner.temp }}/build/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-grade
+          path: ${{ runner.temp }}/grade/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-review
+          path: ${{ runner.temp }}/review/
+      - name: Bounded official NVIDIA developer-trial release-plan (synthetic-only)
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: node trial/issue150-lifecycle/model.mjs release "$RUNNER_TEMP/release-plan" "$RUNNER_TEMP/build" "$RUNNER_TEMP/grade" "$RUNNER_TEMP/review"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue150-release-plan
+          path: ${{ runner.temp }}/release-plan/
+          if-no-files-found: warn
+          retention-days: 30
+  rehearsal:
+    needs: [preflight, build, grade, review, release_plan]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-build
+          path: ${{ runner.temp }}/build/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-grade
+          path: ${{ runner.temp }}/grade/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-review
+          path: ${{ runner.temp }}/review/
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-release-plan
+          path: ${{ runner.temp }}/release-plan/
+      - name: Pull exact preflight image
+        env:
+          TRIAL_NODE_IMAGE: ${{ needs.preflight.outputs.image }}
+        run: docker pull "$TRIAL_NODE_IMAGE"
+      - name: Verify exact artifact smoke, independent approval and release controls (no deployment)
+        env:
+          TRIAL_NODE_IMAGE: ${{ needs.preflight.outputs.image }}
+        run: node trial/issue150-lifecycle/controller.mjs release "$RUNNER_TEMP/rehearsal" "$RUNNER_TEMP/build" "$RUNNER_TEMP/grade" "$RUNNER_TEMP/review" "$RUNNER_TEMP/release-plan"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: issue150-rehearsal
+          path: ${{ runner.temp }}/rehearsal/
+          if-no-files-found: warn
+          retention-days: 30

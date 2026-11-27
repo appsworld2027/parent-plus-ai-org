@@ -1,0 +1,16 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {selectDue} from './board.mjs';
+const row=(id,dueAt,tenant='t1',state='pending')=>({id,tenant,state,dueAt});
+test('selects pending reminders by oldest due time',()=>assert.deepEqual(selectDue([row('b',9),row('c',5),row('a',7)],'t1',10,10),['c','a','b']));
+test('never returns another tenant',()=>assert.deepEqual(selectDue([row('other',0,'t2'),row('mine',5)],'t1',10,12),['mine']));
+test('includes exact due time, excludes future and completed',()=>assert.deepEqual(selectDue([row('equal',10),row('future',11),row('done',1,'t1','completed')],'t1',10,10),['equal']));
+test('case-sensitive ASCII tie-break',()=>assert.deepEqual(selectDue([row('a',5),row('Z',5),row('_',5),row('A',5)],'t1',5,10),['A','Z','_','a']));
+test('limit and empty/zero result',()=>{assert.deepEqual(selectDue([row('b',1),row('a',0)],'t1',5,1),['a']);assert.deepEqual(selectDue([],'t1',0,0),[]);assert.deepEqual(selectDue([row('x',0)],'t1',5,0),[])});
+test('does not mutate input or row order',()=>{const input=Object.freeze([Object.freeze(row('b',5)),Object.freeze(row('a',1))]);assert.deepEqual(selectDue(input,'t1',5,10),['a','b']);assert.deepEqual(input.map(x=>x.id),['b','a'])});
+test('rejects invalid array or more than 1000 rows',()=>{for(const x of [null,{},'rows',Array.from({length:1001},(_,i)=>row('i'+i,1))])assert.throws(()=>selectDue(x,'t1',5,1),Error)});
+test('rejects invalid tenant, now and limit',()=>{for(const v of [null,'','bad space','x'.repeat(41),1])assert.throws(()=>selectDue([],v,5,1),Error);for(const v of [-1,1.5,NaN,Infinity,'5',Number.MAX_SAFE_INTEGER+1])assert.throws(()=>selectDue([],'t1',v,1),Error);for(const v of [-1,101,1.5,'1',null])assert.throws(()=>selectDue([],'t1',5,v),Error)});
+test('validates every row including other tenant',()=>{for(const v of [null,[],{...row('id',0,'t2'),extra:1},row('bad space',0,'t2'),row('id',-1,'t2'),row('id',0,'t2','unknown'),{id:'id',tenant:'t2',state:'pending'}])assert.throws(()=>selectDue([row('ok',0),v],'t1',5,2),Error)});
+test('rejects selected-tenant duplicate even when not eligible',()=>assert.throws(()=>selectDue([row('same',1),row('same',100,'t1','completed')],'t1',5,2),Error));
+test('permits same ID across tenants without leaking',()=>assert.deepEqual(selectDue([row('same',0,'t2'),row('same',1,'t1')],'t1',5,2),['same']));
+test('limit zero does not bypass invalid/duplicate validation',()=>{assert.throws(()=>selectDue([row('same',1),row('same',2)],'t1',5,0),Error);assert.throws(()=>selectDue([null],'t1',5,0),Error)});
