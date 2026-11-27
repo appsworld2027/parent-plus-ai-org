@@ -73,8 +73,15 @@ test("read-only runs never instruct the agent to advance labels or mutate other 
     toolMode: "readonly"
   });
   assert.match(prompt, /Read-only mode/);
-  assert.match(prompt, /do not modify files, branches, labels, commits, PRs/);
+  assert.match(prompt, /do not modify files, branches, labels, commits, PRs/i);
   assert.doesNotMatch(prompt, /Move the stage label/);
+});
+
+test("read-only runs never receive handover creation or validation instructions", () => {
+  const p = buildPrompt({ agent: agentInfo("maya-ai-pm"), number: 91, isPR: false, repo: "o/r", stage: "ai:discovery", toolMode: "readonly", featureSlug: "registration" });
+  assert.match(p, /Read-only mode/);
+  assert.match(p, /Read-only tasks never create handover packets/);
+  assert.doesNotMatch(p, /handoff\.mjs template|handoff\.mjs validate/);
 });
 
 test("Quinn's prompt points to the QA charter and Maya's to the contract playbook", () => {
@@ -116,8 +123,8 @@ test("v3: QA stages carry seats, onboarding + handover rules, and the right brie
   assert.equal(route({ labels: ["ai:tests-signoff"], engines: freeOnly }).seat, "accountable");
   assert.equal(STAGE_SEAT["ai:tests"], "author");
   const q = agentInfo("quinn-qa"), a = agentInfo("arjun-cpto");
-  const ch = buildPrompt({ agent: q, number: 42, isPR: false, repo: "o/r", stage: "ai:tests-review" });
-  assert.match(ch, /onboarding\.md/); assert.match(ch, /handoff\.mjs validate/); assert.match(ch, /Do NOT edit the spec/); assert.match(ch, /would still pass if the feature were built wrong/);
+  const ch = buildPrompt({ agent: q, number: 42, isPR: false, repo: "o/r", stage: "ai:tests-review", featureSlug: "registration" });
+  assert.match(ch, /onboarding\.md/); assert.match(ch, /handoff\.mjs template ai:tests-review quinn-qa/); assert.match(ch, /handoff\.mjs validate <path>/); assert.match(ch, /Do NOT edit the spec/); assert.match(ch, /would still pass if the feature were built wrong/);
   const so = buildPrompt({ agent: a, number: 42, isPR: false, repo: "o/r", stage: "ai:tests-signoff" });
   assert.match(so, /Verdict: APPROVE/); assert.match(so, /Memory proposals/); assert.match(so, /ai:founder-decision/);
   assert.match(buildPrompt({ agent: q, number: 42, isPR: false, repo: "o/r", stage: "ai:tests" }), /challenger or CPTO verdict of CHANGES/);
