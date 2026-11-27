@@ -625,8 +625,10 @@
   "scoring": {
     "maxScore": 100,
     "minimumScope": "each-role-variant",
-    "aggregation": "all-33-slots-and-all-integrated-gates",
-    "averagingAllowed": false
+    "aggregation": "logical-and-of-all-33-slots-and-all-15-integrated-gates",
+    "averagingAllowed": false,
+    "slotFormula": "sum-fixed-points-for-pass-criteria-only",
+    "eligibility": "each-slot-score-gte-90-out-of-100-and-all-10-hard-gates-pass"
   },
   "integratedGateOwners": {
     "allLockedAcceptancePassed": [
@@ -694,5 +696,11 @@
       "arjun-cpto",
       "rex-reviewer"
     ]
+  },
+  "receiptVerification": {
+    "scope": "isolated-synthetic",
+    "exactSource": "frozen-plan-sourceSha",
+    "binding": "trusted-verifier-kind-receiptId-canonical-payload-digest",
+    "productionReady": false
   }
 }
