@@ -89,25 +89,25 @@ if(dry&&!replay)throw Error('Dry run requires exact saved checkpoint');
 let bundle=null;
 if(replay){
  if(provider!=='groq'||model!=='qwen/qwen3.8-27b')throw Error('Resume only exact original reviewed model');
- const bytes=readFileSync(new URL('../evidence/course/46057609726/chunk-partial-bundle.json',import.meta.url));
- const blob=createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');if(blob!=='d83a348753385f2be5e898a6d25cda40c2104eab')throw Error('Pinned Git blob changed');
+ const bytes=readFileSync(new URL('../evidence/course/46058198891/chunk-partial-bundle.json',import.meta.url));
+ const blob=createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');if(blob!=='e7b530f74da7139fe2f93b075ee05342121f9392')throw Error('Pinned Git blob changed');
  bundle=JSON.parse(bytes.toString('utf8'));
- if(bundle.runId!==46057609726||!Array.isArray(bundle.files)||bundle.files.some(f=>sha(f.utf8)!==f.sha256))throw Error('Pinned checkpoint changed');
+ if(bundle.runId!==46058198891||!Array.isArray(bundle.files)||bundle.files.some(f=>sha(f.utf8)!==f.sha256))throw Error('Pinned checkpoint changed');
 }
 function resumePacket(chunk,context,dir){
- if(!bundle||!['saved-draft','publish-first'].includes(chunk.key))return null;
+ if(!bundle||!['saved-draft','publish-first','publish-second'].includes(chunk.key))return null;
  const read=n=>{const f=bundle.files.find(x=>x.file===chunk.key+'/'+n);if(!f)throw Error('Missing checkpoint file '+n);return f.utf8};
  const raw=read('raw.txt'),artifact=JSON.parse(read('artifact.json')),receipt=JSON.parse(read('receipt.json'));
  if(receipt.schema!=='course-author-chunk/v1'||receipt.key!==chunk.key||receipt.id!==id||receipt.source!==source||receipt.contractHash!==contractHash||receipt.provider!==provider||receipt.actualModel!==model||receipt.contextSha256!==sha(prompt+'\n'+context)||receipt.artifactSha256!==sha(JSON.stringify(artifact))||receipt.rawSha256!==sha(raw)||JSON.stringify(parse(raw))!==JSON.stringify(artifact)||!Number.isSafeInteger(receipt.usage?.total_tokens))throw Error('Resume artifact identity or context mismatch');
  validatePacket(chunk,artifact);
  for(const n of ['raw.txt','artifact.json','receipt.json'])writeFileSync(join(dir,n),read(n));
- writeFileSync(join(dir,'resume-origin.json'),JSON.stringify({runId:46057609726,blob:'d83a348753385f2be5e898a6d25cda40c2104eab',file:'trial/evidence/course/46057609726/chunk-partial-bundle.json',receiptSha256:sha(read('receipt.json'))}));
+ writeFileSync(join(dir,'resume-origin.json'),JSON.stringify({runId:46058198891,blob:'e7b530f74da7139fe2f93b075ee05342121f9392',file:'trial/evidence/course/46058198891/chunk-partial-bundle.json',receiptSha256:sha(read('receipt.json'))}));
  return {artifact,receipt};
 }
 for(const chunk of chunks){
  const dir=join(root,chunk.key);mkdirSync(dir,{recursive:true});
  const context=JSON.stringify({source,contractHash,scenario:id,fixture:chunk,buttons:chunk.allowed,labels:labels.slice(0,3),ui:'Pinned App.tsx lines 164–166: Today displays a dynamic greeting, NOT a heading named Today. Do not assert a Today heading; no start-screen assertion is required. The only allowed exact heading assertion is Courses. Save draft returns to list; local publishing requires confirmation; View history shows immutable versions.',repairFeedback:replay&&chunk.key==='saved-draft'?'Prior authored packet actually failed source inspection by asserting Today as a heading; correct the scenario as a fresh author.':replay&&chunk.key==='publish-second'?'Your prior packet clicked Confirm publish without asserting it visibly exists first. Use the independently authored first-publish packet as a successful pattern; adapt it to Version 2 and prepend the edit-and-save flow.':null,...(replay&&chunk.key==='publish-second'?{priorSuccessfulPattern:parts.at(-1).artifact.operations.map(o=>[Object.keys(map).find(k=>map[k]===o[0]),...o.slice(1)])}:{})});
- const restored=resumePacket(chunk,context,dir);if(restored){parts.push(restored);console.log(JSON.stringify({key:chunk.key,checkpointRestored:true,inference:false,priorRun:46057609726}));if(dry&&chunk.key==='publish-first'){console.log('PASS: exact checkpoints verified; no model credential or inference needed');process.exit(0)}continue;}
+ const restored=resumePacket(chunk,context,dir);if(restored){parts.push(restored);console.log(JSON.stringify({key:chunk.key,checkpointRestored:true,inference:false,priorRun:46058198891}));if(dry&&chunk.key==='publish-second'){console.log('PASS: exact checkpoints verified; no model credential or inference needed');process.exit(0)}continue;}
  const start=Date.now(),response=provider==='opencode'?await oc(context,dir):await groq(context,dir);
  const {raw,...observed}=response;writeFileSync(join(dir,'raw.txt'),raw+'\n');
  const artifact=parse(raw);try{validatePacket(chunk,artifact)}catch(e){writeFileSync(join(dir,'packet-rejected.json'),JSON.stringify({key:chunk.key,reason:e.message,artifact}));throw e}const receipt={schema:'course-author-chunk/v1',key:chunk.key,id,source,contractHash,contextSha256:sha(prompt+'\n'+context),artifactSha256:sha(JSON.stringify(artifact)),rawSha256:sha(raw+'\n'),provider,...observed,ms:Date.now()-start};
