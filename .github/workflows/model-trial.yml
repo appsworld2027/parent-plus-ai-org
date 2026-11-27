@@ -2256,6 +2256,7 @@ jobs:
       - name: Prepare exact sanitized real product input and immutable support manifest
         run: |
           set -euo pipefail
+          cp handbook/trial/controls/quinn-declarative-author.mjs "$RUNNER_TEMP/quinn-declarative-author.mjs"
           bash handbook/scripts/safe-trial/prepare.sh handbook
           cd /srv/trial/product
           mkdir -p "$RUNNER_TEMP/course-author"
@@ -2278,7 +2279,7 @@ jobs:
       - name: Independent Quinn selects test operations; safe compiler renders actual tests
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        run: node handbook/trial/controls/quinn-declarative-author.mjs
+        run: node "$RUNNER_TEMP/quinn-declarative-author.mjs"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
