@@ -3,7 +3,7 @@
 ROOT=${TRIAL_ROOT:-/srv/trial}
 as_agent() {
   sudo -u trialagent env -i HOME=/home/trialagent PATH="$PATH" LANG=C.UTF-8 CI=1 EXPO_OFFLINE=1 EXPO_NO_TELEMETRY=1 \
-    PLAYWRIGHT_BROWSERS_PATH="$ROOT/browsers" \
+    PLAYWRIGHT_BROWSERS_PATH="$ROOT/browsers" EXPO_PUBLIC_COURSE_PILOT="$([ "${TRIAL_PROFILE:-}" = course-pilot ] && echo 1 || echo 0)" \
     EXPO_PUBLIC_SUPABASE_URL=https://example.supabase.co EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_example_public_test_key \
     "$@"
 }

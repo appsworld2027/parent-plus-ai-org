@@ -13,4 +13,9 @@ kill_agent
 check=0; as_agent timeout 900 npm run check > "$r/check.log" 2>&1 || check=$?
 kill_agent
 echo "$check" > "$r/check.exit"
-tail -15 "$r/check.log"
+if [ "${TRIAL_PROFILE:-}" = "course-pilot" ]; then
+  # Untrusted model-written tests may emit workflow commands; reports remain in scanned artifacts.
+  echo "Course check exit: $check"
+else
+  tail -15 "$r/check.log"
+fi

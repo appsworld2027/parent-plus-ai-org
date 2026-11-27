@@ -1,0 +1,333 @@
+# Real Parent Plus Course feature evaluation; always isolated, no product writes or deployment.
+name: Parent Plus Course pilot
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: Type COURSE PILOT ONLY
+        required: true
+        type: string
+  pull_request:
+    paths:
+      - 'scripts/safe-trial*'
+      - 'scripts/safe-trial/**'
+      - 'scripts/course-pilot/**'
+      - 'trial/controls/coach-course-management*'
+      - 'tests/course-pilot.test.mjs'
+      - '.github/workflows/course-pilot.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: parent-plus-course-pilot
+  cancel-in-progress: false
+
+env:
+  TRIAL_PROFILE: course-pilot
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Verify locked course contract, boundaries and regression controls
+        run: |
+          node --test tests/course-pilot.test.mjs
+          for f in scripts/course-pilot/*.sh scripts/safe-trial/*.sh; do bash -n "$f"; done
+
+  baseline:
+    needs: contract
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE PILOT ONLY' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' && github.ref == 'refs/heads/main' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner &&
+      vars.UNATTENDED_AGENTS == 'on'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - &handbook
+        uses: actions/checkout@v5
+        with:
+          path: handbook
+          persist-credentials: false
+      - &node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - &workspace
+        name: Prepare pinned public Parent Plus course workspace (no live configuration)
+        run: bash handbook/scripts/safe-trial/prepare.sh handbook
+      - &install
+        name: Install dependencies before isolation
+        run: |
+          set -euo pipefail
+          cd /srv/trial/product
+          npm ci --no-audit --no-fund
+          PLAYWRIGHT_BROWSERS_PATH=/srv/trial/browsers npx playwright install --with-deps chromium
+          chmod -R a+rX /srv/trial/browsers
+          bash /srv/trial/judge/scripts/safe-trial/isolate.sh
+      - name: Prove baseline regressions and locked feature tests fail for intended missing feature
+        run: |
+          set -euo pipefail
+          . /srv/trial/judge/scripts/safe-trial/lib.sh
+          lock_workspace grading
+          bash /srv/trial/judge/scripts/safe-trial/run-tests.sh /srv/trial/out
+          [ "$(cat /srv/trial/out/check.exit)" = 0 ] || { echo "::error::Baseline TypeScript/unit checks fail."; exit 1; }
+          node /srv/trial/judge/scripts/course-pilot/baseline.mjs /srv/trial/out/acceptance.json /srv/trial/out/all.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-baseline
+          path: /srv/trial/out/
+          retention-days: 14
+
+  eligibility:
+    needs: contract
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE PILOT ONLY' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' && github.ref == 'refs/heads/main' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner &&
+      vars.UNATTENDED_AGENTS == 'on'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Validate current provider eligibility (no model or credentials)
+        env:
+          COURSE_PILOT_PROVIDER_ELIGIBILITY: ${{ vars.COURSE_PILOT_PROVIDER_ELIGIBILITY }}
+        run: node scripts/course-pilot/eligibility.mjs eligibility.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: course-provider-eligibility
+          path: eligibility.json
+          retention-days: 14
+
+  prebuild-lock:
+    needs: [baseline, eligibility]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Require exact canonical role approvals and locked inputs before Dev
+        run: node scripts/course-pilot/prebuild-lock.mjs
+
+  build:
+    needs: [baseline, eligibility, prebuild-lock]
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - *handbook
+      - *node
+      - *workspace
+      - *install
+      - name: Start approved FREE Groq builder using isolated credential holder
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          COURSE_PILOT_PROVIDER_ELIGIBILITY: ${{ vars.COURSE_PILOT_PROVIDER_ELIGIBILITY }}
+        run: bash /srv/trial/judge/scripts/course-pilot/engine.sh "$TRIAL_BUILDER"
+      - uses: actions/download-artifact@v4
+        with:
+          name: course-baseline
+          path: in/baseline
+      - name: Seven canonical role artifacts (Maya, Arjun, Kiran, Leela, Iris, Tara, Ravi)
+        run: bash /srv/trial/judge/scripts/course-pilot/plan.sh
+      - name: Dev implements actual course feature and runs bounded repair loop
+        run: |
+          bash /srv/trial/judge/scripts/safe-trial/build-loop.sh in/baseline
+          sha256sum /srv/trial/out/change.patch > /srv/trial/out/candidate.sha256
+      - name: Scan evidence before upload
+        if: always()
+        id: scan
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: bash /srv/trial/judge/scripts/course-pilot/scan.sh /srv/trial/out
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.scan.outcome == 'success'
+        with:
+          name: course-build
+          path: /srv/trial/out/
+          retention-days: 14
+
+  grade:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - *handbook
+      - *node
+      - *workspace
+      - &getbuild
+        uses: actions/download-artifact@v4
+        with:
+          name: course-build
+          path: in/build
+      - uses: actions/download-artifact@v4
+        with:
+          name: course-baseline
+          path: in/baseline
+      - *install
+      - name: Independently grade exact candidate on fresh runner with zero model credentials
+        run: |
+          set -euo pipefail
+          EXPECTED=$(cut -d' ' -f1 in/build/candidate.sha256)
+          [[ "$EXPECTED" =~ ^[0-9a-f]{64}$ ]]
+          [ "$(sha256sum in/build/change.patch | cut -d' ' -f1)" = "$EXPECTED" ]
+          bash /srv/trial/judge/scripts/safe-trial/grade.sh in/build/change.patch in/baseline
+          printf '%s\n' "$EXPECTED" > /srv/trial/out/candidate-digest.txt
+          head -1 /srv/trial/out/grade.txt >> "$GITHUB_STEP_SUMMARY"
+          grep -q '^Build PROVISIONAL PASS:' /srv/trial/out/grade.txt
+      - name: Scan independent evidence
+        id: scan
+        if: always()
+        run: bash /srv/trial/judge/scripts/course-pilot/scan.sh /srv/trial/out
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.scan.outcome == 'success'
+        with:
+          name: course-grade
+          path: /srv/trial/out/
+          retention-days: 14
+
+  review:
+    needs: [build, grade]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - *handbook
+      - *node
+      - *workspace
+      - *getbuild
+      - uses: actions/download-artifact@v4
+        with:
+          name: course-grade
+          path: in/grade
+      - name: Apply revalidated exact candidate, copy only independent grade receipt
+        run: |
+          set -euo pipefail
+          [ "$(sha256sum in/build/change.patch | cut -d' ' -f1)" = "$(cat in/grade/candidate-digest.txt)" ]
+          bash /srv/trial/judge/scripts/safe-trial/apply.sh "$PWD/in/build/change.patch"
+          cp in/build/change.patch /srv/trial/product/.trial/change.patch
+          cp in/grade/grade.txt /srv/trial/product/.trial/grade.txt
+          mkdir -p /srv/trial/out
+          cp in/grade/candidate-digest.txt /srv/trial/out/
+          rm -rf /srv/trial/product/.claude
+          node /srv/trial/judge/scripts/safe-trial.mjs reviewer-prompt in/grade/grade.txt > /srv/trial/judge/reviewer-prompt.txt
+      - name: Isolate reviewer workspace
+        run: bash /srv/trial/judge/scripts/safe-trial/isolate.sh
+      - name: Start distinct approved FREE Groq reviewer family
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          COURSE_PILOT_PROVIDER_ELIGIBILITY: ${{ vars.COURSE_PILOT_PROVIDER_ELIGIBILITY }}
+        run: bash /srv/trial/judge/scripts/course-pilot/engine.sh "$TRIAL_REVIEWER"
+      - name: Quinn independently challenges acceptance and regression evidence
+        run: |
+          set -euo pipefail
+          . /srv/trial/judge/scripts/safe-trial/lib.sh
+          lock_workspace grading
+          cat > /srv/trial/judge/quinn-prompt.txt <<'PROMPT'
+          You are Quinn, QA specialist of the AI Org, using the approved independent reviewer model. You did not write this candidate. Read the locked Course contract, locked browser tests, exact .trial/change.patch, .trial/grade.txt and new tests/course*.test.ts. The clean-run grader performed the commands; do not claim you executed them. Challenge coverage: both auth scopes, stale/replay, version immutability, missing regressions, accessibility, and no live persistence. Identify test gaps and evidence. Read only, no edits, no deployment. End exactly VERDICT: APPROVE or VERDICT: CHANGES. If any critical proof is missing say CHANGES.
+          PROMPT
+          bash /srv/trial/judge/scripts/safe-trial/agent.sh quinn "$TRIAL_REVIEWER" /srv/trial/judge/quinn-prompt.txt 600 30 --tools "Read,Glob,Grep" --allowedTools "Read,Glob,Grep"
+          node /srv/trial/judge/scripts/course-pilot/review.mjs /srv/trial/out/quinn.jsonl /srv/trial/out/quinn-review.md
+      - name: Rex independently reviews exact candidate and rejects any unsafe or incomplete work
+        if: always()
+        run: |
+          set -euo pipefail
+          . /srv/trial/judge/scripts/safe-trial/lib.sh
+          lock_workspace grading
+          bash /srv/trial/judge/scripts/safe-trial/agent.sh rex "$TRIAL_REVIEWER" /srv/trial/judge/reviewer-prompt.txt 900 45 --tools "Read,Glob,Grep" --allowedTools "Read,Glob,Grep"
+          node /srv/trial/judge/scripts/course-pilot/review.mjs /srv/trial/out/rex.jsonl /srv/trial/out/rex-review.md
+      - name: Scan reviewer evidence
+        id: scan
+        if: always()
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: bash /srv/trial/judge/scripts/course-pilot/scan.sh /srv/trial/out
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.scan.outcome == 'success'
+        with:
+          name: course-review
+          path: /srv/trial/out/
+          retention-days: 14
+
+  release-simulation:
+    needs: [build, grade, review]
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - *handbook
+      - *node
+      - *workspace
+      - *getbuild
+      - uses: actions/download-artifact@v4
+        with:
+          name: course-grade
+          path: in/grade
+      - uses: actions/download-artifact@v4
+        with:
+          name: course-review
+          path: in/review
+      - name: Verify exact candidate, independent grade and review before Sam
+        run: |
+          set -euo pipefail
+          D=$(sha256sum in/build/change.patch | cut -d' ' -f1)
+          [ "$D" = "$(cat in/grade/candidate-digest.txt)" ]
+          [ "$D" = "$(cat in/review/candidate-digest.txt)" ]
+          grep -q '^Build PROVISIONAL PASS:' in/grade/grade.txt
+          [ "$(tail -1 in/review/quinn-review.md)" = 'VERDICT: APPROVE' ]
+          [ "$(tail -1 in/review/rex-review.md)" = 'VERDICT: APPROVE' ]
+          mkdir -p /srv/trial/out
+          {
+            echo "Candidate SHA256: $D"
+            echo "Parent Plus base: 710082b2d8cf3c1007086df31f87b34ae8e02573"
+            head -1 in/grade/grade.txt
+            echo "Quinn and Rex: APPROVE (candidate only)"
+            echo "No live deployment, no public release, no database activation permitted."
+          } > /srv/trial/product/.trial/release-evidence.md
+          cp /srv/trial/product/.trial/release-evidence.md /srv/trial/out/
+          bash /srv/trial/judge/scripts/safe-trial/isolate.sh
+      - name: Start isolated free builder family for Sam
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          COURSE_PILOT_PROVIDER_ELIGIBILITY: ${{ vars.COURSE_PILOT_PROVIDER_ELIGIBILITY }}
+        run: bash /srv/trial/judge/scripts/course-pilot/engine.sh "$TRIAL_BUILDER"
+      - name: Sam release simulation and founder-facing readiness report
+        run: |
+          set -euo pipefail
+          . /srv/trial/judge/scripts/safe-trial/lib.sh
+          lock_workspace grading
+          cat >/srv/trial/judge/sam-course.txt <<'PROMPT'
+          You are Sam, Release & DevOps. Read .trial/release-evidence.md and the locked Course contract. Produce a founder-facing readiness brief with exact candidate identity, actual evidence, remaining release blocks, rollback/kill switch and separate real staging and production requirements. This is only a local isolated build; no deployment, no live staging/production smoke, no live DB or customer data. Do not claim release or activate it. End exactly RELEASE: BLOCK_PRODUCTION.
+          PROMPT
+          bash /srv/trial/judge/scripts/safe-trial/agent.sh sam "$TRIAL_BUILDER" /srv/trial/judge/sam-course.txt 600 20 --tools "Read,Glob,Grep" --allowedTools "Read,Glob,Grep"
+          node /srv/trial/judge/scripts/course-pilot/review.mjs /srv/trial/out/sam.jsonl /srv/trial/out/sam-release.md sam
+          echo "Course candidate reviewed; production release remains blocked." >> "$GITHUB_STEP_SUMMARY"
+      - name: Scan release evidence
+        id: scan
+        if: always()
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: bash /srv/trial/judge/scripts/course-pilot/scan.sh /srv/trial/out
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.scan.outcome == 'success'
+        with:
+          name: course-release-simulation
+          path: /srv/trial/out/
+          retention-days: 14

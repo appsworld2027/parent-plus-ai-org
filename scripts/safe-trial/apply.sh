@@ -8,4 +8,5 @@ cd "$ROOT/product" || exit 1
 : > "$ROOT/judge/change.raw"
 git apply --index "$1" || { echo "patch is empty or does not apply"; exit 1; }
 git diff --cached --raw --no-renames "$BASE_SHA" > "$ROOT/judge/change.raw"
-node "$ROOT/judge/scripts/safe-trial.mjs" guard "$ROOT/judge/change.raw"
+git diff --cached -U0 --no-color "$BASE_SHA" > "$ROOT/judge/change.diff"
+node "$ROOT/judge/scripts/safe-trial.mjs" guard "$ROOT/judge/change.raw" "$ROOT/judge/change.diff"

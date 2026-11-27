@@ -15,7 +15,7 @@ bash "$S/agent.sh" builder "$TRIAL_BUILDER" "$J/builder-prompt.txt" "$FIRST_SECO
 for round in $(seq 1 $((MAX_FIX_ROUNDS + 1))); do
   bash "$S/collect.sh" || exit 1
   r=$J/selfcheck-$round; mkdir -p "$r"
-  if ! node "$J/scripts/safe-trial.mjs" guard "$out/change.raw" > "$r/guard.txt"; then
+  if ! node "$J/scripts/safe-trial.mjs" guard "$out/change.raw" "$out/change.patch" > "$r/guard.txt"; then
     # Not run: tests are only executed against allowed changes.
     printf -- '- the change is empty or touches files that are not allowed:\n%s\n' "$(head -20 "$r/guard.txt" | sed 's/::/: :/g')" > "$r/grade-failures.txt"
     passed=1

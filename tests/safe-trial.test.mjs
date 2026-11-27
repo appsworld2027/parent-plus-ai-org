@@ -145,6 +145,7 @@ test("apply checks the paths really changed by the patch", () => {
   cpSync(fileURLToPath(new URL("../scripts", import.meta.url)), join(root, "judge/scripts"), { recursive: true });
   mkdirSync(join(root, "judge/governance"), { recursive: true });
   cpSync(fileURLToPath(new URL("../governance/AUTONOMY_POLICY.json", import.meta.url)), join(root, "judge/governance/AUTONOMY_POLICY.json"));
+  cpSync(fileURLToPath(new URL("../governance/EXECUTION_STRATEGIES.json", import.meta.url)), join(root, "judge/governance/EXECUTION_STRATEGIES.json"));
   const git = (...a) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.test", ...a], { cwd: product, encoding: "utf8" });
   writeFileSync(join(product, "src/a.ts"), "1\n"); writeFileSync(join(product, ".claude/settings.json"), "{}\n");
   git("init", "-q"); git("add", "-A"); git("commit", "-qm", "base");
