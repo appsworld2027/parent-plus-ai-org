@@ -62,8 +62,10 @@ jobs:
       - name: Detect AI Org handbook visibility
         id: handbook_visibility
         if: github.repository != 'appsworld2027/parent-plus-ai-org'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
-          status="$(curl -sS -o "$RUNNER_TEMP/ai-org-repo.json" -w "%{http_code}" https://api.github.com/repos/appsworld2027/parent-plus-ai-org)"
+          status="$(curl -sS -H "Authorization: Bearer $GITHUB_TOKEN" -H "Accept: application/vnd.github+json" -o "$RUNNER_TEMP/ai-org-repo.json" -w "%{http_code}" https://api.github.com/repos/appsworld2027/parent-plus-ai-org)"
           if [ "$status" = "200" ]; then
             private="$(jq -r '.private // true' "$RUNNER_TEMP/ai-org-repo.json")"
           else
