@@ -61,6 +61,20 @@ test("the synthetic free-model smoke test is manual, private-only and read-only"
   assert.ok(smoke.includes("stage_override: ai:discovery"));
 });
 
+test("resume covers every routed role and autonomous paths fail closed on public repositories", () => {
+  const resume = read("../.github/workflows/agent-resume.yml");
+  assert.ok(resume.includes("github.event.repository.private == true"));
+  assert.ok(resume.includes("vars.UNATTENDED_AGENTS == 'on'"));
+  for (const label of ["ai:discovery", "ai:plan", "ai:lane-a", "ai:lane-b", "ai:design", "ai:tests", "ai:tests-review", "ai:tests-signoff", "ai:build", "ai:database", "ai:integration", "ai:qa", "ai:review", "ai:release-ops", "ai:fix"]) {
+    assert.ok(resume.includes('. == "' + label + '"'), "resume includes " + label);
+  }
+  const caller = read("../.github/workflows/ai-agents.yml");
+  assert.ok(caller.includes("vars.UNATTENDED_AGENTS == 'on'"));
+  assert.ok(caller.includes("github.event.repository.private == true"));
+  const loop = read("../.github/workflows/ai-loop.yml");
+  assert.ok(loop.includes("if: github.event.repository.private == true"));
+});
+
 test("the canonical organization workflow delegates only the free Groq engine", () => {
   const workflow = read("../.github/workflows/ai-agents.yml");
   assert.ok(workflow.includes("GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}"));
