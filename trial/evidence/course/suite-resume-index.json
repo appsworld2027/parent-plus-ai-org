@@ -44,6 +44,15 @@
         "CRS-01-SC-005/dirty"
       ],
       "revalidate": []
+    },
+    {
+      "runId": 46066220415,
+      "path": "trial/evidence/course/46066220415/suite-author-bundle.json",
+      "blob": "15a0d30e177452c03146d0ea7fc9afb130116b1b",
+      "packets": [
+        "CRS-01-SC-006/session-local"
+      ],
+      "revalidate": []
     }
   ]
 }
