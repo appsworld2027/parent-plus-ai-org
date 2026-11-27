@@ -415,7 +415,7 @@ jobs:
           RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           MARKER="[$AGENT_NAME — $AGENT_ROLE]"
           has_report() {
-            gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -e --arg marker "$MARKER" --argjson started "$STARTED_EPOCH" 'any(.[]; .user.login == "github-actions[bot]" and (.body | startswith($marker)) and ((.created_at | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) >= $started))' >/dev/null
+            gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -e --arg marker "$MARKER" --argjson started "$STARTED_EPOCH" 'def epoch: sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601; any(.[]; .user.login == "github-actions[bot]" and (.body | startswith($marker)) and ((.created_at | epoch) >= $started))' >/dev/null
           }
           if ! has_report; then
             REPORT=$(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -c 5000)
