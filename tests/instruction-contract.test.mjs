@@ -71,6 +71,8 @@ test("reusable agent workflows enforce free-only multi-provider execution", () =
   assert.doesNotMatch(caller, /(?:CLAUDE_CODE_OAUTH_TOKEN|CODEX_AUTH_JSON):/);
   assert.ok(caller.includes("GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}"));
   assert.ok(caller.includes("NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}"));
+  assert.ok(caller.split("resume:")[1]?.includes("NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}"));
+  assert.equal(caller.split("NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}").length - 1, 2);
   assert.ok(!caller.includes("id-token: write"));
 
   const routeStart = worker.indexOf("      - name: Route");
