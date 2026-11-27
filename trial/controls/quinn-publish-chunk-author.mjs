@@ -82,7 +82,8 @@ async function oc(context,dir){
  return {raw,actualModel:ids[0],usage:finishes.map(x=>x.tokens),cost:0,session};
 }
 let parts=[];
-const replay=process.env.COURSE_RESUME==='1';
+const replay=process.env.COURSE_RESUME==='1',dry=process.env.COURSE_RESUME_DRY_RUN==='1';
+if(dry&&!replay)throw Error('Dry run requires exact saved checkpoint');
 let bundle=null;
 if(replay){
  if(provider!=='groq'||model!=='qwen/qwen3.8-27b')throw Error('Resume only exact original reviewed model');
@@ -102,7 +103,7 @@ function resumePacket(chunk,context,dir){
 for(const chunk of chunks){
  const dir=join(root,chunk.key);mkdirSync(dir,{recursive:true});
  const context=JSON.stringify({source,contractHash,scenario:id,fixture:chunk,buttons:chunk.allowed,labels:labels.slice(0,3),ui:'Save draft returns to list; local publishing requires confirmation; View history shows immutable versions.'});
- const restored=resumePacket(chunk,context,dir);if(restored){parts.push(restored);console.log(JSON.stringify({key:chunk.key,checkpointRestored:true,inference:false,priorRun:46055915920}));continue;}
+ const restored=resumePacket(chunk,context,dir);if(restored){parts.push(restored);console.log(JSON.stringify({key:chunk.key,checkpointRestored:true,inference:false,priorRun:46055915920}));if(dry){console.log('PASS: exact checkpoint verified; no model credential or inference needed');process.exit(0)}continue;}
  const start=Date.now(),response=provider==='opencode'?await oc(context,dir):await groq(context,dir);
  const {raw,...observed}=response;writeFileSync(join(dir,'raw.txt'),raw+'\n');
  const artifact=parse(raw);try{validatePacket(chunk,artifact)}catch(e){writeFileSync(join(dir,'packet-rejected.json'),JSON.stringify({key:chunk.key,reason:e.message,artifact}));throw e}const receipt={schema:'course-author-chunk/v1',key:chunk.key,id,source,contractHash,contextSha256:sha(prompt+'\n'+context),artifactSha256:sha(JSON.stringify(artifact)),rawSha256:sha(raw+'\n'),provider,...observed,ms:Date.now()-start};
