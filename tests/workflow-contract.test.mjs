@@ -25,6 +25,14 @@ test("AI Org may run in its own public repo; external callers require private re
   assert.ok(worker.includes("github.event.repository.private == true"));
 });
 
+test("read-only completion verification compares parsed timestamps, not ISO strings", () => {
+  const worker = read("../.github/workflows/agent-worker.yml");
+  assert.ok(worker.includes('STARTED_EPOCH=$(date -d "$STARTED_AT" +%s)'));
+  assert.ok(worker.includes("fromdateiso8601"));
+  assert.ok(worker.includes("(.created_at | epoch) >= $started"));
+  assert.ok(!worker.includes("(.created_at >= $started)"));
+});
+
 test("agent onboarding pack stays inside the workspace and is ignored by Git", () => {
   const worker = read("../.github/workflows/agent-worker.yml");
   assert.ok(worker.includes('ONBOARDING_DIR="$GITHUB_WORKSPACE/.ai-org-runtime"'));
