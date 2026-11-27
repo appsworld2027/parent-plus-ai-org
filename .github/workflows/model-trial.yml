@@ -1792,3 +1792,80 @@ jobs:
           path: ${{ runner.temp }}/route-evidence/receipt.json
           retention-days: 14
 
+
+
+  direct-write-prototype:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE DIRECT WRITE PROTOTYPE' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - model: openai/gpt-oss-120b
+            label: gpt
+          - model: qwen/qwen3.8-27b
+            label: qwen
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Actual native model invokes bounded Read and Replace
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          ROUTE_MODEL: ${{ matrix.model }}
+        run: node trial/controls/direct-write-prototype.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: direct-write-${{ matrix.label }}
+          path: ${{ runner.temp }}/direct-write/
+          if-no-files-found: error
+          retention-days: 14
+
+  direct-write-independent-grade:
+    needs: direct-write-prototype
+    if: always() && needs.direct-write-prototype.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        label: [gpt, qwen]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: direct-write-${{ matrix.label }}
+          path: untrusted
+      - name: Exact candidate executed on fresh no-key networkless low-privilege runner
+        run: |
+          set -euo pipefail
+          d=$(mktemp -d /tmp/course-write-grade-XXXXXX)
+          chmod 755 "$d"
+          cp untrusted/{candidate.mjs,receipt.json} "$d/"
+          cp trial/controls/direct-write-prototype-judge.mjs "$d/judge.mjs"
+          chmod 444 "$d/"*
+          mkdir -p "$RUNNER_TEMP/write-graded"
+          sha=$(sha256sum "$d/candidate.mjs" | cut -d ' ' -f 1)
+          test "$sha" = "$(jq -r .candidateSha256 "$d/receipt.json")"
+          node_bin=$(command -v node)
+          sudo -n unshare --net --setuid="$(id -u nobody)" --setgid="$(id -g nobody)" /usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/timeout 15 "$node_bin" --permission --allow-fs-read="$d" "$d/judge.mjs" "$d" | tee "$RUNNER_TEMP/write-graded/grade.json"
+          jq -e --arg sha "$sha" '.passed == true and .artifactSha256 == $sha and .casesPassed == 12 and .casesTotal == 12 and .negativeControlCount == 5 and .roleAdmission == false and .adapterQualification == false' "$RUNNER_TEMP/write-graded/grade.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: direct-write-grade-${{ matrix.label }}
+          path: ${{ runner.temp }}/write-graded/grade.json
+          retention-days: 14
