@@ -1521,3 +1521,274 @@ jobs:
           name: course-indexed-test-verification
           path: /srv/trial/out/indexed-verification-receipt.json
           retention-days: 14
+
+
+  quinn-alternate-feedback:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE ALTERNATE ROUTE' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          path: handbook
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Reconstruct exact rejected transaction and isolate narrow compiler feedback
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/feedback";mkdir -p "$d"
+          cp handbook/trial/evidence/course/46040809622/{quinn.spec.ts,guard.spec.ts,support.json,author.json} "$d/"
+          cp handbook/trial/evidence/course/46042584072/rejected-edits.json "$d/prior-edits.json"
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const d=process.env.RUNNER_TEMP+'/feedback',sha=x=>createHash('sha256').update(x).digest('hex'),a=JSON.parse(readFileSync(d+'/author.json')),edits=JSON.parse(readFileSync(d+'/prior-edits.json'));
+          const files={'quinn.spec.ts':readFileSync(d+'/quinn.spec.ts','utf8'),'guard.spec.ts':readFileSync(d+'/guard.spec.ts','utf8')};
+          if(sha(files['quinn.spec.ts'])!==a.testHash||sha(files['guard.spec.ts'])!==a.guardHash||edits.length!==10||edits[9].file!=='guard.ts')throw Error('Source/failed transaction mismatch');
+          for(const e of edits.slice(0,9)){const x=files[e.file];if(typeof x!=='string'||!e.old||x.split(e.old).length!==2)throw Error('Earlier proposed edit not uniquely applicable');files[e.file]=x.replace(e.old,e.replacement)}
+          const spec=files['quinn.spec.ts'],guard=files['guard.spec.ts'];
+          const readLine="    const calls = await page.evaluate(() => (window as any).__coachFixture?.calls ?? []);";
+          const history="    await page.getByRole('button', { name: 'View history' }).click();";
+          const stage="    await expect(page.getByLabel('Stage 2 objective 1')).toHaveValue('Subtract single digits');";
+          const guardBlock=guard.slice(guard.indexOf("    page.on('request'"),guard.indexOf("    await backend(page"));
+          const guardFilter=guard.split('\n').find(x=>x.includes('const courseCalls ='));
+          const targets=[
+            {file:'quinn.spec.ts',old:readLine,requirement:'Read actual typed window.__coachFixture.calls directly, no optional/default fallback.'},
+            {file:'quinn.spec.ts',old:history,requirement:'Keep history click; assert getByText(\'Version 1\',{exact:true}) and Version 2 each visible AND toHaveCount(1) within history screen.'},
+            {file:'quinn.spec.ts',old:stage,requirement:'Keep objective assertion; use restoredOrder = await page.evaluate(() => Array.from(document.querySelectorAll(\'input, textarea\')).map(el => el.getAttribute(\'aria-label\') || el.id)); use restoredOrder.indexOf(\'Stage 1 title\') and restoredOrder.indexOf(\'Stage 2 title\'), both indices >=0 and index1 < index2. Do not invent input labels.'},
+            {file:'guard.spec.ts',old:guardBlock,requirement:'Keep request listener, change filter to /course|curriculum/i.test(url). Correct file is guard.spec.ts.'},
+            {file:'guard.spec.ts',old:readLine,requirement:'Read actual typed window.__coachFixture.calls directly, no optional/default fallback.'},
+            {file:'guard.spec.ts',old:guardFilter,requirement:'Use /course|curriculum/i.test(c) case-insensitive fixture call filter.'}
+          ];
+          for(const t of targets)if(typeof t.old!=='string'||!t.old.length||files[t.file].split(t.old).length!==2)throw Error('Target not unique');
+          writeFileSync(d+'/partial.json',JSON.stringify(files));writeFileSync(d+'/targets.json',JSON.stringify(targets));
+          console.log('Nine exact prior proposed edits apply in memory; six remaining explicit targets; no final artifact yet.');
+          NODE
+      - name: Actual model generates six indexed replacements without duplicating placement metadata
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const d=process.env.RUNNER_TEMP+'/feedback',sha=x=>createHash('sha256').update(x).digest('hex'),targets=JSON.parse(readFileSync(d+'/targets.json')),files=JSON.parse(readFileSync(d+'/partial.json')),a=JSON.parse(readFileSync(d+'/author.json')),key=process.env.NVIDIA_NIM_API_KEY,model='nvidia/nemotron-3-ultra-550b-a55b';
+          if(!key)throw Error('Approved free key missing');
+          const prompt='You are Quinn QA author repair seat. You receive exactly six immutable edit IDs T1-T6, each with old snippet and explicit required behavior. Return ONLY a strict JSON object with exactly six top-level keys T1,T2,T3,T4,T5,T6, each value the complete replacement TypeScript snippet (JSON string). The controller, not you, handles file names and exact placement. No missing keys, additional keys, file paths, old snippets, Markdown, prose, or execution claims. For both fixture read lines use exactly window.__coachFixture.calls (no cast or fallback); use exact existing labels Stage 1 title and Stage 2 title. For history selectors use exact:true. Keep indentation and original action lines as required.';
+          const indexed=Object.fromEntries(targets.map((t,i)=>['T'+(i+1),{old:t.old,requirement:t.requirement}]));
+          const raw=JSON.stringify(indexed),t=Date.now(),r=await fetch('https://integrate.api.nvidia.com/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({model,temperature:0,max_tokens:2600,messages:[{role:'system',content:'Only generated synthetic test snippets, no product source. Return six keyed strings; no tools or paid fallback. The fixture Window interface already declares __coachFixture; use direct property access, never a type assertion.'},{role:'user',content:prompt+'\n'+raw}]}),redirect:'error',signal:AbortSignal.timeout(90000)});
+          if(!r.ok){const e=(await r.json().catch(()=>({}))).error;console.log(JSON.stringify({http:r.status,code:/^[A-Za-z0-9_.-]{1,80}$/.test(e?.code??'')?e.code:null}));throw Error('Exact indexed route failed')}
+          const j=await r.json();if(j.model!==model)throw Error('Observed route mismatch');
+          const result=j.choices?.[0]?.message?.content;writeFileSync(d+'/raw-feedback.json',String(result)+'\n');
+          const map=JSON.parse(result.trim().replace(/^\x60\x60\x60(?:json)?\s*|\s*\x60\x60\x60$/g,'')),expected=['T1','T2','T3','T4','T5','T6'];
+          if(Object.keys(map).sort().join(',')!==expected.join(',')||expected.some(k=>typeof map[k]!=='string'||!map[k].length||map[k].length>2500))throw Error('Incorrect indexed replacement keys');
+          for(let i=0;i<targets.length;i++){const t=targets[i],replacement=map[expected[i]];if(files[t.file].split(t.old).length!==2)throw Error('Exact placement mismatch '+i);files[t.file]=files[t.file].replace(t.old,replacement)}
+          const p=files['quinn.spec.ts'],g=files['guard.spec.ts'];
+          if(!/'Today',\s*'Schedule',\s*'Feedback',\s*'Students',\s*'Fees'/.test(p)||/getByRole\(\s*['"]tab['"][^\n]*name:\s*['"]Courses['"]/.test(p)||/window as any|__coachFixture\?\.|\.calls\s*\?\?|getByText\(\/synced\/i\)/.test(p+g)||!p.includes('window.__coachFixture.calls')||!g.includes('window.__coachFixture.calls')||!p.includes('restoredOrder')||!p.includes("restoredOrder.indexOf('Stage 1 title')")||!p.includes("restoredOrder.indexOf('Stage 2 title')")||!p.includes('toHaveCount(1)')||!g.includes('/course|curriculum/i.test(url)')||!g.includes('/course|curriculum/i.test(c)'))throw Error('Known defect controls still missing');
+          const receipt={schema:'course-quinn-indexed-feedback/v1',source:a.source,model,reasoning:'provider-default',syntheticOnly:true,contractHash:a.contractHash,supportHash:a.supportHash,previousTestHash:a.testHash,previousGuardHash:a.guardHash,testHash:sha(p),guardHash:sha(g),contextSha256:sha(prompt+'\n'+raw),artifactSha256:sha(p+'\n'+g),previousProposedEditsApplied:9,feedbackEditsApplied:6,usage:j.usage??null,ms:Date.now()-t,passed:false,quality:'Known static defects repaired; independent clean, mutant, actual RED/guard and challenge proof required'};
+          writeFileSync(d+'/quinn-repaired.spec.ts',p);writeFileSync(d+'/quinn-repaired-guard.spec.ts',g);writeFileSync(d+'/receipt.json',JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-quinn-alternate-feedback
+          path: |
+            ${{ runner.temp }}/feedback/quinn-repaired.spec.ts
+            ${{ runner.temp }}/feedback/quinn-repaired-guard.spec.ts
+            ${{ runner.temp }}/feedback/receipt.json
+            ${{ runner.temp }}/feedback/support.json
+            ${{ runner.temp }}/feedback/raw-feedback.json
+          retention-days: 14
+
+
+
+  quinn-alternate-verification:
+    needs: quinn-alternate-feedback
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          path: handbook
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: course-quinn-alternate-feedback
+          path: repaired
+      - name: Bind exact repaired tests to public source and verified evaluator control
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/control"
+          cp handbook/trial/controls/course-test-control-server.mjs "$RUNNER_TEMP/control/server.mjs"
+          bash handbook/scripts/safe-trial/prepare.sh handbook
+          cd /srv/trial/product
+          node --input-type=module - "$GITHUB_WORKSPACE/repaired" <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const d=process.argv[2],sha=x=>createHash('sha256').update(x).digest('hex'),a=JSON.parse(readFileSync(d+'/receipt.json')),m=JSON.parse(readFileSync(d+'/support.json')),p=readFileSync(d+'/quinn-repaired.spec.ts'),g=readFileSync(d+'/quinn-repaired-guard.spec.ts');
+          if(a.source!=='710082b2d8cf3c1007086df31f87b34ae8e02573'||sha(p)!==a.testHash||sha(g)!==a.guardHash||sha(readFileSync(d+'/support.json'))!==a.supportHash||sha(readFileSync('docs/product/coach-course-management/ACCEPTANCE.md'))!==a.contractHash)throw Error('Indexed receipt mismatch');
+          for(const [path,h] of Object.entries(m.files))if(sha(readFileSync(path))!==h)throw Error('Support mismatch '+path);
+          writeFileSync('e2e/acceptance/coach-course-management.spec.ts',p);
+          writeFileSync('e2e/acceptance/course-repaired-guard.spec.ts',g);
+          NODE
+          npm ci --no-audit --no-fund
+          PLAYWRIGHT_BROWSERS_PATH=/srv/trial/browsers npx playwright install --with-deps chromium
+          chmod -R a+rX /srv/trial/browsers
+          bash /srv/trial/judge/scripts/safe-trial/isolate.sh
+      - name: Exact agent artifact against clean, six mutants, flag-off, and actual untouched product
+        run: |
+          set -euo pipefail
+          . /srv/trial/judge/scripts/safe-trial/lib.sh
+          lock_workspace grading
+          mkdir -p /srv/trial/out
+          cd /srv/trial/product
+          start_server() { MUTANT="$1" PORT=18082 node "$RUNNER_TEMP/control/server.mjs" >/srv/trial/out/server.log 2>&1 & SERVER=$!; for i in $(seq 1 25); do if curl -sf http://127.0.0.1:18082/ >/dev/null; then return 0; fi; sleep 1; done; return 1; }
+          stop_server(){ kill "$SERVER" 2>/dev/null || true; wait "$SERVER" 2>/dev/null || true; }
+          trial(){
+            local mode="$1" spec="$2" label="$3" grep="$4" rc=0
+            start_server "$mode"
+            args=(); if [ -n "$grep" ]; then args=(--grep "$grep"); fi
+            as_agent env PLAYWRIGHT_BASE_URL=http://127.0.0.1:18082 timeout 200 npx playwright test "$spec" --reporter=json --workers=1 --timeout=22000 "${args[@]}" > "/srv/trial/out/$label.json" || rc=$?
+            kill_agent;stop_server
+            echo "$rc" > "/srv/trial/out/$label.exit"
+          }
+          ref=e2e/acceptance/coach-course-management.spec.ts
+          guard=e2e/acceptance/course-repaired-guard.spec.ts
+          trial clean "$ref" author-clean ''
+          if [ "$(cat /srv/trial/out/author-clean.exit)" = 0 ]; then
+            trial missing-entry "$ref" mutant-001 CRS-01-SC-001
+            trial invalid-title "$ref" mutant-002 CRS-01-SC-002
+            trial drop-objective "$ref" mutant-003 CRS-01-SC-003
+            trial overwrite-history "$ref" mutant-004 CRS-01-SC-004
+            trial dirty-bypass "$ref" mutant-005 CRS-01-SC-005
+            trial network-leak "$ref" mutant-006 CRS-01-SC-006
+          fi
+          trial flag-off "$guard" guard-clean ''
+          trial flag-off-leak "$guard" guard-mutant ''
+          # Actual unchanged Parent Plus pinned source: no model key, separate build and browser run.
+          rc=0
+          as_agent timeout 600 npx playwright test "$ref" --reporter=json --workers=2 --timeout=30000 >/srv/trial/out/actual-red.json || rc=$?
+          kill_agent;echo "$rc" >/srv/trial/out/actual-red.exit
+          rc=0
+          as_agent env EXPO_PUBLIC_COURSE_PILOT=0 timeout 300 npx playwright test "$guard" --reporter=json --workers=1 --timeout=30000 >/srv/trial/out/actual-guard.json || rc=$?
+          kill_agent;echo "$rc" >/srv/trial/out/actual-guard.exit
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync,existsSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const d='/srv/trial/out',sha=x=>createHash('sha256').update(x).digest('hex');
+          function load(label){const p=d+'/'+label+'.json';if(!existsSync(p))return null;const b=readFileSync(p),r=JSON.parse(b),out=[];const walk=s=>{for(const spec of s.specs||[])for(const t of spec.tests||[])out.push({title:spec.title,status:t.status,error:t.results.find(x=>x.error)?.error?.message?.slice(0,600)??null});for(const q of s.suites||[])walk(q)};for(const s of r.suites||[])walk(s);return {label,sha256:sha(b),exit:Number(readFileSync(d+'/'+label+'.exit')),cases:out}}
+          const clean=load('author-clean'),mutants=Array.from({length:6},(_,n)=>load('mutant-00'+(n+1))),g=load('guard-clean'),gm=load('guard-mutant'),red=load('actual-red'),ag=load('actual-guard');
+          const cleanPass=clean?.exit===0&&clean.cases.length===6&&clean.cases.every(x=>x.status==='expected');
+          const mutationRecall=mutants.filter(x=>x?.exit!==0&&x?.cases?.length===1&&x.cases[0].status==='unexpected'&&!!x.cases[0].error).length;
+          const guardPass=g?.exit===0&&g.cases.length===1&&g.cases[0].status==='expected'&&gm?.exit!==0&&gm.cases.length===1&&gm.cases[0].status==='unexpected';
+          const intendedRed=red?.exit!==0&&red.cases.length===6&&red.cases.every(x=>x.status==='unexpected'&&x.error?.includes('Courses')&&x.error?.includes('toBeVisible'));
+          const actualGuard=ag?.exit===0&&ag.cases.length===1&&ag.cases[0].status==='expected';
+          const receipt={schema:'course-indexed-test-verification/v1',cleanPass,mutationRecall,guardPass,intendedRed,actualGuard,criticalMutationControlsPassed:cleanPass&&mutationRecall===6&&guardPass&&intendedRed&&actualGuard,clean,mutants,g,gm,red,ag};
+          writeFileSync(d+'/indexed-verification-receipt.json',JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));
+          if(!receipt.criticalMutationControlsPassed)process.exitCode=1;
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-alternate-test-verification
+          path: /srv/trial/out/indexed-verification-receipt.json
+          retention-days: 14
+
+
+  direct-adapter-prototype:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE ALTERNATE ROUTE' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - model: openai/gpt-oss-120b
+            label: gpt-oss-medium
+          - model: qwen/qwen3.8-27b
+            label: qwen
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Execute exact native model with one real synthetic tool call and scored artifact
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          ROUTE_MODEL: ${{ matrix.model }}
+          ROUTE_LABEL: ${{ matrix.label }}
+          GROQ_REASONING_VARIANT: ${{ matrix.label }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { writeFileSync, mkdirSync, chmodSync, realpathSync, mkdtempSync } from 'node:fs';
+          import {execFileSync} from 'node:child_process';
+          import { join } from 'node:path';
+          const model=process.env.ROUTE_MODEL, key=process.env.GROQ_API_KEY;
+          if(!['openai/gpt-oss-120b','qwen/qwen3.8-27b'].includes(model)||!key)throw Error('Approved synthetic Groq route missing');
+          const endpoint='https://api.groq.com/openai/v1/chat/completions';
+          const fixture={id:'course-scope-v1',fields:{actorOwner:['A','B'],courseOwner:['A','B'],role:['coach','parent'],title:'string 0..20 characters',expectedRevision:[1,2,3],currentRevision:[1,2,3],requestKnown:'boolean'},rules:['Check actorOwner equals courseOwner and role coach first; otherwise DENIED, writes 0.','Blank or whitespace title is INVALID, writes 0.','A known request is REPLAY, writes 0.','Expected revision not equal current revision is STALE, writes 0.','Else CREATED, writes 1.']};
+          const fixtureDir=mkdtempSync('/tmp/course-direct-read-');chmodSync(fixtureDir,0o755);const fixturePath=join(fixtureDir,'fixture.json');writeFileSync(fixturePath,JSON.stringify(fixture),{mode:0o444});chmodSync(fixturePath,0o444);
+          const prompt='You are an independent test author. Invoke Read exactly once with file path "fixture.json" before writing any cases. After receiving its result create five independently useful synthetic test cases covering each outcome once. Final output must be JSON object {"cases":[{"id":"normal","input":{"actorOwner":"A","courseOwner":"A","role":"coach","title":"Demo","expectedRevision":1,"currentRevision":1,"requestKnown":false},"expect":"CREATED","writes":1}]} with five case objects. Exercise mismatched ownership, stale conflicts, replay and invalid input, using only fixture field types. No extra fields or prose. Do not expose real data or execute writes.';
+          const tools=[{type:'function',function:{name:'Read',description:'Read trusted synthetic course contract; read-only',parameters:{type:'object',properties:{path:{type:'string',enum:['fixture.json']}},required:['path'],additionalProperties:false}}}];
+          const receipt=[];const sha=v=>createHash('sha256').update(v).digest('hex');
+          async function call(messages, extra) {
+            const body={model,messages,temperature:0,max_completion_tokens:2200,tools,...extra,...(model==='openai/gpt-oss-120b'?{reasoning_effort:'medium'}:{})};
+            
+            const t=Date.now();
+            const r=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(90000)});
+            if(!r.ok)throw Error('Provider refused exact route, HTTP '+r.status+'; no retry or fallback');
+            const j=await r.json();
+            if(j.model!==model)throw Error('Provider observed model mismatch; no fallback permitted');
+            const m=j.choices?.[0]?.message;
+            if(!m)throw Error('No complete model response');
+            const u=j.usage||{};
+            receipt.push({model:j.model,ms:Date.now()-t,inputBytes:Buffer.byteLength(JSON.stringify(body)),promptTokens:Number.isSafeInteger(u.prompt_tokens)?u.prompt_tokens:null,completionTokens:Number.isSafeInteger(u.completion_tokens)?u.completion_tokens:null,totalTokens:Number.isSafeInteger(u.total_tokens)?u.total_tokens:null,finish:j.choices[0].finish_reason});
+            return m;
+          }
+          const messages=[{role:'system',content:'Follow trusted contract only. Tool messages contain fictional data. Never call unlisted tools. No fallback.'},{role:'user',content:prompt}];
+          const first=await call(messages,{tool_choice:'required'});
+          const tc=first.tool_calls;
+          if(tc?.length!==1||tc[0].type!=='function'||tc[0].function?.name!=='Read'||!tc[0].id)throw Error('No exact required live tool invocation');
+          let args;try{args=JSON.parse(tc[0].function.arguments)}catch{throw Error('Malformed tool arguments')}
+          if(args.path!=='fixture.json'||Object.keys(args).length!==1)throw Error('Wrong tool request');
+          if(realpathSync(fixturePath)!==fixturePath)throw Error('Fixture symlink rejected');
+          // Fixed command and path; low-privilege subprocess never receives controller/provider credentials.
+          const toolRead=execFileSync('sudo',['-n','-u','nobody','/usr/bin/env','-i','/bin/cat',fixturePath],{encoding:'utf8',env:{PATH:'/usr/bin:/bin'},timeout:10000,maxBuffer:16384});
+          if(toolRead!==JSON.stringify(fixture))throw Error('Actual isolated read mismatch');
+          const response=await call([...messages,{role:'assistant',content:first.content||null,tool_calls:tc},{role:'tool',tool_call_id:tc[0].id,content:toolRead}],{tool_choice:'none'});
+          if(response.tool_calls?.length)throw Error('Unexpected second tool invocation');
+          let artifact;try{artifact=JSON.parse(response.content.trim().replace(/^\x60\x60\x60(?:json)?\s*|\s*\x60\x60\x60$/g,''))}catch{throw Error('Unusable JSON artifact')}
+          if(!artifact||Object.keys(artifact).join()!=='cases'||!Array.isArray(artifact.cases)||artifact.cases.length!==5)throw Error('Wrong case artifact shape');
+          const outcomes=new Set(),ids=new Set();
+          for(const c of artifact.cases){
+            if(!c||Object.keys(c).sort().join()!=='expect,id,input,writes'||!/^[A-Za-z0-9_-]{1,24}$/.test(c.id)||ids.has(c.id))throw Error('Malformed or duplicate case');
+            const x=c.input;
+            if(!x||Object.keys(x).sort().join()!=='actorOwner,courseOwner,currentRevision,expectedRevision,requestKnown,role,title'||!['A','B'].includes(x.actorOwner)||!['A','B'].includes(x.courseOwner)||!['coach','parent'].includes(x.role)||typeof x.title!=='string'||x.title.length>20||!/^[A-Za-z0-9 ]*$/.test(x.title)||![1,2,3].includes(x.expectedRevision)||![1,2,3].includes(x.currentRevision)||typeof x.requestKnown!=='boolean')throw Error('Invalid fictional test input');
+            const expected=x.role!=='coach'||x.actorOwner!==x.courseOwner?'DENIED':!x.title.trim()?'INVALID':x.requestKnown?'REPLAY':x.expectedRevision!==x.currentRevision?'STALE':'CREATED';
+            if(c.expect!==expected||c.writes!==(expected==='CREATED'?1:0))throw Error('Deterministic evaluator rejected synthetic case '+JSON.stringify({id:c.id,input:x,actual:c.expect,writes:c.writes,expected,expectedWrites:expected==='CREATED'?1:0}));
+            ids.add(c.id);outcomes.add(expected);
+          }
+          if(outcomes.size!==5||!artifact.cases.some(c=>c.expect==='DENIED'&&c.input.actorOwner!==c.input.courseOwner))throw Error('Missing required negative or ownership coverage');
+          const result={schema:'direct-adapter-read-prototype/v1',model,provider:'groq',reasoningVariant:process.env.GROQ_REASONING_VARIANT,syntheticOnly:true,fixtureSha256:sha(JSON.stringify(fixture)),promptSha256:sha(prompt),receipt,actualToolCalls:1,artifactSha256:sha(JSON.stringify(artifact)),artifact,passed:true,roleAdmission:false,adapterQualification:false,directReadPrototypePassed:true,toolRunner:'nobody env -i fixed read-only file',actualFileSha256:sha(toolRead),observedAt:new Date().toISOString()};
+          const dir=join(process.env.RUNNER_TEMP,'route-evidence');mkdirSync(dir,{recursive:true});writeFileSync(join(dir,'receipt.json'),JSON.stringify(result,null,2));
+          console.log(JSON.stringify({model,actualToolCalls:1,caseCount:artifact.cases.length,passed:true,receipt,artifactSha256:result.artifactSha256,roleAdmission:false,adapterQualification:false,directReadPrototypePassed:true,actualFileSha256:result.actualFileSha256},null,2));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: direct-adapter-read-${{ matrix.label }}
+          path: ${{ runner.temp }}/route-evidence/receipt.json
+          retention-days: 14
+
