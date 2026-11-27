@@ -82,9 +82,27 @@ async function oc(context,dir){
  return {raw,actualModel:ids[0],usage:finishes.map(x=>x.tokens),cost:0,session};
 }
 let parts=[];
+const replay=process.env.COURSE_RESUME==='1';
+let bundle=null;
+if(replay){
+ if(provider!=='groq'||model!=='qwen/qwen3.8-27b')throw Error('Resume only exact original reviewed model');
+ bundle=JSON.parse(readFileSync(new URL('../evidence/course/46055915920/chunk-partial-bundle.json',import.meta.url),'utf8'));
+ if(bundle.runId!==46055915920||!Array.isArray(bundle.files)||bundle.files.some(f=>sha(f.utf8)!==f.sha256))throw Error('Pinned checkpoint changed');
+}
+function resumePacket(chunk,context,dir){
+ if(!bundle||chunk.key!=='saved-draft')return null;
+ const read=n=>{const f=bundle.files.find(x=>x.file===chunk.key+'/'+n);if(!f)throw Error('Missing checkpoint file '+n);return f.utf8};
+ const raw=read('raw.txt'),artifact=JSON.parse(read('artifact.json')),receipt=JSON.parse(read('receipt.json'));
+ if(receipt.schema!=='course-author-chunk/v1'||receipt.key!==chunk.key||receipt.id!==id||receipt.source!==source||receipt.contractHash!==contractHash||receipt.provider!==provider||receipt.actualModel!==model||receipt.contextSha256!==sha(prompt+'\n'+context)||receipt.artifactSha256!==sha(JSON.stringify(artifact))||receipt.rawSha256!==sha(raw)||JSON.stringify(parse(raw))!==JSON.stringify(artifact)||!Number.isSafeInteger(receipt.usage?.total_tokens))throw Error('Resume artifact identity or context mismatch');
+ validatePacket(chunk,artifact);
+ for(const n of ['raw.txt','artifact.json','receipt.json'])writeFileSync(join(dir,n),read(n));
+ writeFileSync(join(dir,'resume-origin.json'),JSON.stringify({runId:46055915920,commit:'f166a54afe30c39251f846768cee3689c3ec65b4',file:'trial/evidence/course/46055915920/chunk-partial-bundle.json',receiptSha256:sha(read('receipt.json'))}));
+ return {artifact,receipt};
+}
 for(const chunk of chunks){
  const dir=join(root,chunk.key);mkdirSync(dir,{recursive:true});
  const context=JSON.stringify({source,contractHash,scenario:id,fixture:chunk,buttons:chunk.allowed,labels:labels.slice(0,3),ui:'Save draft returns to list; local publishing requires confirmation; View history shows immutable versions.'});
+ const restored=resumePacket(chunk,context,dir);if(restored){parts.push(restored);console.log(JSON.stringify({key:chunk.key,checkpointRestored:true,inference:false,priorRun:46055915920}));continue;}
  const start=Date.now(),response=provider==='opencode'?await oc(context,dir):await groq(context,dir);
  const {raw,...observed}=response;writeFileSync(join(dir,'raw.txt'),raw+'\n');
  const artifact=parse(raw);try{validatePacket(chunk,artifact)}catch(e){writeFileSync(join(dir,'packet-rejected.json'),JSON.stringify({key:chunk.key,reason:e.message,artifact}));throw e}const receipt={schema:'course-author-chunk/v1',key:chunk.key,id,source,contractHash,contextSha256:sha(prompt+'\n'+context),artifactSha256:sha(JSON.stringify(artifact)),rawSha256:sha(raw+'\n'),provider,...observed,ms:Date.now()-start};
