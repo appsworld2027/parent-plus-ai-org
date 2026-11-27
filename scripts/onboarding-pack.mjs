@@ -5,11 +5,11 @@
 //   1. Role card + RACI row for this stage            (handbook org/agents/<role>.md, manifest raci)
 //   2. Role lessons                                     (handbook org/lessons/<role>.md)
 //   3. Product memory                                   (product docs/ai-memory/*.md)
-//   4. Feature contract + every handover so far         (docs/product/<slug>/ACCEPTANCE.md, handoffs/)
+//   4. Feature contract + relevant handovers         (docs/product/<slug>/ACCEPTANCE.md, handoffs/)
 //   5. Attempt memory: why the previous run failed      (--attempt <file>, written by the worker)
 //   6. The exact task                                   (--task <file>)
 // Usage: node onboarding-pack.mjs --role quinn-qa --stage ai:tests --slug <slug> [--seat author|challenger] [--feature <dir>]
-//        [--attempt f] [--task f] [--out f] [--max 60000]
+//        [--attempt f] [--task f] [--out f] [--max 16000]
 import { readFileSync, existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -31,22 +31,25 @@ export function raciText(row, stage) {
   return [`| Stage | Responsible | Reviewer | Consulted | Accountable | Informed |`, `|---|---|---|---|---|---|`,
     `| ${stage} | ${f("responsible")} | ${f("reviewer")} | ${f("consulted")} | ${f("accountable")} | ${f("informed")} |`].join("\n");
 }
-export function buildPack({ role, stage, slug, seat = "", handbook = ".ai-org-handbook", product = ".", feature = "", attempt = "", task = "", max = 60000 }) {
+export function buildPack({ role, stage, slug, seat = "", handbook = ".ai-org-handbook", product = ".", feature = "", attempt = "", task = "", max = 16000 }) {
   const manifest = (() => { try { return JSON.parse(read(join(product, ".ai-org/manifest.json"))); } catch { return {}; } })();
   const docs = manifest?.product?.docsFolder || "docs/product";
   const memDir = join(product, manifest?.memory?.folder || "docs/ai-memory");
   const memory = existsSync(memDir) ? readdirSync(memDir).filter((f) => f.endsWith(".md")).sort()
     .map((f) => `### ${f}\n${read(join(memDir, f)).trim()}`).join("\n\n") : "";
-  const featureDir = feature || join(product, docs, slug || "_none_");
-  const handoffDir = join(featureDir, "handoffs");
-  const handoffs = packetsIn(handoffDir).map((p) => `### ${p.split("/").pop()}\n${read(p).trim()}`).join("\n\n");
+  const featureDir = feature || (slug ? join(product, docs, slug) : "");
+  const handoffDir = featureDir ? join(featureDir, "handoffs") : "";
+  const handoffs = handoffDir && existsSync(handoffDir)
+    ? packetsIn(handoffDir).slice(-2).map((p) => `### ${p.split("/").pop()}\n${read(p).trim()}`).join("\n\n")
+    : "";
+
   const parts = [
-    ["1. Your role and RACI", 6000, `${read(join(handbook, "org/agents", `${role}.md`)).trim()}\n\n${seat ? `**Your seat in this stage: ${seat}.**\n\n` : ""}${raciText(raciFor(manifest, stage), raciStage(stage))}`],
-    ["2. Lessons for your role (from earlier features)", 6000, read(join(handbook, "org/lessons", `${role}.md`)).trim() || "none yet"],
-    ["3. Product memory (verified facts about this product)", 20000, memory || "none yet"],
-    ["4. Feature contract and handovers so far", 20000, `${slug ? read(join(featureDir, "ACCEPTANCE.md")).trim() || "no contract file" : "no feature slug"}\n\n${handoffs || "No handovers yet — you are the first role on this feature."}`],
-    ["5. Previous attempt (why it failed — do not repeat it)", 6000, read(attempt).trim() || "First attempt."],
-    ["6. Your task now", 8000, read(task).trim() || "See the issue."],
+    ["1. Your role and RACI", 4500, `${read(join(handbook, "org/agents", `${role}.md`)).trim()}\n\n${seat ? `**Your seat in this stage: ${seat}.**\n\n` : ""}${raciText(raciFor(manifest, stage), raciStage(stage))}`],
+    ["2. Lessons for your role (from earlier features)", 1200, read(join(handbook, "org/lessons", `${role}.md`)).trim() || "none yet"],
+    ["3. Product memory (verified facts about this product)", 2000, memory || "none yet"],
+    ["4. Feature contract and relevant handovers", 3500, `${slug ? read(join(featureDir, "ACCEPTANCE.md")).trim() || "no contract file" : "no feature slug"}\n\n${handoffs || "No handovers yet — you are the first role on this feature."}`],
+    ["5. Previous attempt (why it failed — do not repeat it)", 1200, read(attempt).trim() || "First attempt."],
+    ["6. Your task now", 2500, read(task).trim() || "See the issue."],
   ];
   let body = parts.map(([h, n, t]) => `## ${h}\n\n${cap(t, n)}`).join("\n\n");
   body = cap(`# Onboarding pack — ${role} — ${stage}${slug ? ` — ${slug}` : ""}\n\nRead all of this before acting. Your first output must be the 5-line Understanding (goal · constraints · known traps · what you must not touch · how you will prove it is done).\n\n${body}`, max);
@@ -56,6 +59,6 @@ export function buildPack({ role, stage, slug, seat = "", handbook = ".ai-org-ha
 if (isMain(import.meta.url)) {
   const arg = (n, d = "") => { const i = process.argv.indexOf(`--${n}`); return i > -1 ? process.argv[i + 1] : d; };
   const pack = buildPack({ role: arg("role"), stage: arg("stage"), slug: arg("slug"), seat: arg("seat"), feature: arg("feature"), attempt: arg("attempt"),
-    task: arg("task"), handbook: arg("handbook", ".ai-org-handbook"), product: arg("product", "."), max: Number(arg("max", "60000")) });
+    task: arg("task"), handbook: arg("handbook", ".ai-org-handbook"), product: arg("product", "."), max: Number(arg("max", "16000")) });
   if (arg("out")) writeFileSync(arg("out"), pack + "\n"); else console.log(pack);
 }
