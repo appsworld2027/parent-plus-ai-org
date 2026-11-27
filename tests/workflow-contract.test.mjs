@@ -21,6 +21,20 @@ test("AI Org may run in its own public repo; external callers require private re
   assert.ok(worker.includes("github.event.repository.private == true"));
 });
 
+test("agent onboarding pack stays inside the workspace and is ignored by Git", () => {
+  const worker = read("../.github/workflows/agent-worker.yml");
+  assert.ok(worker.includes('ONBOARDING_FILE="$GITHUB_WORKSPACE/.ai-org-runtime/onboarding.md"'));
+  assert.ok(worker.includes("git rev-parse --git-path info/exclude"));
+  assert.ok(worker.includes("grep -qxF '.ai-org-runtime/'"));
+  assert.ok(worker.includes('cd "$GITHUB_WORKSPACE"'));
+  assert.ok(worker.includes("test -s .ai-org-runtime/onboarding.md"));
+  assert.ok(worker.includes('--out "$ONBOARDING_FILE"'));
+  assert.ok(!worker.includes("--out /tmp/onboarding.md"));
+  const router = read("../scripts/agent-router.mjs");
+  assert.ok(router.includes("FIRST read `.ai-org-runtime/onboarding.md` completely"));
+  assert.ok(!router.includes("/tmp/onboarding.md"));
+});
+
 test("the canonical background worker is Groq free-tier only with bounded output and stage-aware tools", () => {
   const worker = read("../.github/workflows/agent-worker.yml");
   assert.ok(worker.includes("GROQ_API_KEY:") && worker.includes("required: false"));
