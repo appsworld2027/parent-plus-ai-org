@@ -2781,3 +2781,46 @@ jobs:
           name: course-semantic-author-glm-sc004
           path: ${{ runner.temp }}/course-semantic-author/
           retention-days: 14
+
+  course-chunk-publish-author:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.confirm == 'COURSE CHUNKED PUBLISH GPT' || inputs.confirm == 'COURSE CHUNKED PUBLISH DEEPSEEK') &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Install pinned official OpenCode client in isolated runner
+        if: inputs.confirm == 'COURSE CHUNKED PUBLISH DEEPSEEK'
+        run: |
+          npm install --prefix "$RUNNER_TEMP/oc" --no-audit --no-fund --ignore-scripts opencode-ai@1.19.6
+          bin="$RUNNER_TEMP/oc/node_modules/opencode-linux-x64/bin/opencode"
+          test "$("$bin" --version)" = '1.19.6'
+          printf 'OPENCODE_BIN=%s\n' "$bin" >> "$GITHUB_ENV"
+      - name: Four fresh contexts using exact free-only model
+        env:
+          ROUTE_PROVIDER: ${{ inputs.confirm == 'COURSE CHUNKED PUBLISH DEEPSEEK' && 'opencode' || 'groq' }}
+          ROUTE_MODEL: ${{ inputs.confirm == 'COURSE CHUNKED PUBLISH DEEPSEEK' && 'opencode/deepseek-v4.1-flash-free' || 'openai/gpt-oss-120b' }}
+          GROQ_API_KEY: ${{ inputs.confirm == 'COURSE CHUNKED PUBLISH GPT' && secrets.GROQ_API_KEY || '' }}
+        run: node trial/controls/quinn-publish-chunk-author.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-chunk-publish-author
+          path: |
+            ${{ runner.temp }}/course-chunk-author/normalized.json
+            ${{ runner.temp }}/course-chunk-author/receipt.json
+            ${{ runner.temp }}/course-chunk-author/*/artifact.json
+            ${{ runner.temp }}/course-chunk-author/*/receipt.json
+            ${{ runner.temp }}/course-chunk-author/*/raw.txt
+            ${{ runner.temp }}/course-chunk-author/*/events.jsonl
+            ${{ runner.temp }}/course-chunk-author/*/provider-status.json
+          retention-days: 14
