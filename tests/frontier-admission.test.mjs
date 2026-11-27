@@ -13,8 +13,8 @@ function makeInput() {
   const planHash=canonicalHash(plan);
   const runs=plan.slots.map((s,i)=>{
     const execution={schema:1,scope:rubric.scope,planHash,sourceSha:base,...s,
-      runId:"run-"+i,agentInstance:"agent-"+i,provider:"fictional-free",model:"fictional-model",
-      routeReceiptHash:H("route-"+i),toolReceiptHash:H("tools-"+i),artifactHash:H("artifact-"+i)};
+      runId:"run-"+i,agentInstance:"agent-"+i,kind:"actual-model-artifact",provider:"fictional-free",model:"fictional-model",
+      routeReceiptHash:H("route-"+i),toolReceiptHash:H("tools-"+i),artifactHash:H("artifact-"+i),attemptHistoryHash:H("attempt-history-"+i)};
     const evaluation={schema:1,executionHash:canonicalHash(execution),evaluatorId:"evaluator-"+i,
       evaluatorRunId:"eval-"+i,mode:"independent-human",
       checks:checks(rubric.roles.find(r=>r.role===s.role).checks.map(c=>c.id)),hardGates:checks(rubric.hardGates)};
@@ -153,4 +153,16 @@ test("missing source SHA, oversized runs or wrong rubric cannot bypass",()=>{
   ]) {
     const x=makeInput();change(x);assert.equal(assessFrontierAdmission(x,verifier(x)).status,"blocked");
   }
+});
+
+test("a decision-only result, missing attempt ledger or replayed receipt cannot pass",()=>{
+  for(const change of [
+    x=>{x.runs[0].execution.kind="synthetic-readonly";rebind(x.runs[0]);},
+    x=>{delete x.runs[0].execution.attemptHistoryHash;rebind(x.runs[0]);}
+  ]){
+    const x=makeInput();change(x);assert.equal(assessFrontierAdmission(x,verifier(x)).status,"blocked");
+  }
+  const x=makeInput();x.runs[1].executionReceiptId=x.runs[0].executionReceiptId;
+  const a=assessFrontierAdmission(x,verifier(x));
+  assert.notEqual(a.status,"eligible-for-independent-review");
 });
