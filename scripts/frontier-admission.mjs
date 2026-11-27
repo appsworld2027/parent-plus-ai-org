@@ -35,6 +35,8 @@ function assertRubric() {
       !sameSet(rubric.variants,VARIANTS) || !sameSet(rubric.roles.map(r=>r.role),ROLES) ||
       rubric.hardGates.length!==10 || new Set(rubric.hardGates).size!==10 ||
       rubric.integratedGates.length!==15 || new Set(rubric.integratedGates).size!==15) throw Error("Invalid pinned rubric");
+  const planPolicy=rubric.planRequirements;
+  if(!planPolicy||planPolicy.roleVariantSlots!==33||planPolicy.distinctFixtureHashes!==33||planPolicy.distinctPromptHashes!==33||planPolicy.source!=="frozen-exact-commit"||typeof planPolicy.rationale!=="string"||!planPolicy.rationale.trim()) throw Error("Invalid frozen-plan requirements");
   const scoring=rubric.scoring;
   if (!scoring || scoring.maxScore!==100 || scoring.minimumScope!=="each-role-variant" ||
       scoring.aggregation!=="logical-and-of-all-33-slots-and-all-15-integrated-gates" || scoring.averagingAllowed!==false ||
