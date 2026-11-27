@@ -155,3 +155,11 @@ test("read-only completion uses the declared issue input instead of a nonexisten
   const step = workflow.jobs.agent.steps.find(s => s.name === "Publish and verify read-only completion report");
   assert.equal(step.env.NUMBER, "${{ inputs.number }}");
 });
+
+test("read-only completion normalizes the role prefix and verifies the exact run receipt", () => {
+  const worker = read("../.github/workflows/agent-worker.yml");
+  assert.ok(worker.includes('RECEIPT="Run: $RUN_URL (attempt $GITHUB_RUN_ATTEMPT)"'));
+  assert.ok(worker.includes('startswith($marker) and contains($receipt)'));
+  assert.ok(worker.includes('REPORT=$(printf'));
+  assert.ok(worker.includes('"$MARKER" "$REPORT" "$RECEIPT"'));
+});

@@ -414,14 +414,14 @@ jobs:
           STARTED_EPOCH=$(date -d "$STARTED_AT" +%s)
           RUN_URL="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
           MARKER="[$AGENT_NAME — $AGENT_ROLE]"
+          RECEIPT="Run: $RUN_URL (attempt $GITHUB_RUN_ATTEMPT)"
           has_report() {
-            gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -e --arg marker "$MARKER" --argjson started "$STARTED_EPOCH" 'def epoch: sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601; any(.[]; .user.login == "github-actions[bot]" and (.body | startswith($marker)) and ((.created_at | epoch) >= $started))' >/dev/null
+            gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -e --arg marker "$MARKER" --arg receipt "$RECEIPT" --argjson started "$STARTED_EPOCH" 'def epoch: sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601; any(.[]; .user.login == "github-actions[bot]" and (.body | startswith($marker) and contains($receipt)) and ((.created_at | epoch) >= $started))' >/dev/null
           }
           if ! has_report; then
             REPORT=$(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -c 5000)
             [ -n "$REPORT" ] || { echo "::error::No final assistant report was available to publish."; exit 1; }
-            if ! printf '%s' "$REPORT" | grep -Fq "$MARKER"; then REPORT="$MARKER\n\n$REPORT"; fi
-            if ! printf '%s' "$REPORT" | grep -Fq "$RUN_URL"; then REPORT="$REPORT\n\nRun: $RUN_URL"; fi
+            REPORT=$(printf '%s\n\n%s\n\n%s' "$MARKER" "$REPORT" "$RECEIPT")
             gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "$REPORT"
           fi
           has_report || { echo "::error::Workflow could not verify its read-only report comment."; exit 1; }
