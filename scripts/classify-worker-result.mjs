@@ -12,6 +12,7 @@ export function classifyWorkerResult({ processCode, jsonl, stderr = "" }) {
   if (!processCode && final?.subtype === "success" && final?.is_error === false) return { exitCode: 0, kind: "completed" };
   const exitCode = processCode || 1;
   const detail = [final?.is_error === true && typeof final.result === "string" ? final.result : "", stderr].join("\n");
+  if (/response exceeded the \d+ output token maximum|output token ceiling exhausted/i.test(detail)) return { exitCode, kind: "output-limit" };
   if (/\bHTTP\s+413\b|request too large for model|input tokens per minute.*limit/i.test(detail)) return { exitCode, kind: "request-too-large" };
   if (/\bHTTP\s+429\b|rate_limit_exceeded|too many requests|rate limit|tokens per minute/i.test(detail)) return { exitCode, kind: "transient-quota" };
   return { exitCode, kind: "failed" };

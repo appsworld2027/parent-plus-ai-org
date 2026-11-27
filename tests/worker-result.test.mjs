@@ -21,3 +21,7 @@ test("worker preserves process failure and hard-limit evidence, no replay after 
   const worker=readFileSync(new URL("../.github/workflows/agent-worker.yml",import.meta.url),"utf8");
   for(const needle of ['|| rc=$?', 'classify-worker-result.mjs', 'request-too-large', 'execution-interrupted', 'TOOLS=""; ALLOWED_TOOLS=""','STATE="blocked"']) assert.ok(worker.includes(needle),needle);
 });
+
+test("actual CLI output ceiling exhaustion is blocked rather than transient", () => {
+  assert.deepEqual(classifyWorkerResult({processCode:1,jsonl:result(true,"API Error: Claude's response exceeded the 512 output token maximum.")}), {exitCode:1,kind:"output-limit"});
+});

@@ -69,8 +69,11 @@ test("the canonical background worker uses approved free providers with bounded 
   assert.ok(worker.includes('ALLOWED_TOOLS="Read,Bash(grep:*),Bash(sed:*),Bash(gh issue view:*),Bash(git status:*),Bash(pwd:*),Bash(head:*),Bash(tail:*),Bash(wc:*)'));
   assert.ok(!worker.includes('--allowedTools "$TOOLS"'), "read-only mode must not pre-authorize unrestricted Bash");
   assert.equal((worker.match(/- name: Run agent with the selected free provider/g) || []).length, 1, "one workflow run starts one model worker");
-  const outputCap = Number(worker.match(/CLAUDE_CODE_MAX_OUTPUT_TOKENS=(\d+)/)?.[1] || 0);
-  assert.equal(outputCap, 512, "free-tier output must leave headroom below the observed 1,000 output TPM limit");
+  const caps = [...worker.matchAll(/OUTPUT_TOKEN_CAP=(\d+)/g)].map(m=>Number(m[1]));
+  assert.deepEqual(caps, [512, 768]);
+  assert.ok(caps.every(n=>n < 1000), "free-tier output must leave measured allowance headroom");
+  assert.ok(worker.includes('CLAUDE_CODE_MAX_OUTPUT_TOKENS="$OUTPUT_TOKEN_CAP"'));
+  assert.ok(worker.includes("At most 120 words"));
   assert.ok(worker.includes("--max-turns 60"));
   const classifier = read("../scripts/classify-worker-result.mjs");
   assert.ok(classifier.includes("tokens per minute"));
