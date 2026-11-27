@@ -1,0 +1,31 @@
+name: Free-model agent smoke test
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Existing AI Org issue with an ai:* stage label
+        required: true
+        type: string
+      handbook_ref:
+        description: AI Org handbook commit, branch or tag
+        required: false
+        default: main
+        type: string
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  actions: read
+  statuses: write
+jobs:
+  smoke:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.ref == 'fix/public-handbook-checkout-20261127'
+    uses: ./.github/workflows/agent-worker.yml
+    with:
+      number: ${{ github.event_name == 'workflow_dispatch' && inputs.issue_number || '91' }}
+      handbook_ref: ${{ github.event_name == 'workflow_dispatch' && inputs.handbook_ref || github.event.pull_request.head.sha }}
+      dispatch_workflow: ai-agents.yml
+    secrets:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
