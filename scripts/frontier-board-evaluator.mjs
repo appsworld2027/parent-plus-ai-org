@@ -51,7 +51,14 @@ async function runIsolatedSuite(code,locked,{image,expectedCount=null}) {
       [counts.pass,counts.fail].every(Number.isSafeInteger)&&counts.cancelled===0&&counts.skipped===0&&counts.todo===0;
     const status=complete&&exitCode===0&&counts.pass===counts.tests&&counts.fail===0?"behavior-pass":
       complete&&exitCode===1&&counts.fail>0?"behavior-fail":"infrastructure-or-incomplete";
-    return {...base,status,counts,exitCode,stdoutHash:digest(stdout),stderrHash:digest(stderr)};
+    // Synthetic, no-secret sandbox output is still untrusted data. Preserve a bounded
+    // diagnostic excerpt for repairs, never evaluate it as instructions or trust
+    // model claims in output. Digests cover the complete captured bytes.
+    const diagnostic=status==="behavior-pass"?null:{
+      stdout:stdout.slice(0,16000),stderr:stderr.slice(0,4000),
+      truncated:stdout.length>16000||stderr.length>4000
+    };
+    return {...base,status,counts,exitCode,stdoutHash:digest(stdout),stderrHash:digest(stderr),diagnostic};
   } finally {
     try{await exec("docker",["rm","-f",name],{timeout:5000,maxBuffer:4096});}catch{}
     await rm(dir,{recursive:true,force:true});
