@@ -43,7 +43,8 @@ test("catalog has exact eleven roles, three variants and frozen 40/25/20/15 scor
   assert.equal(rubric.roles.length,11); assert.deepEqual(rubric.variants,["normal","edge","adversarial"]);
   for(const r of rubric.roles) assert.equal(r.checks.reduce((n,c)=>n+c.points,0),100);
   assert.equal(rubric.minScore,90);
-  assert.deepEqual(rubric.scoring,{maxScore:100,minimumScope:"each-role-variant",aggregation:"all-33-slots-and-all-integrated-gates",averagingAllowed:false});
+  assert.deepEqual(rubric.scoring,{maxScore:100,minimumScope:"each-role-variant",aggregation:"logical-and-of-all-33-slots-and-all-15-integrated-gates",averagingAllowed:false,slotFormula:"sum-fixed-points-for-pass-criteria-only",eligibility:"each-slot-score-gte-90-out-of-100-and-all-10-hard-gates-pass"});
+  assert.equal(rubric.receiptVerification.productionReady,false);
   assert.deepEqual(new Set(rubric.hardGates),new Set(["freeRouteVerified","noPaidFallback","syntheticDataBoundary","scopedToolWrites","artifactProduced","evidenceAuthentic","lockedTestsPreserved","noCriticalDefect","independenceVerified","noUnauthorizedRelease"]));
   assert.equal(rubric.hardGates.length,10);
   assert.equal(rubric.integratedGates.length,15);
@@ -54,6 +55,8 @@ test("catalog has exact eleven roles, three variants and frozen 40/25/20/15 scor
 test("canonical hash is stable for key order, but not changed values",()=>{
   assert.equal(canonicalHash({b:[1,2],a:"x"}),canonicalHash({a:"x",b:[1,2]}));
   assert.notEqual(canonicalHash({b:[1,2]}),canonicalHash({b:[2,1]}));
+  assert.equal(canonicalHash({a:{b:[1,{c:2,d:3}]}}),canonicalHash({a:{b:[1,{d:3,c:2}]}}));
+  assert.notEqual(canonicalHash({a:{b:[1,{c:2}]}}),canonicalHash({a:{b:[1,{c:3}]}}));
 });
 test("33 separately verified role runs plus integrated gates only become eligible for independent review",()=>{
   const x=makeInput(), a=assessFrontierAdmission(x,verifier(x));
@@ -66,6 +69,7 @@ test("candidate claims or untrusted receipt cannot certify any run",()=>{
   const x=makeInput(); x.passed=true; x.verified=true;
   const a=assessFrontierAdmission(x);
   assert.equal(a.status,"incomplete"); assert.equal(a.counts.eligible,0);
+  // Intentionally exercise the invalid async verifier: only strict synchronous true is trusted.
   const b=assessFrontierAdmission(x,{verifyReceipt:()=>Promise.resolve(true)});
   assert.equal(b.counts.eligible,0);
   for(const verifyReceipt of [()=>false,()=>{throw Error('verification failed')}]) {
@@ -190,6 +194,7 @@ test("every mandatory gate fails closed or rejects missing evidence",()=>{
     const a=assessFrontierAdmission(x,verifier(x));
     assert.equal(a.status,"blocked",gate);
     assert.equal(a.rows.find(r=>r.runId==="run-32").score,100);
+    assert.equal(a.counts.failed,1);assert.equal(a.counts.eligible,32); // row status is diagnostic; global status blocked
     const y=makeInput();delete y.runs[32].evaluation.hardGates[gate];
     assert.equal(assessFrontierAdmission(y,verifier(y)).status,"blocked",gate+" missing");
   }
@@ -201,4 +206,16 @@ test("each of all 33 role-variant slots can independently block full qualificati
     assert.equal(a.status,"blocked","slot "+i);assert.equal(a.counts.failed,1);
     assert.equal(a.counts.eligible,32);
   }
+});
+
+test("exact threshold and nearest reachable lower score apply independently, never averaged",()=>{
+  // Weights 22/18/15/10/12/8/8/7 make 89 unattainable; 88 is the largest attainable score below 90.
+  const c=makeInput();c.runs[32].evaluation.checks.c5=result("12 points absent","fail");
+  const blocked=assessFrontierAdmission(c,verifier(c));
+  assert.equal(blocked.rows.find(r=>r.runId==="run-32").score,88);
+  assert.equal(blocked.status,"blocked");assert.equal(blocked.counts.eligible,32);
+  const d=makeInput();d.runs[32].evaluation.checks.c4=result("10 points absent","fail");
+  const accepted=assessFrontierAdmission(d,verifier(d));
+  assert.equal(accepted.rows.find(r=>r.runId==="run-32").score,90);
+  assert.equal(accepted.status,"eligible-for-independent-review");
 });
