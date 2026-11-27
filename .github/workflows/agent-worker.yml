@@ -257,7 +257,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           PROMPT="$PROMPT
           7. Engine facts: you are running on the model $FREE_MODEL, served by the Groq free tier through Free Claude Code. You are not a Claude model. Whenever you name the model or engine that did the work (comments, commits, PRs), state exactly this.
-          8. Normal work: use --body-file for comments and PR bodies. Read-only mode: the only permitted write is the requested issue comment, using gh issue comment --body; do not create files.
+          8. Normal work: use --body-file for comments and PR bodies. Read-only mode: the only permitted write is the requested issue comment; use gh issue comment --body with a single-quoted plain-text body, never unescaped backticks or \$() shell substitutions; do not create files.
           9. Feature slug: $FEATURE_SLUG. Never use literal _none_. If no feature slug is assigned, do not create a handoff.
           10. Do not change issue stage labels or issue state; the workflow owns stage transitions.
           11. Evidence rule: every claim that checks passed must link a CI run or quote the command and its result line."
@@ -282,6 +282,7 @@ jobs:
               exit 1
               ;;
           esac
+          date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/agent-logs/started-at
           start=$(date +%s)
           CLAUDE_CODE_MAX_OUTPUT_TOKENS=512 CLAUDE_CODE_MAX_RETRIES=2 \
             ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
@@ -308,6 +309,25 @@ jobs:
           printf '%s\n' "$final" | tail -c 3000
           tail -c 1500 /tmp/agent-logs/agent.stderr
           exit $rc
+
+      - name: Verify read-only completion comment
+        if: success() && inputs.tool_mode == 'readonly' && steps.router.outputs.action == 'run'
+        env:
+          NUMBER: ${{ steps.item.outputs.number }}
+          AGENT_NAME: ${{ steps.router.outputs.agent_name }}
+          AGENT_ROLE: ${{ steps.router.outputs.agent_role }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          STARTED_AT=$(cat /tmp/agent-logs/started-at)
+          MARKER="[$AGENT_NAME — $AGENT_ROLE]"
+          if ! gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | \
+            jq -e --arg marker "$MARKER" --arg started "$STARTED_AT" \
+              'any(.[]; .user.login == "github-actions[bot]" and (.body | startswith($marker)) and (.created_at >= $started))' >/dev/null; then
+            echo "::error::Read-only agent exited without posting its required issue comment; process exit alone is not completion."
+            exit 1
+          fi
+          echo "Verified the read-only agent report comment."
 
       - name: Export free-model worker usage
         if: always() && steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'free'

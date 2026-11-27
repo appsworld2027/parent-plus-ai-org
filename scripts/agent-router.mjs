@@ -189,7 +189,7 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = 
       ? [`4a. Create the handover packet at docs/product/${featureSlug}/handoffs/NN-${stage}-${agent.slug}.md on branch ai/contract-${featureSlug}. Generate the template with node .ai-org-handbook/scripts/handoff.mjs template ${stage} ${agent.slug}; fill every section, then validate with node .ai-org-handbook/scripts/handoff.mjs validate <path> before committing and pushing.`]
       : ["4a. No valid feature slug is assigned; do not create a handover packet."]),
     ...(toolMode === "readonly"
-      ? ["5. Read-only mode: task scope overrides role-card suggestions. Do not modify files, branches, labels, commits, PRs, handoffs or any other issue. The workflow owns stage transitions. Only perform the specific issue comment explicitly requested by the task."]
+      ? ["5. Read-only mode: task scope overrides role-card suggestions. Do not modify files, branches, labels, commits, PRs, handoffs or any other issue. The workflow owns stage transitions. Only perform the specific issue comment explicitly requested by the task.", "5a. When posting that comment through Bash, use a single-quoted --body argument with plain text. Do not include unescaped backticks, $(), or shell substitutions in the command; avoid Markdown inline-code formatting."]
       : ["5. Do not change issue stage labels or issue state; the workflow owns stage transitions. Apply only PR labels explicitly required by your role brief." ]),
     `6. Never print secrets. Never contact the founder except through ai:founder-decision or ai:founder-test issues.`,
     "", onboardingRules(number, { toolMode, featureSlug, stage, role: agent.slug }),
