@@ -26,6 +26,15 @@
         "CRS-01-SC-001/entry"
       ],
       "revalidate": []
+    },
+    {
+      "runId": 46064920144,
+      "path": "trial/evidence/course/46064920144/suite-author-bundle.json",
+      "blob": "52c4890f0e466fbd9c49a45361fbb2d6f82fc94e",
+      "packets": [
+        "CRS-01-SC-003/create-ordered"
+      ],
+      "revalidate": []
     }
   ]
 }
