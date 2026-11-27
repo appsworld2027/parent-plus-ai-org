@@ -1342,3 +1342,87 @@ jobs:
           path: ${{ runner.temp }}/route-evidence/receipt.json
           retention-days: 14
 
+
+  quinn-indexed-feedback:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE INDEXED REPAIR' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          path: handbook
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Reconstruct exact rejected transaction and isolate narrow compiler feedback
+        run: |
+          set -euo pipefail
+          d="$RUNNER_TEMP/feedback";mkdir -p "$d"
+          cp handbook/trial/evidence/course/46040809622/{quinn.spec.ts,guard.spec.ts,support.json,author.json} "$d/"
+          cp handbook/trial/evidence/course/46042584072/rejected-edits.json "$d/prior-edits.json"
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const d=process.env.RUNNER_TEMP+'/feedback',sha=x=>createHash('sha256').update(x).digest('hex'),a=JSON.parse(readFileSync(d+'/author.json')),edits=JSON.parse(readFileSync(d+'/prior-edits.json'));
+          const files={'quinn.spec.ts':readFileSync(d+'/quinn.spec.ts','utf8'),'guard.spec.ts':readFileSync(d+'/guard.spec.ts','utf8')};
+          if(sha(files['quinn.spec.ts'])!==a.testHash||sha(files['guard.spec.ts'])!==a.guardHash||edits.length!==10||edits[9].file!=='guard.ts')throw Error('Source/failed transaction mismatch');
+          for(const e of edits.slice(0,9)){const x=files[e.file];if(typeof x!=='string'||!e.old||x.split(e.old).length!==2)throw Error('Earlier proposed edit not uniquely applicable');files[e.file]=x.replace(e.old,e.replacement)}
+          const spec=files['quinn.spec.ts'],guard=files['guard.spec.ts'];
+          const readLine="    const calls = await page.evaluate(() => (window as any).__coachFixture?.calls ?? []);";
+          const history="    await page.getByRole('button', { name: 'View history' }).click();";
+          const stage="    await expect(page.getByLabel('Stage 2 objective 1')).toHaveValue('Subtract single digits');";
+          const guardBlock=guard.slice(guard.indexOf("    page.on('request'"),guard.indexOf("    await backend(page"));
+          const guardFilter=guard.split('\n').find(x=>x.includes('const courseCalls ='));
+          const targets=[
+            {file:'quinn.spec.ts',old:readLine,requirement:'Read actual typed window.__coachFixture.calls directly, no optional/default fallback.'},
+            {file:'quinn.spec.ts',old:history,requirement:'Keep history click; assert getByText(\'Version 1\',{exact:true}) and Version 2 each visible AND toHaveCount(1) within history screen.'},
+            {file:'quinn.spec.ts',old:stage,requirement:'Keep objective assertion; use restoredOrder = await page.evaluate(() => Array.from(document.querySelectorAll(\'input, textarea\')).map(el => el.getAttribute(\'aria-label\') || el.id)); use restoredOrder.indexOf(\'Stage 1 title\') and restoredOrder.indexOf(\'Stage 2 title\'), both indices >=0 and index1 < index2. Do not invent input labels.'},
+            {file:'guard.spec.ts',old:guardBlock,requirement:'Keep request listener, change filter to /course|curriculum/i.test(url). Correct file is guard.spec.ts.'},
+            {file:'guard.spec.ts',old:readLine,requirement:'Read actual typed window.__coachFixture.calls directly, no optional/default fallback.'},
+            {file:'guard.spec.ts',old:guardFilter,requirement:'Use /course|curriculum/i.test(c) case-insensitive fixture call filter.'}
+          ];
+          for(const t of targets)if(typeof t.old!=='string'||!t.old.length||files[t.file].split(t.old).length!==2)throw Error('Target not unique');
+          writeFileSync(d+'/partial.json',JSON.stringify(files));writeFileSync(d+'/targets.json',JSON.stringify(targets));
+          console.log('Nine exact prior proposed edits apply in memory; six remaining explicit targets; no final artifact yet.');
+          NODE
+      - name: Actual model generates six indexed replacements without duplicating placement metadata
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const d=process.env.RUNNER_TEMP+'/feedback',sha=x=>createHash('sha256').update(x).digest('hex'),targets=JSON.parse(readFileSync(d+'/targets.json')),files=JSON.parse(readFileSync(d+'/partial.json')),a=JSON.parse(readFileSync(d+'/author.json')),key=process.env.GROQ_API_KEY,model='openai/gpt-oss-120b';
+          if(!key)throw Error('Approved free key missing');
+          const prompt='You are Quinn QA author repair seat. You receive exactly six immutable edit IDs T1-T6, each with old snippet and explicit required behavior. Return ONLY a strict JSON object with exactly six top-level keys T1,T2,T3,T4,T5,T6, each value the complete replacement TypeScript snippet (JSON string). The controller, not you, handles file names and exact placement. No missing keys, additional keys, file paths, old snippets, Markdown, prose, or execution claims. For both fixture read lines use exactly window.__coachFixture.calls (no cast or fallback); use exact existing labels Stage 1 title and Stage 2 title. For history selectors use exact:true. Keep indentation and original action lines as required.';
+          const indexed=Object.fromEntries(targets.map((t,i)=>['T'+(i+1),{old:t.old,requirement:t.requirement}]));
+          const raw=JSON.stringify(indexed),t=Date.now(),r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({model,reasoning_effort:'medium',temperature:0,max_completion_tokens:2400,response_format:{type:'json_object'},messages:[{role:'system',content:'Only exact public synthetic test snippets. Return six keyed strings; no tools or paid fallback.'},{role:'user',content:prompt+'\n'+raw}]}),redirect:'error',signal:AbortSignal.timeout(90000)});
+          if(!r.ok){const e=(await r.json().catch(()=>({}))).error;console.log(JSON.stringify({http:r.status,code:/^[A-Za-z0-9_.-]{1,80}$/.test(e?.code??'')?e.code:null}));throw Error('Exact indexed route failed')}
+          const j=await r.json();if(j.model!==model)throw Error('Observed route mismatch');
+          const result=j.choices?.[0]?.message?.content;writeFileSync(d+'/raw-feedback.json',String(result)+'\n');
+          const map=JSON.parse(result),expected=['T1','T2','T3','T4','T5','T6'];
+          if(Object.keys(map).sort().join(',')!==expected.join(',')||expected.some(k=>typeof map[k]!=='string'||!map[k].length||map[k].length>2500))throw Error('Incorrect indexed replacement keys');
+          for(let i=0;i<targets.length;i++){const t=targets[i],replacement=map[expected[i]];if(files[t.file].split(t.old).length!==2)throw Error('Exact placement mismatch '+i);files[t.file]=files[t.file].replace(t.old,replacement)}
+          const p=files['quinn.spec.ts'],g=files['guard.spec.ts'];
+          if(!/'Today',\s*'Schedule',\s*'Feedback',\s*'Students',\s*'Fees'/.test(p)||/getByRole\(\s*['"]tab['"][^\n]*name:\s*['"]Courses['"]/.test(p)||/window as any|__coachFixture\?\.|\.calls\s*\?\?|getByText\(\/synced\/i\)/.test(p+g)||!p.includes('window.__coachFixture.calls')||!g.includes('window.__coachFixture.calls')||!p.includes('restoredOrder')||!p.includes("restoredOrder.indexOf('Stage 1 title')")||!p.includes("restoredOrder.indexOf('Stage 2 title')")||!p.includes('toHaveCount(1)')||!g.includes('/course|curriculum/i.test(url)')||!g.includes('/course|curriculum/i.test(c)'))throw Error('Known defect controls still missing');
+          const receipt={schema:'course-quinn-indexed-feedback/v1',source:a.source,model,reasoning:'medium',contractHash:a.contractHash,supportHash:a.supportHash,previousTestHash:a.testHash,previousGuardHash:a.guardHash,testHash:sha(p),guardHash:sha(g),contextSha256:sha(prompt+'\n'+raw),artifactSha256:sha(p+'\n'+g),previousProposedEditsApplied:9,feedbackEditsApplied:6,usage:j.usage??null,ms:Date.now()-t,passed:false,quality:'Known static defects repaired; independent clean, mutant, actual RED/guard and challenge proof required'};
+          writeFileSync(d+'/quinn-repaired.spec.ts',p);writeFileSync(d+'/quinn-repaired-guard.spec.ts',g);writeFileSync(d+'/receipt.json',JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-quinn-indexed-feedback
+          path: |
+            ${{ runner.temp }}/feedback/quinn-repaired.spec.ts
+            ${{ runner.temp }}/feedback/quinn-repaired-guard.spec.ts
+            ${{ runner.temp }}/feedback/receipt.json
+            ${{ runner.temp }}/feedback/support.json
+            ${{ runner.temp }}/feedback/raw-feedback.json
+          retention-days: 14
+
