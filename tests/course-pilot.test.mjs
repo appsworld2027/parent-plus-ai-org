@@ -116,3 +116,41 @@ test('prebuild lock requires exact hashes, separate canonical roles and intended
   assert.throws(()=>validateLock({...lock,criticalMutationControlsPassed:false},inputs));
   const flow=read('.github/workflows/course-pilot.yml');assert.match(flow,/needs: \[baseline, eligibility, prebuild-lock\]/);
 });
+
+test('disabled direct tool primitive binds exact paths, bytes, hash, and independent read/write allowlists',async()=>{
+  const {mkdtempSync,mkdirSync,writeFileSync,readFileSync,symlinkSync,linkSync,rmSync}=await import('node:fs');
+  const {tmpdir}=await import('node:os');
+  const {join}=await import('node:path');
+  const {executeBoundedTool:tool}=await import('../scripts/course-pilot/bounded-tool.mjs');
+  const root=mkdtempSync(join(tmpdir(),'course-bounded-tool-'));
+  try {
+    mkdirSync(join(root,'src'));writeFileSync(join(root,'src/a.ts'),'old value\nold repeated repeated\n');
+    writeFileSync(join(root,'src/read.ts'),'read only');
+    writeFileSync(join(root,'outside.ts'),'do not touch');
+    symlinkSync(join(root,'outside.ts'),join(root,'src/link.ts'));
+    linkSync(join(root,'outside.ts'),join(root,'src/hard.ts'));
+    symlinkSync(root,join(root,'alias'));
+    const policy={root,read:['src/a.ts','src/read.ts','src/link.ts','src/hard.ts','alias/outside.ts'],write:['src/a.ts','src/new.ts','src/link.ts','src/hard.ts','alias/outside.ts']};
+    const original=tool(policy,{tool:'Read',path:'src/a.ts'});
+    assert.equal(original.content,'old value\nold repeated repeated\n');
+    for(const path of ['../outside.ts','/etc/passwd','outside.ts','src/link.ts','src/hard.ts','alias/outside.ts','src/../outside.ts'])assert.throws(()=>tool(policy,{tool:'Read',path}),undefined,path);
+    const patch={tool:'Replace',path:'src/a.ts',sha256:original.sha256,old:'old value',replacement:'new value ✓'};
+    assert.throws(()=>tool(policy,{...patch,sha256:'0'.repeat(64)}),/Stale/);
+    assert.throws(()=>tool(policy,{...patch,old:'repeated'}),/unique/);
+    assert.throws(()=>tool(policy,{...patch,old:'old value',replacement:'old value'}),/No-op/);
+    assert.throws(()=>tool(policy,{...patch,path:'src/read.ts'}),/allowlist/);
+    assert.throws(()=>tool(policy,{tool:'Run',command:'echo x'}),/Unapproved/);
+    assert.equal(readFileSync(join(root,'src/a.ts'),'utf8'),original.content);
+    const result=tool(policy,patch);
+    const after=tool(policy,{tool:'Read',path:'src/a.ts'});
+    assert.equal(after.content,'new value ✓\nold repeated repeated\n');
+    assert.equal(result.afterSha256,after.sha256);
+    assert.throws(()=>tool(policy,patch),/Stale/);
+    const created=tool(policy,{tool:'Create',path:'src/new.ts',content:'export const n=1;\n'});
+    assert.match(created.sha256,/^[a-f0-9]{64}$/);
+    assert.equal(readFileSync(join(root,'src/new.ts'),'utf8'),'export const n=1;\n');
+    assert.throws(()=>tool(policy,{tool:'Create',path:'src/new.ts',content:'overwrite'}));
+    assert.throws(()=>tool(policy,{tool:'Create',path:'outside.ts',content:'bad'}));
+    assert.equal(readFileSync(join(root,'outside.ts'),'utf8'),'do not touch');
+  }finally{rmSync(root,{recursive:true,force:true})}
+});
