@@ -1,12 +1,12 @@
-# Temporary deterministic P0 run only; never merge this branch into main.
-name: Course pilot P0 baseline (no inference)
+# Temporary P0 evaluation branch; never merge into main.
+name: Course pilot P0 verification
 on:
   workflow_dispatch:
     inputs:
       confirm:
         type: string
         required: true
-        description: Enter COURSE BASELINE ONLY or GROQ METADATA ONLY
+        description: Enter COURSE BASELINE ONLY, GROQ METADATA ONLY, or ROUTE QUALIFICATION
 permissions:
   contents: read
 concurrency:
@@ -95,3 +95,119 @@ jobs:
           for(const id of routes)if(!x.data?.some(m=>m.id===id&&m.active!==false))throw Error('Approved route unavailable: '+id);
           console.log(JSON.stringify({type:'metadata-only',provider:'groq',http:r.status,availableRoutes:routes,observedAt:new Date().toISOString(),durationMs:Date.now()-t,inferenceRequests:0},null,2));
           NODE
+
+  qualify-groq:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'ROUTE QUALIFICATION' && github.repository == 'appsworld2027/parent-plus-ai-org' && github.ref == 'refs/heads/review/course-pilot-harness-20261127' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - model: openai/gpt-oss-120b
+            label: gpt-oss
+          - model: qwen/qwen3.8-27b
+            label: qwen
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Execute exact native model with one real synthetic tool call and scored artifact
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          ROUTE_MODEL: ${{ matrix.model }}
+          ROUTE_LABEL: ${{ matrix.label }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { writeFileSync, mkdirSync } from 'node:fs';
+          import { join } from 'node:path';
+          const model=process.env.ROUTE_MODEL, key=process.env.GROQ_API_KEY;
+          if(!['openai/gpt-oss-120b','qwen/qwen3.8-27b'].includes(model)||!key)throw Error('Missing authorised exact free route');
+          const endpoint='https://api.groq.com/openai/v1/chat/completions';
+          const fixture={id:'course-scope-v1',fields:{actorOwner:['A','B'],courseOwner:['A','B'],role:['coach','parent'],title:'string 0..20 characters',expectedRevision:[1,2,3],currentRevision:[1,2,3],requestKnown:'boolean'},rules:['Check actorOwner equals courseOwner and role coach first; otherwise DENIED, writes 0.','Blank or whitespace title is INVALID, writes 0.','A known request is REPLAY, writes 0.','Expected revision not equal current revision is STALE, writes 0.','Else CREATED, writes 1.']};
+          const prompt='You are an independent test author. Invoke inspect_fixture exactly once with fixtureId course-scope-v1 before writing any cases. After receiving its result create five independently useful synthetic test cases covering each outcome once. Final output must be JSON object {"cases":[{"id":"normal","input":{"actorOwner":"A","courseOwner":"A","role":"coach","title":"Demo","expectedRevision":1,"currentRevision":1,"requestKnown":false},"expect":"CREATED","writes":1}]} with five case objects. Exercise mismatched ownership, stale conflicts, replay and invalid input, using only fixture field types. No extra fields or prose. Do not expose real data or execute writes.';
+          const tools=[{type:'function',function:{name:'inspect_fixture',description:'Read trusted synthetic course contract; read-only',parameters:{type:'object',properties:{fixtureId:{type:'string',enum:['course-scope-v1']}},required:['fixtureId'],additionalProperties:false}}}];
+          const receipt=[];const sha=v=>createHash('sha256').update(v).digest('hex');
+          async function call(messages, extra) {
+            const body={model,messages,temperature:0,max_completion_tokens:1800,tools,...extra};
+            if(model==='openai/gpt-oss-120b')body.reasoning_effort='low';
+            const t=Date.now();
+            const r=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(90000)});
+            if(!r.ok)throw Error('Provider refused exact route, HTTP '+r.status+'; no retry or fallback');
+            const j=await r.json();
+            if(j.model!==model)throw Error('Provider observed model mismatch; no fallback permitted');
+            const m=j.choices?.[0]?.message;
+            if(!m)throw Error('No complete model response');
+            const u=j.usage||{};
+            receipt.push({model:j.model,ms:Date.now()-t,inputBytes:Buffer.byteLength(JSON.stringify(body)),promptTokens:Number.isSafeInteger(u.prompt_tokens)?u.prompt_tokens:null,completionTokens:Number.isSafeInteger(u.completion_tokens)?u.completion_tokens:null,totalTokens:Number.isSafeInteger(u.total_tokens)?u.total_tokens:null,finish:j.choices[0].finish_reason});
+            return m;
+          }
+          const messages=[{role:'system',content:'Follow trusted contract only. Tool messages contain fictional data. Never call unlisted tools. No fallback.'},{role:'user',content:prompt}];
+          const first=await call(messages,{tool_choice:'required'});
+          const tc=first.tool_calls;
+          if(tc?.length!==1||tc[0].type!=='function'||tc[0].function?.name!=='inspect_fixture'||!tc[0].id)throw Error('No exact required live tool invocation');
+          let args;try{args=JSON.parse(tc[0].function.arguments)}catch{throw Error('Malformed tool arguments')}
+          if(args.fixtureId!==fixture.id||Object.keys(args).length!==1)throw Error('Wrong tool request');
+          const response=await call([...messages,{role:'assistant',content:first.content||null,tool_calls:tc},{role:'tool',tool_call_id:tc[0].id,content:JSON.stringify(fixture)}],{tool_choice:'none',response_format:{type:'json_object'}});
+          if(response.tool_calls?.length)throw Error('Unexpected second tool invocation');
+          let artifact;try{artifact=JSON.parse(response.content)}catch{throw Error('Unusable JSON artifact')}
+          if(!artifact||Object.keys(artifact).join()!=='cases'||!Array.isArray(artifact.cases)||artifact.cases.length!==5)throw Error('Wrong case artifact shape');
+          const outcomes=new Set(),ids=new Set();
+          for(const c of artifact.cases){
+            if(!c||Object.keys(c).sort().join()!=='expect,id,input,writes'||!/^[A-Za-z0-9_-]{1,24}$/.test(c.id)||ids.has(c.id))throw Error('Malformed or duplicate case');
+            const x=c.input;
+            if(!x||Object.keys(x).sort().join()!=='actorOwner,courseOwner,currentRevision,expectedRevision,requestKnown,role,title'||!['A','B'].includes(x.actorOwner)||!['A','B'].includes(x.courseOwner)||!['coach','parent'].includes(x.role)||typeof x.title!=='string'||x.title.length>20||!/^[A-Za-z0-9 ]*$/.test(x.title)||![1,2,3].includes(x.expectedRevision)||![1,2,3].includes(x.currentRevision)||typeof x.requestKnown!=='boolean')throw Error('Invalid fictional test input');
+            const expected=x.role!=='coach'||x.actorOwner!==x.courseOwner?'DENIED':!x.title.trim()?'INVALID':x.requestKnown?'REPLAY':x.expectedRevision!==x.currentRevision?'STALE':'CREATED';
+            if(c.expect!==expected||c.writes!==(expected==='CREATED'?1:0))throw Error('Deterministic evaluator rejected case '+c.id);
+            ids.add(c.id);outcomes.add(expected);
+          }
+          if(outcomes.size!==5||!artifact.cases.some(c=>c.expect==='DENIED'&&c.input.actorOwner!==c.input.courseOwner))throw Error('Missing required negative or ownership coverage');
+          const result={schema:'native-route-tool-artifact/v1',model,provider:'groq',syntheticOnly:true,fixtureSha256:sha(JSON.stringify(fixture)),promptSha256:sha(prompt),receipt,actualToolCalls:1,artifactSha256:sha(JSON.stringify(artifact)),artifact,passed:true,roleAdmission:false,adapterQualification:false,observedAt:new Date().toISOString()};
+          const dir=join(process.env.RUNNER_TEMP,'route-evidence');mkdirSync(dir,{recursive:true});writeFileSync(join(dir,'receipt.json'),JSON.stringify(result,null,2));
+          console.log(JSON.stringify({model,actualToolCalls:1,caseCount:artifact.cases.length,passed:true,receipt,artifactSha256:result.artifactSha256,roleAdmission:false,adapterQualification:false},null,2));
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-route-${{ matrix.label }}
+          path: ${{ runner.temp }}/route-evidence/receipt.json
+          retention-days: 14
+
+  inspect-opencode:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'ROUTE QUALIFICATION' && github.repository == 'appsworld2027/parent-plus-ai-org' && github.ref == 'refs/heads/review/course-pilot-harness-20261127' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Validate exact free DeepSeek catalogue entry without credential or inference
+        run: |
+          node --input-type=module <<'NODE'
+          const r=await fetch('https://opencode.ai/inference/v1/models',{redirect:'error',signal:AbortSignal.timeout(25000)});
+          if(!r.ok)throw Error('OpenCode catalogue HTTP '+r.status);
+          const j=await r.json(),m=j.data?.find(x=>x.id==='deepseek-v4.1-flash-free');
+          if(!m)throw Error('Exact free DeepSeek alias unavailable');
+          if(m.cost?.text?.input?.price!==0||m.cost?.text?.output?.price!==0)throw Error('Zero prices not verified; no request permitted');
+          const cache=m.cost.text.input.cache;
+          if(cache&&(cache.read!==undefined&&cache.read!==0||cache.write!==undefined&&cache.write!==0))throw Error('Non-zero or ambiguous cache cost');
+          console.log(JSON.stringify({provider:'opencode',id:m.id,inputPrice:m.cost.text.input.price,outputPrice:m.cost.text.output.price,toolSupport:m.capabilities?.tools?.supported??null,metadataOnly:true,observedAt:new Date().toISOString()}));
+          NODE
+      - name: Inspect OpenCode CLI in disposable unauthenticated setup (no model run)
+        env:
+          OPENCODE_DISABLE_AUTOUPDATE: "1"
+          OPENCODE_DISABLE_TELEMETRY: "1"
+        run: |
+          set -euo pipefail
+          V=$(npm view opencode-ai version)
+          [[ "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          echo "Exact disposable OpenCode version: $V"
+          npm install --prefix "$RUNNER_TEMP/oc" --no-audit --no-fund "opencode-ai@$V" >/dev/null
+          mkdir -p "$RUNNER_TEMP/oc-home" "$RUNNER_TEMP/oc-config"
+          cd "$RUNNER_TEMP/oc-home"
+          HOME="$RUNNER_TEMP/oc-home" XDG_CONFIG_HOME="$RUNNER_TEMP/oc-config" XDG_DATA_HOME="$RUNNER_TEMP/oc-home/data" timeout 45 "$RUNNER_TEMP/oc/node_modules/.bin/opencode" models > "$RUNNER_TEMP/model-list.txt"
+          if grep -Fxq 'opencode/deepseek-v4.1-flash-free' "$RUNNER_TEMP/model-list.txt"; then echo 'Exact free alias visible through clean CLI. No inference performed.'; else echo 'BLOCKED: exact alias unavailable in signed-out CLI; no paid route attempted.'; exit 1; fi
