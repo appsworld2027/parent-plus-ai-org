@@ -6,7 +6,7 @@ on:
       confirm:
         type: string
         required: true
-        description: Enter COURSE BASELINE ONLY, GROQ METADATA ONLY, ROUTE QUALIFICATION or FOLLOWUP QUALIFICATION
+        description: Enter COURSE BASELINE ONLY, GROQ METADATA ONLY, ROUTE QUALIFICATION FOLLOWUP QUALIFICATION or ADAPTER QUALIFICATION
 permissions:
   contents: read
 concurrency:
@@ -301,4 +301,101 @@ jobs:
         with:
           name: deepseek-tool-receipt
           path: ${{ runner.temp }}/deepseek-receipt/receipt.json
+          retention-days: 14
+
+  adapter-qualification:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'ADAPTER QUALIFICATION' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - model: groq/openai/gpt-oss-120b
+            label: gpt-oss
+          - model: groq/qwen/qwen3.8-27b
+            label: qwen
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Create synthetic-only workspace and enforce agent isolation
+        run: |
+          set -euo pipefail
+          sudo mkdir -p /srv/trial/{product,judge,out}
+          sudo chown -R "$(id -un):" /srv/trial
+          chmod 755 /srv/trial /srv/trial/product
+          chmod 700 /srv/trial/judge /srv/trial/out
+          cp -r scripts /srv/trial/judge/
+          bash /srv/trial/judge/scripts/safe-trial/isolate.sh
+          cat > /srv/trial/product/fixture.json <<'JSON'
+          {"id":"course-scope-v1","fields":{"actorOwner":["A","B"],"courseOwner":["A","B"],"role":["coach","parent"],"title":"string 0..20 characters","expectedRevision":[1,2,3],"currentRevision":[1,2,3],"requestKnown":"boolean"},"rules":["Check actorOwner equals courseOwner and role coach first; otherwise DENIED, writes 0.","Blank or whitespace title is INVALID, writes 0.","A known request is REPLAY, writes 0.","Expected revision not equal current revision is STALE, writes 0.","Else CREATED, writes 1."]}
+          JSON
+          sudo chown root:root /srv/trial/product/fixture.json
+          sudo chmod 444 /srv/trial/product/fixture.json
+          sha256sum /srv/trial/product/fixture.json
+      - name: Start exact pinned isolated FCC model adapter
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          MODEL: ${{ matrix.model }}
+        run: bash /srv/trial/judge/scripts/course-pilot/engine.sh "$MODEL"
+      - name: Actual agent Read tool plus independent executable test cases
+        env:
+          MODEL: ${{ matrix.model }}
+        run: |
+          set -euo pipefail
+          cat > /srv/trial/judge/route.txt <<'PROMPT'
+          Use Read once on /srv/trial/product/fixture.json. Do not read anything else. Based on that tool result, produce exactly a JSON object {"cases":[{"id":"normal","input":{"actorOwner":"A","courseOwner":"A","role":"coach","title":"Demo","expectedRevision":1,"currentRevision":1,"requestKnown":false},"expect":"CREATED","writes":1}]} with five unique cases, one for each outcome. Include mismatched ownership in DENIED. Use only fixture field types. No extra fields or markdown. Do not claim running tests.
+          PROMPT
+          bash /srv/trial/judge/scripts/safe-trial/agent.sh adapter "$MODEL" /srv/trial/judge/route.txt 210 5 --tools "Read" --allowedTools "Read"
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const dir='/srv/trial/out', sha=x=>createHash('sha256').update(x).digest('hex');
+          const rows=readFileSync(dir+'/adapter.jsonl','utf8').split(/\r?\n/).filter(Boolean).map(x=>JSON.parse(x));
+          const parts=rows.flatMap(r=>r.type==='assistant'?(r.message?.content??[]):[]);
+          const calls=parts.filter(p=>p.type==='tool_use');
+          if(calls.length!==1 || calls[0].name!=='Read' || calls[0].input?.file_path!=='/srv/trial/product/fixture.json')throw Error('Missing exact actual Read tool call');
+          const result=rows.filter(r=>r.type==='result').at(-1);
+          if(!result||result.is_error!==false||result.subtype!=='success')throw Error('Actual agent did not complete; adapter failure preserved');
+          let artifact; try{artifact=JSON.parse(result.result)}catch{throw Error('Result not strict JSON')};
+          if(!artifact||Object.keys(artifact).join()!=='cases'||!Array.isArray(artifact.cases)||artifact.cases.length!==5)throw Error('Wrong case shape');
+          const outcomes=new Set(), ids=new Set();
+          for(const c of artifact.cases){
+            if(!c||Object.keys(c).sort().join()!=='expect,id,input,writes'||!/^[A-Za-z0-9_-]{1,24}$/.test(c.id)||ids.has(c.id))throw Error('Malformed or duplicate case');
+            const x=c.input;
+            if(!x||Object.keys(x).sort().join()!=='actorOwner,courseOwner,currentRevision,expectedRevision,requestKnown,role,title'||!['A','B'].includes(x.actorOwner)||!['A','B'].includes(x.courseOwner)||!['coach','parent'].includes(x.role)||typeof x.title!=='string'||x.title.length>20||!/^[A-Za-z0-9 ]*$/.test(x.title)||![1,2,3].includes(x.expectedRevision)||![1,2,3].includes(x.currentRevision)||typeof x.requestKnown!=='boolean')throw Error('Invalid fictional test input');
+            const expected=x.role!=='coach'||x.actorOwner!==x.courseOwner?'DENIED':!x.title.trim()?'INVALID':x.requestKnown?'REPLAY':x.expectedRevision!==x.currentRevision?'STALE':'CREATED';
+            if(c.expect!==expected||c.writes!==(expected==='CREATED'?1:0))throw Error('Deterministic evaluator rejected '+JSON.stringify({id:c.id,actual:c.expect,expected}));
+            ids.add(c.id);outcomes.add(expected);
+          }
+          if(outcomes.size!==5||!artifact.cases.some(c=>c.expect==='DENIED'&&c.input.actorOwner!==c.input.courseOwner))throw Error('Incomplete required ownership coverage');
+          const observed=[...new Set(rows.filter(r=>r.type==='assistant').map(r=>r.message?.model).filter(Boolean))];
+          const native=process.env.MODEL.replace(/^groq\//,'');
+          const exactIdentity=observed.length>0&&observed.every(m=>m===native||m===process.env.MODEL);
+          const receipt={schema:'isolated-fcc-tool-artifact/v1',configuredRoute:process.env.MODEL,adapterVersion:'6.19.56',observedModelLabels:observed,exactIdentity,fixtureSha256:sha(readFileSync('/srv/trial/product/fixture.json')),contextSha256:sha(readFileSync('/srv/trial/judge/route.txt')),artifactSha256:sha(JSON.stringify(artifact)),toolCalls:1,artifact,usage:result.usage??null,durationMs:result.duration_ms??null,passed:exactIdentity,roleAdmission:false};
+          writeFileSync(dir+'/adapter-receipt.json',JSON.stringify(receipt,null,2));
+          console.log(JSON.stringify({...receipt,artifact:undefined},null,2));
+          if(!exactIdentity)throw Error('Adapter output did not expose exact native model identity');
+          NODE
+      - name: Record safe adapter status without raw logs or secrets
+        if: always()
+        run: |
+          if [ -f /srv/trial/out/adapter-run.txt ]; then cat /srv/trial/out/adapter-run.txt; fi
+          if [ -f /srv/trial/out/adapter-receipt.json ]; then
+            mkdir -p "$RUNNER_TEMP/adapter-receipt"
+            cp /srv/trial/out/adapter-receipt.json "$RUNNER_TEMP/adapter-receipt/"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: isolated-adapter-${{ matrix.label }}
+          path: ${{ runner.temp }}/adapter-receipt/
           retention-days: 14
