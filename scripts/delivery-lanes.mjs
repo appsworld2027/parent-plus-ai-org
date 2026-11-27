@@ -50,3 +50,37 @@ export function selectDeliveryItems({ items = [], active = [], scopes = {}, comp
   }
   return selected;
 }
+
+
+// Validate the actual PR file inventory, including both sides of renamed/copied files.
+// Pin the inventory to the same head and base before and after pagination.
+export function verifyScopedChanges(scope, files, before, after, expectedHead, expectedBase) {
+  if (!validScope(scope)) return { ok: false, reason: "invalid declared scope" };
+  if (typeof expectedHead !== "string" || !expectedHead || typeof expectedBase !== "string" || !expectedBase) return { ok: false, reason: "missing expected PR head/base" };
+  const stable = meta => meta && meta.head?.sha === expectedHead &&
+    meta.base?.ref === expectedBase && typeof meta.base?.sha === "string" &&
+    Number.isSafeInteger(meta.changed_files) && meta.changed_files >= 0;
+  if (!stable(before) || !stable(after) || before.base.sha !== after.base.sha ||
+      before.changed_files !== after.changed_files) {
+    return { ok: false, reason: "PR changed while inspecting file scope" };
+  }
+  if (!Array.isArray(files) || files.length !== before.changed_files ||
+      new Set(files.map(f => f?.filename)).size !== files.length) {
+    return { ok: false, reason: "incomplete or duplicate PR file inventory" };
+  }
+  const validPath = path => typeof path === "string" && token.test(path) &&
+    !path.startsWith("/") && !path.split("/").some(p => p === "." || p === ".." || p === "");
+  const outside = new Set();
+  for (const file of files) {
+    const paths = [file?.filename];
+    if (file?.status === "renamed" || file?.status === "copied") paths.push(file.previous_filename);
+    else if (!["added", "removed", "modified", "changed", "unchanged"].includes(file?.status)) {
+      return { ok: false, reason: "unknown PR file status" };
+    }
+    if (!paths.every(validPath)) return { ok: false, reason: "invalid or missing PR file path" };
+    for (const path of paths) {
+      if (!scope.files.some(allowed => path === allowed || path.startsWith(allowed + "/"))) outside.add(path);
+    }
+  }
+  return outside.size ? { ok: false, reason: "changes outside declared file scope", outside: [...outside].sort() } : { ok: true };
+}
