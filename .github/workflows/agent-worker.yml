@@ -270,6 +270,7 @@ jobs:
           STAGE: ${{ steps.item.outputs.stage }}
           TOOL_MODE: ${{ inputs.tool_mode }}
           FEATURE_SLUG: ${{ steps.item.outputs.feature_slug }}
+          STAGE_OVERRIDE: ${{ inputs.stage_override }}
         run: |
           set -uo pipefail
           cd "$GITHUB_WORKSPACE"
@@ -401,21 +402,38 @@ jobs:
               exit 1
               ;;
           esac
+          if [ "$TOOL_MODE" = "readonly" ] && [[ "$STAGE_OVERRIDE" =~ ^ai:(discovery|review)$ ]]; then
+            # The authoritative synthetic issue body is already embedded.
+            TOOLS=""; ALLOWED_TOOLS=""
+            PROMPT="$PROMPT
+            Return a concise report (at most 300 words) from the embedded issue only. For review, put the verdict first. Do not request tools."
+          fi
           date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/agent-logs/started-at
           start=$(date +%s)
+          rc=0
           CLAUDE_CODE_MAX_OUTPUT_TOKENS=512 CLAUDE_CODE_MAX_RETRIES=2 \
             ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
             timeout 3600 claude --bare -p "$PROMPT" \
             --system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md \
             --tools "$TOOLS" --allowedTools "$ALLOWED_TOOLS" --max-turns 60 \
-            --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr
-          rc=$?
-          # Groq may map free-tier TPM exhaustion to HTTP 413/400 instead of HTTP 429.
-          # Treat explicit rate/TPM errors as resumable pauses, never as a reason to use paid fallback.
-          if [ "$rc" -ne 0 ] && grep -Eiq 'rate_limit_exceeded|rate limit|tokens per minute|HTTP 413|HTTP 429|TPM|too many requests' /tmp/agent-logs/agent.stderr /tmp/agent-logs/agent.jsonl 2>/dev/null; then
-            touch "/tmp/agent-logs/$PROVIDER-probe-retryable"
-            echo "Detected $PROVIDER free-tier rate/TPM limit; recording a resumable pause." | tee -a "$GITHUB_STEP_SUMMARY"
-          fi
+            --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr || rc=$?
+          RESULT=$(node .ai-org-handbook/scripts/classify-worker-result.mjs "$rc" /tmp/agent-logs/agent.jsonl /tmp/agent-logs/agent.stderr)
+          rc=$(jq -er '.exitCode' <<< "$RESULT")
+          KIND=$(jq -er '.kind' <<< "$RESULT")
+          case "$KIND" in
+            request-too-large)
+              touch /tmp/agent-logs/request-too-large
+              echo "Free-provider input allowance exceeded; reduce context before retrying." | tee -a "$GITHUB_STEP_SUMMARY"
+              ;;
+            transient-quota)
+              if [ "$TOOL_MODE" = "readonly" ]; then
+                touch "/tmp/agent-logs/$PROVIDER-probe-retryable"
+              else
+                # Execution boundary crossed; never blindly replay possible partial writes.
+                touch /tmp/agent-logs/execution-interrupted
+              fi
+              ;;
+          esac
           secs=$(( $(date +%s) - start ))
           stats=$(jq -r 'select(.type=="result") | "turns=\(.num_turns) subtype=\(.subtype) is_error=\(.is_error)"' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -1)
           final=$(jq -r 'select(.type=="result") | .result // ""' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -c 3000)
@@ -554,7 +572,14 @@ jobs:
           FREE_MODEL: ${{ steps.router.outputs.free_model }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ -f /tmp/agent-logs/groq-probe-retryable ] || [ -f /tmp/agent-logs/nvidia-probe-retryable ]; then
+          STATE="failed"
+          if [ -f /tmp/agent-logs/request-too-large ]; then
+            MARKER="ai-org:failed"; STATE="blocked"
+            SUMMARY="The approved free model rejected the request size. Reduce context and reconcile the exact attempt before retrying. No paid fallback was attempted."
+          elif [ -f /tmp/agent-logs/execution-interrupted ]; then
+            MARKER="ai-org:failed"; STATE="blocked"
+            SUMMARY="Free-provider quota interrupted execution after possible writes. Reconcile workspace and branch evidence before retrying."
+          elif [ -f /tmp/agent-logs/groq-probe-retryable ] || [ -f /tmp/agent-logs/nvidia-probe-retryable ]; then
             MARKER="ai-org:paused"
             SUMMARY="An approved free-provider endpoint is temporarily unavailable. No paid fallback was attempted. The hourly resume workflow will retry."
           else
@@ -563,7 +588,7 @@ jobs:
           fi
           {
             [[ "$STAGE" =~ ^ai:[a-z-]+$ && "$TOOL_MODE" =~ ^(standard|readonly)$ ]] || exit 1
-            STATE="failed"; [ "$MARKER" = "ai-org:paused" ] && STATE="paused"
+            [ "$MARKER" = "ai-org:paused" ] && STATE="paused"
             printf '<!-- ai-org:runtime:v1 state=%s stage=%s run=%s attempt=%s mode=%s -->\n' "$STATE" "$STAGE" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$TOOL_MODE"
             printf '<!-- %s -->\n' "$MARKER"
             ACTUAL_MODEL=$(jq -r '.free_model // empty' /tmp/route.json 2>/dev/null || true)
