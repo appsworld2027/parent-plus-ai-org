@@ -2752,3 +2752,32 @@ jobs:
           name: course-nvidia-route-discovery
           path: ${{ runner.temp }}/nvidia-route-discovery/
           retention-days: 14
+
+  course-semantic-author-glm-sc004:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE GLM SC004 SEMANTIC AUTHOR' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Actual independent synthetic single-case author
+        env:
+          COURSE_CASE: CRS-01-SC-004
+          ROUTE_PROVIDER: nvidia
+          ROUTE_MODEL: z-ai/glm-5.3-flash
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: node trial/controls/quinn-semantic-case-author.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-semantic-author-glm-sc004
+          path: ${{ runner.temp }}/course-semantic-author/
+          retention-days: 14
