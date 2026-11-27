@@ -1,0 +1,22 @@
+{
+  "schema": "course-suite-resume/v1",
+  "source": "710082b2d8cf3c1007086df31f87b34ae8e02573",
+  "contractHash": "6695ab62149003b833c1afa04a2f6e674db3494efe7048864357095de07176aa",
+  "bundles": [
+    {
+      "runId": 46063742837,
+      "path": "trial/evidence/course/46063742837/suite-author-bundle.json",
+      "blob": "9fce452a88943bb0a54fee6400216204bb724b21",
+      "packets": [
+        "CRS-01-SC-002/invalid"
+      ],
+      "revalidate": [
+        {
+          "key": "CRS-01-SC-003/restore-ordered",
+          "attempt": "attempt-1",
+          "reason": "Optional visibility assertion before edit is valid"
+        }
+      ]
+    }
+  ]
+}

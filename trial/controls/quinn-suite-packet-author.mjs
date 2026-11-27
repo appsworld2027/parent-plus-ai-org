@@ -32,9 +32,9 @@ function validate(row,part,a){
  if(row.parts.length===1){const x=issues(row.id,o);if(x.length)throw Error(x.map(v=>v.reason).join('; '));if(row.id===id(5)&&!initial.every(l=>o.some(p=>p[0]==='F'&&p[1]===l&&p[2].trim())))throw Error('Dirty packet needs all three populated fields to prove loss-of-fields control');if(row.id===guard&&o.some(p=>['B','T','F'].includes(p[0])))throw Error('Flag-off test must not take actions');return;}
  if(part.key==='create-ordered'){
   const find=(k,v)=>o.findIndex(p=>p[0]===k&&p[1]===v),b=find('B','Courses'),c=find('B','Create course'),s=find('B','Save draft'),stage=find('B','Add stage'),obj=find('B','Add objective to stage 1');
-  if(!(b>=0&&c>b&&stage>c&&obj>c&&s>stage&&s>obj&&full.every(l=>{const i=o.findIndex(p=>p[0]==='F'&&p[1]===l&&p[2]===fixture[l]);return i>c&&i<s&&(!l.startsWith('Stage 2')||i>stage)&&(l!=='Stage 1 objective 2'||i>obj)})&&o.findIndex((p,i)=>i>s&&p[0]==='X'&&p[1]===fixture['Course title'])>=0&&o.findIndex((p,i)=>i>s&&p[0]==='X'&&p[1]==='Draft')>o.findIndex((p,i)=>i>s&&p[0]==='X'&&p[1]===fixture['Course title'])))throw Error('Ordered create packet missing creation, exact data, or saved list evidence');
+  if(!(b>=0&&c>b&&stage>c&&obj>c&&s>stage&&s>obj&&o.filter(p=>p[0]==='B'&&p[1]==='Add stage').length===1&&o.filter(p=>p[0]==='B'&&p[1]==='Add objective to stage 1').length===1&&o.filter(p=>p[0]==='F').length===6&&full.every(l=>{const i=o.findIndex(p=>p[0]==='F'&&p[1]===l&&p[2]===fixture[l]);return i>c&&i<s&&(!l.startsWith('Stage 2')||i>stage)&&(l!=='Stage 1 objective 2'||i>obj)})&&o.findIndex((p,i)=>i>s&&p[0]==='X'&&p[1]===fixture['Course title'])>=0&&o.findIndex((p,i)=>i>s&&p[0]==='X'&&p[1]==='Draft')>o.findIndex((p,i)=>i>s&&p[0]==='X'&&p[1]===fixture['Course title'])))throw Error('Ordered create packet missing creation, exact data, or saved list evidence');
  }else if(part.key==='restore-ordered'){
-  if(o[0][0]!=='B'||o[0][1]!=='Edit course'||!full.every(l=>has(o.slice(1),'V',l,fixture[l]))||!o.slice(1).some(p=>p[0]==='O'&&JSON.stringify(p[1])===JSON.stringify(full)))throw Error('Edit packet missing exact restored values or field order');
+  const edit=o.findIndex(p=>p[0]==='B'&&p[1]==='Edit course');if(edit<0||o.filter(p=>p[0]==='B').length!==1||o.slice(0,edit).some(p=>p[0]!=='VB'||p[1]!=='Edit course')||o.slice(edit+1).some(p=>!['V','I','O'].includes(p[0]))||!full.every(l=>has(o.slice(edit+1),'V',l,fixture[l]))||!o.slice(edit+1).some(p=>p[0]==='O'&&JSON.stringify(p[1])===JSON.stringify(full)))throw Error('Edit packet missing exact restored values or field order');
  }else throw Error('Unknown packet');
 }
 function checkPacket(row,part,dir){
@@ -58,14 +58,25 @@ const resumeIndexURL=new URL('../evidence/course/suite-resume-index.json',import
 function restore(row,part,dir){
  if(!existsSync(resumeIndexURL))return null;
  const index=JSON.parse(readFileSync(resumeIndexURL));if(index.schema!=='course-suite-resume/v1'||index.source!==source||index.contractHash!==contractHash||!Array.isArray(index.bundles))throw Error('Invalid resume index');
+ const key=row.id+'/'+part.key;
  for(const item of index.bundles){
-  if(!/^trial\/evidence\/course\/[0-9]+\/suite-author-bundle\.json$/.test(item.path)||!/^[a-f0-9]{40}$/.test(item.blob))throw Error('Untrusted resume location');
+  if(!/^trial\/evidence\/course\/[0-9]+\/suite-author-bundle\.json$/.test(item.path)||!/^[a-f0-9]{40}$/.test(item.blob)||!Array.isArray(item.packets)||!Array.isArray(item.revalidate))throw Error('Untrusted resume location or selection');
+  const recovery=item.revalidate.find(x=>x.key===key);if(!item.packets.includes(key)&&!recovery)continue;
   const bytes=readFileSync(new URL('../../'+item.path,import.meta.url));if(gitBlob(bytes)!==item.blob)throw Error('Resume blob mismatch');
   const bundle=JSON.parse(bytes);if(bundle.runId!==item.runId||!Array.isArray(bundle.files)||bundle.files.some(f=>sha(f.utf8)!==f.sha256))throw Error('Resume bundle mismatch');
-  const prefix=row.id+'/'+part.key+'/',names=['artifact.json','receipt.json','raw.txt','context.json'];
-  if(!names.every(n=>bundle.files.some(f=>f.file===prefix+n)))continue;
-  for(const n of names)writeFileSync(join(dir,n),bundle.files.find(f=>f.file===prefix+n).utf8);
-  const r=checkPacket(row,part,dir);writeFileSync(join(dir,'resume-origin.json'),JSON.stringify({runId:item.runId,blob:item.blob,artifactSha256:r.receipt.artifactSha256}));return r;
+  const get=n=>{const f=bundle.files.find(x=>x.file===n);if(!f)throw Error('Missing selected exact checkpoint '+n);return f.utf8};
+  const prefix=key+'/',names=['artifact.json','receipt.json','raw.txt','context.json'];
+  if(recovery){
+   // Revalidate EXACT model response rejected by an overly strict controller. Preserve original rejected evidence,
+   // actual provider usage and context. No generated operation is edited, inserted or removed.
+   if(key!=='CRS-01-SC-003/restore-ordered'||recovery.attempt!=='attempt-1'||recovery.reason!=='Optional visibility assertion before edit is valid')throw Error('Unapproved validator correction recovery');
+   const p=prefix+recovery.attempt+'/',raw=get(p+'raw.txt'),ctx=get(p+'context.json'),observed=JSON.parse(get(p+'observed.json')),rejection=JSON.parse(get(p+'rejected.json'));
+   if(rejection.reason!=='Edit packet missing exact restored values or field order'||observed.actualModel!==model||!Number.isSafeInteger(observed.usage?.total_tokens))throw Error('Prior observed receipt or rejection mismatch');
+   const artifact=parse(raw);validate(row,part,artifact);
+   const receipt={schema:'course-suite-packet/v1',id:row.id,key:part.key,source,contractHash,provider,contextSha256:sha(prompt+'\n'+ctx),rawSha256:sha(raw),artifactSha256:sha(JSON.stringify(artifact)),...observed,revalidatedFrom:{runId:item.runId,blob:item.blob,attempt:recovery.attempt,reason:recovery.reason,originalRejection:rejection.reason}};
+   writeFileSync(join(dir,'raw.txt'),raw);writeFileSync(join(dir,'context.json'),ctx);writeFileSync(join(dir,'artifact.json'),JSON.stringify(artifact,null,2));writeFileSync(join(dir,'receipt.json'),JSON.stringify(receipt,null,2));
+  }else for(const n of names)writeFileSync(join(dir,n),get(prefix+n));
+  const r=checkPacket(row,part,dir);writeFileSync(join(dir,'resume-origin.json'),JSON.stringify({runId:item.runId,blob:item.blob,artifactSha256:r.receipt.artifactSha256,revalidated:!!recovery}));return r;
  }return null;
 }
 class RouteBlocked extends Error{}
@@ -87,7 +98,11 @@ async function author(root){
   for(const part of row.parts){
    const dir=join(rowDir,part.key);mkdirSync(dir,{recursive:true});const recovered=restore(row,part,dir);
    if(recovered){parts.push(recovered);restored.push(row.id+'/'+part.key);console.log(JSON.stringify({id:row.id,key:part.key,checkpointRestored:true,inference:false}));continue;}
-   let feedback=null,accepted=null;
+   let feedback=existsSync(resumeIndexURL)?({
+    'CRS-01-SC-001/entry':'Earlier author entered Courses but omitted the exact honest pilot label; repair omitted navigation. Start on Today. Retain entry action and all required evidence, including exact pilot wording.',
+    'CRS-01-SC-003/create-ordered':'Earlier output clicked Add objective to stage 1 twice, creating an extra empty third objective. Exactly one Add stage and one Add objective to stage 1, six filled fixture inputs total. Do not create an extra field.',
+    'CRS-01-SC-005/dirty':'Earlier output used No courses yet. with trailing punctuation, which is not the exact locked label No courses yet. Retain every populated value and both leave confirmations; use the actual empty-state label without any trailing period.'
+   }[row.id+'/'+part.key]??null):null,accepted=null;
    for(let i=0;i<=Math.min(1,strategy.packet.repairRounds);i++){
     const ctx=context(row,part,feedback),attemptDir=join(dir,'attempt-'+(i+1));mkdirSync(attemptDir,{recursive:true});writeFileSync(join(attemptDir,'context.json'),ctx);
     try{
@@ -126,6 +141,15 @@ function verify(root,out){
  writeFileSync(join(out,'suite.spec.ts'),spec);if(guardSpec)writeFileSync(join(out,'guard.spec.ts'),guardSpec);
  const receipt={schema:'course-suite-compiled/v1',source,contractHash,model,positive,guard:!!guardSpec,fullSuite:positive.length===6&&!!guardSpec,testHash:sha(spec),guardHash:guardSpec?sha(guardSpec):null,origins,roleAdmission:false,lockApproved:false};writeFileSync(join(out,'compiled.json'),JSON.stringify(receipt,null,2));console.log(JSON.stringify({positive,guard:!!guardSpec,fullSuite:receipt.fullSuite,testHash:receipt.testHash}));
 }
+function preflight(root){
+ mkdirSync(root,{recursive:true});const recovered=[];prior004();
+ for(const row of rows)for(const part of row.parts){const d=join(root,row.id,part.key);mkdirSync(d,{recursive:true});const x=restore(row,part,d);if(x)recovered.push({id:row.id,key:part.key,artifactSha256:x.receipt.artifactSha256,revalidated:!!x.receipt.revalidatedFrom});}
+ const first=JSON.parse(readFileSync(new URL('../evidence/course/46063742837/suite-author-bundle.json',import.meta.url)));
+ const original=first.files.find(f=>f.file==='CRS-01-SC-003/create-ordered/raw.txt');if(!original||sha(original.utf8)!==original.sha256)throw Error('Original rejected author evidence missing');
+ let rejected=false;try{validate(rows.find(r=>r.id===id(3)),rows.find(r=>r.id===id(3)).parts[0],parse(original.utf8));}catch{rejected=true}
+ if(!rejected||!recovered.some(x=>x.id===id(2)&&x.key==='invalid')||!recovered.some(x=>x.id===id(3)&&x.key==='restore-ordered'&&x.revalidated))throw Error('Resume or extra-objective regression is not proven');
+ console.log(JSON.stringify({preflightPassed:true,recovered,originalExtraObjectiveRejected:true,inference:false}));
+}
 const [mode,a,b]=process.argv.slice(2);
 if(mode==='author'){if(!process.env.RUNNER_TEMP)throw Error('Missing runner directory');await author(join(process.env.RUNNER_TEMP,'course-suite-author'))}
-else if(mode==='verify'&&a&&b)verify(a,b);else throw Error('Use author or verify <artifact dir> <output>');
+else if(mode==='verify'&&a&&b)verify(a,b);else if(mode==='preflight'&&process.env.RUNNER_TEMP)preflight(join(process.env.RUNNER_TEMP,'course-suite-preflight'));else throw Error('Use author, preflight or verify <artifact dir> <output>');
