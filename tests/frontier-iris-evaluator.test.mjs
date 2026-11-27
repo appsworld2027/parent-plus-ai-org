@@ -1,10 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { evaluateIrisHtml,IRIS_CHECKS,validateIrisReceipt } from '../scripts/frontier-iris-evaluator.mjs';
+import { evaluateIrisHtml,IRIS_CHECKS,validateIrisReceipt,deriveIrisSeccompProfile } from '../scripts/frontier-iris-evaluator.mjs';
 const image=process.env.FRONTIER_IRIS_IMAGE;
 const reference=readFileSync(new URL('../fixtures/frontier/iris-reference.html',import.meta.url),'utf8');
 const valid=()=>({schema:1,checks:Object.fromEntries(IRIS_CHECKS.map(id=>[id,{pass:true}])),networkAttempts:0,browserSandbox:true});
+test('sandbox profile preserves pinned upstream rules and adds only nested namespace chroot',()=>{
+  const raw=readFileSync(new URL('../fixtures/frontier/iris-runner/seccomp_profile.json',import.meta.url));
+  const upstream=JSON.parse(raw),derived=JSON.parse(deriveIrisSeccompProfile(raw));
+  const added=derived.syscalls.pop();
+  assert.deepEqual(added,{names:['chroot'],action:'SCMP_ACT_ALLOW',args:[]});
+  assert.deepEqual(derived,upstream);
+  assert.throws(()=>deriveIrisSeccompProfile(Buffer.concat([raw,Buffer.from(' ')])),/digest mismatch/);
+});
 test('strict receipt requires all ten locked checks, true sandbox and matching exit',()=>{
   assert.equal(validateIrisReceipt(JSON.stringify(valid()),0).status,'behavior-pass');
   assert.equal(validateIrisReceipt(JSON.stringify(valid()),1).status,'infrastructure-or-incomplete');

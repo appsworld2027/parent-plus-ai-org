@@ -4,6 +4,7 @@ import { chromium } from 'playwright';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 const html=readFileSync('/work/board.html','utf8');
 const ids=['I01-loading-empty','I02-create-confirmation','I03-edit-version','I04-invalid','I05-stale-recovery','I06-denied','I07-offline','I08-load-retry','I09-narrow-keyboard','I10-no-external-request'];
 const seed=createHash('sha256').update(html).digest('hex').slice(0,10);
@@ -60,7 +61,19 @@ async function session({records=[],listMode='ok',saveMode='ok',holdList=false,ho
 const withPage=async(opts,fn)=>{let s;try{s=await session(opts);await fn(s)}finally{if(s)await s.close()}};
 async function check(id,fn){try{await fn();checks[id]={pass:true}}catch(e){checks[id]={pass:false,reason:e?.name==='TimeoutError'?'required visible state or interaction timed out':'locked interaction assertion failed'}}}
 const initial={id:'existing-'+seed,title:synthetic('Existing reminder'),version:2};
+function verifyOuterBoundary(){
+ const status=readFileSync('/proc/self/status','utf8');
+ const value=k=>status.split('\n').find(line=>line.startsWith(k+':'))?.split(':')[1].trim();
+ const caps=['CapInh','CapPrm','CapEff','CapBnd','CapAmb'];
+ if(process.getuid()!==1000||process.geteuid()!==1000||process.getgid()!==1000||process.getegid()!==1000||
+    caps.some(k=>!/^0+$/.test(value(k)??''))||value('NoNewPrivs')!=='1'||value('Seccomp')!=='2')throw Error('outer sandbox boundary violation');
+ // A direct chroot in the outer container must still fail at the kernel.
+ // This also catches accidentally granting CAP_SYS_CHROOT while fixing startup.
+ const deny=spawnSync('chroot',['/tmp','/bin/true'],{encoding:'utf8',timeout:3000,env:{PATH:'/usr/sbin:/usr/bin:/sbin:/bin',LC_ALL:'C'}});
+ if(deny.error||deny.status!==125||!/Operation not permitted/.test(deny.stderr??''))throw Error('outer sandbox boundary violation');
+}
 try{
+ verifyOuterBoundary();
  browser=await chromium.launch({headless:true,chromiumSandbox:true,args:['--disable-dev-shm-usage']});
  // Every test uses a new context and controller-side mock service.
  await check(ids[0],()=>withPage({holdList:true},async s=>{
@@ -122,6 +135,6 @@ try{
 }catch(e){
  // Launch errors are controller-owned. Never emit candidate-influenced raw messages.
  const m=browser?'':String(e?.message??'');
- const failure=browser?'controller-failure':/No usable sandbox|namespace|Operation not permitted|zygote/i.test(m)?'sandbox-unavailable':/read-only|permission denied|EACCES|crashpad/i.test(m)?'runtime-filesystem':/executable|missing dependencies|not found/i.test(m)?'browser-runtime-unavailable':'browser-launch-failure';
+ const failure=browser?'controller-failure':/outer sandbox boundary violation/.test(m)?'sandbox-boundary-violation':/No usable sandbox|namespace|Operation not permitted|zygote/i.test(m)?'sandbox-unavailable':/read-only|permission denied|EACCES|crashpad/i.test(m)?'runtime-filesystem':/executable|missing dependencies|not found/i.test(m)?'browser-runtime-unavailable':'browser-launch-failure';
  console.log(JSON.stringify({schema:1,infrastructureFailure:true,browserSandboxRequested:true,failure}));process.exitCode=2;
 }finally{if(browser)await browser.close()}
