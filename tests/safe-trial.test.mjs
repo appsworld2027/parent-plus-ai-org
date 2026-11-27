@@ -161,9 +161,11 @@ test("gate forwards model calls only", () => {
   for (const [m, u] of [["GET", "/admin"], ["GET", "/v1/../admin"], ["POST", "/admin?x=/v1/messages"], ["DELETE", "/v1/messages"]]) assert.equal(allowed(m, u), false, u);
 });
 
-test("hourly resume is enabled for free-only agents with an explicit emergency stop", () => {
+test("hourly resume is private-only and requires explicit free-agent enablement", () => {
   const resume = read(".github/workflows/agent-resume.yml");
-  assert.match(resume, /if: vars\.UNATTENDED_AGENTS != 'off'/);
+  assert.match(resume, /github\.event\.repository\.private == true/);
+  assert.match(resume, /vars\.UNATTENDED_AGENTS == 'on'/);
+  for (const label of ["ai:lane-a", "ai:lane-b", "ai:design", "ai:database", "ai:integration", "ai:release-ops"]) assert.ok(resume.includes(label), `resume covers ${label}`);
   assert.match(resume, /GROQ_API_KEY/);
   assert.doesNotMatch(resume, /CLAUDE_CODE_OAUTH_TOKEN|CODEX_AUTH_JSON|NVIDIA_NIM_API_KEY/);
 });
