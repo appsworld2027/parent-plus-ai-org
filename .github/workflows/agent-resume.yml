@@ -15,8 +15,8 @@ on:
 
 jobs:
   resume:
-    # Default enabled; set UNATTENDED_AGENTS=off in the caller repo for the emergency stop.
-    if: github.event.repository.private == true && vars.UNATTENDED_AGENTS == 'on'
+    # Explicitly enabled per repository; AI Org may run in its own public repo, external callers must be private.
+    if: vars.UNATTENDED_AGENTS == 'on' && (github.repository == 'appsworld2027/parent-plus-ai-org' || github.event.repository.private == true)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
