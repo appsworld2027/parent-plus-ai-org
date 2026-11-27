@@ -125,7 +125,7 @@ jobs:
           SINCE=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
           gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" --jq "[.[] | select(.created_at > \"$SINCE\") | select(.body | contains(\"ai-org:failed\"))] | last | .body // \"\"" > /tmp/attempt.md 2>/dev/null || true
           sed -i -E '/^[[:space:]]*total[[:space:]]+used[[:space:]]/d; /^Mem:/d; /^Swap:/d' /tmp/attempt.md
-          printf 'Item #%s, stage %s, seat %s. Read the item: gh issue view %s --json title,body,labels,assignees\n' "$NUMBER" "$STAGE" "${SEAT:-none}" "$NUMBER" > /tmp/task.md
+          printf 'Item #%s, stage %s, seat %s. Read issue metadata and body only: gh issue view %s --json title,body,labels,assignees\n' "$NUMBER" "$STAGE" "${SEAT:-none}" "$NUMBER" > /tmp/task.md
           node .ai-org-handbook/scripts/onboarding-pack.mjs --role "$ROLE" --stage "$STAGE" --slug "$SLUG" --seat "$SEAT" --feature "$FEATURE" \
             --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md --max 16000
           cp /tmp/onboarding.md /tmp/agent-logs/onboarding.md
