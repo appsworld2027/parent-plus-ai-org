@@ -1,4 +1,4 @@
-name: Free-model agent smoke test
+name: Free-provider agent smoke test
 on:
   workflow_dispatch:
     inputs:
@@ -30,3 +30,4 @@ jobs:
       stage_override: ai:discovery
     secrets:
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
