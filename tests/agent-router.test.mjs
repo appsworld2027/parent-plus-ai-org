@@ -37,7 +37,7 @@ test("paid engine labels cannot override the free-only policy", () => {
   for (const label of ["engine:claude", "engine:codex"]) {
     const r = route({ labels: ["ai:build", label], engines: all });
     assert.equal(r.engine, "free");
-    assert.equal(r.fallback, true);
+    assert.equal(r.fallback, false);
   }
 });
 test("QA and review always use the distinct free reviewer model, regardless of paid author labels", () => {
@@ -49,6 +49,25 @@ test("QA and review always use the distinct free reviewer model, regardless of p
 test("the free builder is preferred when no engine label is set", () => {
   assert.equal(route({ labels: ["ai:build"], engines: all }).engine, "free");
   assert.equal(route({ labels: ["ai:build"], engines: all }).free_model, FREE_MODELS.builder);
+});
+test("NVIDIA is preferred for builder work while Groq remains the independent reviewer", () => {
+  const providers = { groq: true, nvidia: true };
+  const b = route({ labels: ["ai:build"], engines: freeOnly, freeProviders: providers });
+  const q = route({ labels: ["ai:review"], isPR: true, engines: freeOnly, freeProviders: providers });
+  assert.equal(b.free_model, FREE_MODELS.nvidiaBuilder);
+  assert.equal(b.free_provider, "nvidia");
+  assert.equal(b.free_model_role, "builder");
+  assert.equal(q.free_model, FREE_MODELS.reviewer);
+  assert.equal(q.free_provider, "groq");
+  assert.equal(q.free_model_role, "independent-reviewer");
+  assert.notEqual(b.free_provider, q.free_provider);
+});
+test("builder falls back to Groq when NVIDIA is unavailable; reviewer pauses without Groq", () => {
+  const b = route({ labels: ["ai:build"], engines: freeOnly, freeProviders: { groq: true, nvidia: false } });
+  assert.equal(b.free_model, FREE_MODELS.builder);
+  const q = route({ labels: ["ai:review"], isPR: true, engines: freeOnly, freeProviders: { groq: false, nvidia: true } });
+  assert.equal(q.action, "pause");
+  assert.match(q.reason, /independent review requires the approved Groq reviewer/i);
 });
 test("free engine runs when it is the only engine, with builder and reviewer models", () => {
   const b = route({ labels: ["ai:fix"], engines: freeOnly });
@@ -154,9 +173,10 @@ test("policy: paid engines never run, even when connected or labelled", () => {
     assert.equal(policyRoute({ labels, isPR: true, engines: both }).action, "pause");
   }
 });
-test("policy: model overrides are restricted to the approved Groq free-tier allowlist", () => {
+test("policy: model overrides are restricted to the approved free-provider allowlist", () => {
   assert.equal(policyRoute({ labels: ["ai:tests"], engines: freeOnly, freeModel: "groq/qwen/qwen3.8-27b@medium" }).free_model, "groq/qwen/qwen3.8-27b@medium");
-  for (const freeModel of ["openrouter/vendor/paid-model", "nvidia_nim/a/b", "groq/openai/paid-model", "groq/qwen/qwen3.8-27b MODEL=other"])
+  assert.equal(policyRoute({ labels: ["ai:build"], engines: freeOnly, freeProviders: { groq: true, nvidia: true }, freeModel: FREE_MODELS.nvidiaBuilder }).free_model, FREE_MODELS.nvidiaBuilder);
+  for (const freeModel of ["openrouter/vendor/paid-model", "nvidia_nim/a/b", "deepseek/deepseek-chat", "groq/openai/paid-model", "groq/qwen/qwen3.8-27b MODEL=other"])
     assert.equal(policyRoute({ labels: ["ai:build"], engines: freeOnly, freeModel }).free_model, FREE_MODELS.builder);
 });
 
