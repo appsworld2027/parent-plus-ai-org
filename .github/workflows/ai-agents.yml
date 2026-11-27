@@ -37,7 +37,8 @@ jobs:
 
   resume:
     permissions:
-      issues: read
+      # Needed to persist a claim before any recovery dispatch (Issues API covers PR comments).
+      issues: write
       pull-requests: read
       actions: write
     if: vars.UNATTENDED_AGENTS == 'on' && (github.repository == 'appsworld2027/parent-plus-ai-org' || github.event.repository.private == true) && github.event_name == 'schedule'
