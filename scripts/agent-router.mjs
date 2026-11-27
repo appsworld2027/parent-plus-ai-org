@@ -124,8 +124,8 @@ export function buildBrief(number) {
 }
 
 // AI Org v3: every run starts from the onboarding pack and ends with a validated handover packet.
-export function onboardingRules(number) {
-  return [
+export function onboardingRules(number, { toolMode = "standard", featureSlug = "", stage = "", role = "" } = {}) {
+  const rules = [
     "## Onboarding and handover (every run)",
     "- Read the onboarding pack first; it already contains your role card, RACI, role lessons, relevant product memory, current feature context and task. Do not reread those files or load unrelated handovers.",
     "- For large handbooks and policy files, use targeted grep/sed excerpts; do not load entire files unless the task explicitly requires a full audit. Consult only the relevant section of the AI Org Founder Operating Charter when a policy decision requires it.",
@@ -136,10 +136,16 @@ export function onboardingRules(number) {
     "- At onboarding, meaningful milestones, repeated failures, environment or model changes, and before ending, assess context only from available measurements, progress, repeated work, decisions, dependencies, and risks. Record CONTINUE / COMPACT / SWITCH / ESCALATE; never claim unsupported context metrics or actions.",
     "- FIRST read `/tmp/onboarding.md` completely. It contains the current task context and at most the two latest handovers for this feature. Do not rediscover what it already tells you.",
     "- Your first message is the 5-line Understanding: goal · constraints · known traps · what you must not touch · how you will prove it is done.",
-    "- For non-read-only work, write a handover only when a valid feature slug exists. Never use `_none_`; if no feature slug is assigned, report that fact and do not create a handoff folder. Read-only tasks must never create handoffs.",
     "- Put lessons that would help future features under `## Memory proposals` (fact + evidence). Never edit `docs/ai-memory/` directly; Arjun merges approved memory.",
-    `- Hand over through the packet and a comment on #${number}; never write prompts for another agent. Include checkpoint persistence evidence or state that persistence was unavailable, measured resources or their unavailability, the lifecycle action, and the exact next action.`,
-  ].join("\n");
+  ];
+  if (toolMode === "readonly") {
+    rules.push("- Read-only tasks never create handover packets or write files; report findings only in the explicitly requested issue comment.");
+  } else if (featureSlug) {
+    rules.push(`- Hand over through the validated packet and a comment on #${number}; include checkpoint persistence evidence or state that persistence was unavailable, measured resources or their unavailability, the lifecycle action, and the exact next action.`);
+  } else {
+    rules.push("- No valid feature slug is assigned; do not create a handover packet or write under docs/product/_none_.");
+  }
+  return rules.join("\n");
 }
 // Quinn-Challenger: attacks the author's tests on a different model; must not rewrite them.
 export function challengeBrief(number) {
@@ -173,12 +179,14 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = 
     `2. Read ${kind} #${number} metadata and body only using ${cli} view ${number} --json title,body,labels,assignees. Read comments only when a retry or explicit task requires history.`,
     `3. Do your role's job for this ${kind} only. Keep changes small and reversible. Run the repo's checks before claiming anything.`,
     `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,
-    ...(toolMode === "readonly" ? [] : ["4a. Before creating or posting a handover, validate it with `node scripts/handoff.mjs validate --feature <slug>`. If no valid feature slug is assigned, do not create a handover."]),
+    ...(toolMode === "readonly" ? [] : featureSlug
+      ? [`4a. Create the handover packet at docs/product/${featureSlug}/handoffs/NN-${stage}-${agent.slug}.md on branch ai/contract-${featureSlug}. Generate the template with node .ai-org-handbook/scripts/handoff.mjs template ${stage} ${agent.slug}; fill every section, then validate with node .ai-org-handbook/scripts/handoff.mjs validate <path> before committing and pushing.`]
+      : ["4a. No valid feature slug is assigned; do not create a handover packet."]),
     ...(toolMode === "readonly"
       ? ["5. Read-only mode: task scope overrides role-card suggestions. Do not modify files, branches, labels, commits, PRs, handoffs or any other issue. The workflow owns stage transitions. Only perform the specific issue comment explicitly requested by the task."]
       : ["5. Do not change issue stage labels or issue state; the workflow owns stage transitions. Apply only PR labels explicitly required by your role brief." ]),
     `6. Never print secrets. Never contact the founder except through ai:founder-decision or ai:founder-test issues.`,
-    "", onboardingRules(number),
+    "", onboardingRules(number, { toolMode, featureSlug, stage, role: agent.slug }),
     ...(["ai:review", "ai:tests-review", "ai:tests-signoff"].includes(stage) ? [
       "If the product manifest configures loop.aiVerdictReviewerIds, use the assigned review account. Post the verdict directly on the reviewed PR after pushing your handover. Include a standalone HTML comment in the form <!-- ai-org:reviewed-commit SHA --> using the full SHA you actually reviewed. Confirm it is still the PR head before posting.",
     ] : []),
