@@ -111,7 +111,7 @@ test("resume covers every routed role; only AI Org self-work may run in a public
   assert.ok(resume.includes("github.event.repository.private == true"));
   assert.ok(resume.includes("vars.UNATTENDED_AGENTS == 'on'"));
   for (const label of ["ai:discovery", "ai:plan", "ai:lane-a", "ai:lane-b", "ai:design", "ai:tests", "ai:tests-review", "ai:tests-signoff", "ai:build", "ai:database", "ai:integration", "ai:qa", "ai:review", "ai:release-ops", "ai:fix"]) {
-    assert.ok(resume.includes('. == "' + label + '"'), "resume includes " + label);
+    assert.ok(resume.includes(JSON.stringify(label)), "resume includes " + label);
   }
   const caller = read("../.github/workflows/ai-agents.yml");
   assert.ok(caller.includes("vars.UNATTENDED_AGENTS == 'on'"));
