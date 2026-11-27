@@ -1,0 +1,26 @@
+{
+  "runId": 46055915920,
+  "purpose": "Accepted saved-draft chunk and provider stop",
+  "files": [
+    {
+      "file": "publish-first/provider-status.json",
+      "sha256": "af668e51eb5e22f5142d44bac6bd56dc6d605ec9f79560c806ac0268fab5b393",
+      "utf8": "{\"provider\":\"groq\",\"model\":\"qwen/qwen3.8-27b\",\"status\":429,\"limits\":{\"retry-after\":\"367\",\"x-ratelimit-reset-requests\":\"2m52.8s\",\"x-ratelimit-reset-tokens\":\"1.14s\",\"x-ratelimit-remaining-requests\":\"998\",\"x-ratelimit-remaining-tokens\":\"7981\"},\"attempt\":1,\"retried\":false}"
+    },
+    {
+      "file": "saved-draft/artifact.json",
+      "sha256": "a9b6b1566740ae4f159245bfb967b4c540f1297381ad11e488b9d1585b79862d",
+      "utf8": "{\n  \"operations\": [\n    [\n      \"H\",\n      \"Today\"\n    ],\n    [\n      \"B\",\n      \"Courses\"\n    ],\n    [\n      \"H\",\n      \"Courses\"\n    ],\n    [\n      \"B\",\n      \"Create course\"\n    ],\n    [\n      \"F\",\n      \"Course title\",\n      \"Course Alpha\"\n    ],\n    [\n      \"F\",\n      \"Stage 1 title\",\n      \"Intro\"\n    ],\n    [\n      \"F\",\n      \"Stage 1 objective 1\",\n      \"Learn basics\"\n    ],\n    [\n      \"B\",\n      \"Save draft\"\n    ],\n    [\n      \"X\",\n      \"Course Alpha\"\n    ]\n  ],\n  \"limitations\": \"Assumes 'Create course' opens a form with the specified labels. Assumes 'Save draft' returns to the course list where the new draft is visible.\"\n}"
+    },
+    {
+      "file": "saved-draft/raw.txt",
+      "sha256": "b4cd68c90b27f6617fa019f513b6d9f69bf8c5e95e320aec23a78fd3be3ebe3f",
+      "utf8": "{\n  \"operations\": [\n    [\n      \"assertHeading\",\n      \"Today\"\n    ],\n    [\n      \"clickButton\",\n      \"Courses\"\n    ],\n    [\n      \"assertHeading\",\n      \"Courses\"\n    ],\n    [\n      \"clickButton\",\n      \"Create course\"\n    ],\n    [\n      \"fillInput\",\n      \"Course title\",\n      \"Course Alpha\"\n    ],\n    [\n      \"fillInput\",\n      \"Stage 1 title\",\n      \"Intro\"\n    ],\n    [\n      \"fillInput\",\n      \"Stage 1 objective 1\",\n      \"Learn basics\"\n    ],\n    [\n      \"clickButton\",\n      \"Save draft\"\n    ],\n    [\n      \"assertText\",\n      \"Course Alpha\"\n    ]\n  ],\n  \"limitations\": \"Assumes 'Create course' opens a form with the specified labels. Assumes 'Save draft' returns to the course list where the new draft is visible.\"\n}\n"
+    },
+    {
+      "file": "saved-draft/receipt.json",
+      "sha256": "5e0b84f26d9b8b25e700bdb182b8f932212927d3d1e6973955c2bd4138229138",
+      "utf8": "{\n  \"schema\": \"course-author-chunk/v1\",\n  \"key\": \"saved-draft\",\n  \"id\": \"CRS-01-SC-004\",\n  \"source\": \"710082b2d8cf3c1007086df31f87b34ae8e02573\",\n  \"contractHash\": \"6695ab62149003b833c1afa04a2f6e674db3494efe7048864357095de07176aa\",\n  \"contextSha256\": \"e1d27efc7dcc8833590ee6f90d5fd94313716dfc5570b5c4de9f89028079d782\",\n  \"artifactSha256\": \"24da6bef3033b1cb35e1660fcf2682aed8000bb5fe2e93b7af996b95dd41ac12\",\n  \"rawSha256\": \"b4cd68c90b27f6617fa019f513b6d9f69bf8c5e95e320aec23a78fd3be3ebe3f\",\n  \"provider\": \"groq\",\n  \"actualModel\": \"qwen/qwen3.8-27b\",\n  \"usage\": {\n    \"queue_time\": 0.049836141,\n    \"prompt_tokens\": 434,\n    \"prompt_time\": 0.053976023,\n    \"completion_tokens\": 232,\n    \"completion_time\": 0.672670917,\n    \"total_tokens\": 666,\n    \"total_time\": 0.72664694\n  },\n  \"limits\": {\n    \"retry-after\": null,\n    \"x-ratelimit-reset-requests\": \"2m52.8s\",\n    \"x-ratelimit-reset-tokens\": \"3.997s\",\n    \"x-ratelimit-remaining-requests\": \"998\",\n    \"x-ratelimit-remaining-tokens\": \"7467\"\n  },\n  \"ms\": 984\n}"
+    }
+  ]
+}
