@@ -18,4 +18,4 @@ jobs:
         with:
           node-version: '22'
       - name: Run deterministic admission and receipt regressions
-        run: node --test tests/frontier-admission.test.mjs tests/frontier-receipts.test.mjs
+        run: node --test tests/frontier-admission.test.mjs tests/frontier-receipts.test.mjs tests/frontier-casebook.test.mjs
