@@ -83,3 +83,10 @@ export async function evaluateQuinnTests(testCode,{image,clean,mutants}={}) {
   return {schema:1,kind:"synthetic-qa-mutation-screen",testHash:digest(testCode),status:pass?"mutation-screen-pass":"mutation-screen-fail",
     clean:good,mutants:failures,qualified:false};
 }
+
+/** Reviewer reproduction test is untrusted authored code, run in exactly the
+ * same isolated no-network sandbox. The controller supplies the exact candidate.
+ * This is evidence only and cannot issue independent-review approval. */
+export async function evaluateReviewReproduction(code,testCode,{image}={}) {
+  return runIsolatedSuite(code,testCode,{image});
+}
