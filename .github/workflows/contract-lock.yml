@@ -35,7 +35,7 @@ jobs:
           HANDBOOK_ACCESS: ${{ secrets.AI_ORG_HANDBOOK_SSH_KEY != '' }}
         run: |
           if [ "$HANDBOOK_ACCESS" != true ]; then
-            echo "::error::AI_ORG_HANDBOOK_SSH_KEY is missing from the caller."
+            echo "::error::Private AI Org handbook access requires AI_ORG_HANDBOOK_SSH_KEY (read-only deploy key for the AI Org repository)."
             exit 1
           fi
       - name: Check out AI Org tools

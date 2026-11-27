@@ -88,9 +88,7 @@ Claude Code and Codex are already excellent. The AI Org must never make them slo
 
 ## 2. Autonomy policy (founder decision, valid until 2027-01-20)
 A product repo's own owner rules on branches, merges, releases and data take precedence over this section.
-**Unattended agents** (GitHub background workers) are enabled by default when the free Groq key is present. Set the
-`UNATTENDED_AGENTS` Actions variable to `off` in a caller repo for the emergency stop. If the free key is absent,
-the router pauses without starting a paid engine. Live founder conversations are not affected.
+**Unattended agents** (GitHub background workers) require the one-time `UNATTENDED_AGENTS=on` Actions variable in each approved repository. The current founder decision enables AI Org only; Parent Plus and Codex remain off until separately approved. AI Org may run its own organisation work in its public repository; external product callers must be private. Set the variable to `off` to stop the repository. This is a repository-level switch, not a per-task approval. If the free Groq key is absent or the caller fails the repository gate, the worker pauses without a paid fallback. Live founder conversations are not affected.
 Turning a switch on or off is a founder decision. Agents never change the switches.
 Protected paths, founder-only: `.github/workflows/**`, `.ai-org/**`, `CODEOWNERS`, repository variables and secrets settings.
 Unattended agents never edit them; a PR that does is blocked by `protected-paths.yml`. Live sessions may edit them only when the founder asked for that change.

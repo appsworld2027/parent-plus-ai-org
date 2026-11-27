@@ -1,0 +1,32 @@
+name: Free-model agent smoke test
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Existing read-only smoke-test issue (title must start [SMOKE TEST])
+        required: false
+        default: "93"
+        type: string
+      handbook_ref:
+        description: AI Org handbook commit, branch or tag
+        required: false
+        default: main
+        type: string
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+  actions: read
+  statuses: read
+jobs:
+  smoke:
+    if: vars.UNATTENDED_AGENTS == 'on' && (github.repository == 'appsworld2027/parent-plus-ai-org' || github.event.repository.private == true)
+    uses: ./.github/workflows/agent-worker.yml
+    with:
+      number: ${{ github.event_name == 'workflow_dispatch' && inputs.issue_number || '93' }}
+      handbook_ref: ${{ github.event_name == 'workflow_dispatch' && inputs.handbook_ref || github.event.pull_request.head.sha }}
+      dispatch_workflow: ai-agents.yml
+      tool_mode: readonly
+      stage_override: ai:discovery
+    secrets:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}

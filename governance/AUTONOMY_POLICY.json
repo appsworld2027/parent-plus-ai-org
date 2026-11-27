@@ -42,6 +42,7 @@
     "neverPersistSecretsOrCustomerPersonalData": true
   },
   "notes": [
+    "Unattended execution requires the caller Actions variable UNATTENDED_AGENTS=on. AI Org may run organisation work in its own public repository; external product callers must be private. Parent Plus remains off until separately approved.",
     "This policy is the machine-readable authority contract for AI Org.",
     "Unattended development agents use only the Groq free tier through the pinned Free Claude Code adapter.",
     "If the free key, model, or quota is unavailable, execution pauses; no paid fallback or automatic upgrade is permitted.",

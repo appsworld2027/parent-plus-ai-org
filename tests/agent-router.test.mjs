@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const autonomyPolicy = JSON.parse(readFileSync(new URL("../governance/AUTONOMY_POLICY.json", import.meta.url), "utf8"));
-import { route as policyRoute, ENGINES, ALLOWED_ENGINES, agentInfo, buildPrompt, pauseComment, PAUSE_MARKER, FREE_MODELS, testsBrief, buildBrief, STAGE_SEAT } from "../scripts/agent-router.mjs";
+import { route as policyRoute, ENGINES, ALLOWED_ENGINES, agentInfo, buildPrompt, pauseComment, PAUSE_MARKER, FREE_MODELS, testsBrief, buildBrief, STAGE_SEAT, STAGE_ROLE } from "../scripts/agent-router.mjs";
 
 // Tests exercise the canonical policy: caller inputs cannot widen the allowed engine set.
 const route = (a) => policyRoute(a);
@@ -15,7 +15,14 @@ test("founder and blocked stages never run an agent", () => {
   for (const s of ["ai:founder-decision", "ai:founder-test", "ai:blocked", "ai:release", "ai:delivery", "ai:contract"]) assert.equal(route({ labels: [s, "ai:build"], engines: all }).action, "skip");
 });
 test("stages map to the right agents", () => {
-  const cases = { "ai:discovery": "maya-ai-pm", "ai:plan": "arjun-cpto", "ai:tests": "quinn-qa", "ai:tests-review": "quinn-qa", "ai:tests-signoff": "arjun-cpto", "ai:build": "dev-coder", "ai:qa": "quinn-qa", "ai:review": "rex-reviewer", "ai:fix": "dev-coder" };
+  const cases = {
+    "ai:discovery": "maya-ai-pm", "ai:plan": "arjun-cpto",
+    "ai:lane-a": "kiran-pjm-a", "ai:lane-b": "leela-pjm-b",
+    "ai:design": "iris-design", "ai:database": "tara-database", "ai:integration": "ravi-integration",
+    "ai:tests": "quinn-qa", "ai:tests-review": "quinn-qa", "ai:tests-signoff": "arjun-cpto",
+    "ai:build": "dev-coder", "ai:qa": "quinn-qa", "ai:review": "rex-reviewer",
+    "ai:fix": "dev-coder", "ai:release-ops": "sam-release"
+  };
   for (const [s, role] of Object.entries(cases)) assert.equal(route({ labels: [s], engines: both }).role, role);
 });
 test("Owner line routes build work to Tara or Ravi", () => {
@@ -50,8 +57,11 @@ test("free engine runs when it is the only engine, with builder and reviewer mod
   assert.equal(q.engine, "free"); assert.equal(q.free_model, FREE_MODELS.reviewer);
   assert.notEqual(FREE_MODELS.builder, FREE_MODELS.reviewer);
 });
-test("every routed role has an agent file with a name", () => {
-  for (const slug of ["maya-ai-pm", "arjun-cpto", "dev-coder", "tara-database", "ravi-integration", "quinn-qa", "rex-reviewer"]) {
+test("all 11 organization roles are explicitly routable and have a role file", () => {
+  const expected = ["arjun-cpto", "dev-coder", "iris-design", "kiran-pjm-a", "leela-pjm-b",
+    "maya-ai-pm", "quinn-qa", "ravi-integration", "rex-reviewer", "sam-release", "tara-database"];
+  assert.deepEqual([...new Set(Object.values(STAGE_ROLE))].sort(), [...expected].sort());
+  for (const slug of expected) {
     const a = agentInfo(slug); assert.ok(a.name && a.role, slug);
   }
 });
@@ -60,6 +70,28 @@ test("prompt and pause comment carry the agent identity", () => {
   const p = buildPrompt({ agent, number: 7, isPR: true, repo: "o/r" });
   assert.match(p, /You are Quinn/); assert.match(p, /gh pr view 7/); assert.match(p, /quinn-qa\.md/);
   assert.ok(pauseComment({ agent, stage: "ai:qa" }).startsWith(PAUSE_MARKER));
+});
+
+
+test("read-only runs never instruct the agent to advance labels or mutate other resources", () => {
+  const prompt = buildPrompt({
+    agent: agentInfo("maya-ai-pm"),
+    number: 91,
+    isPR: false,
+    repo: "appsworld2027/parent-plus-ai-org",
+    stage: "ai:discovery",
+    toolMode: "readonly"
+  });
+  assert.match(prompt, /Read-only mode/);
+  assert.match(prompt, /do not modify files, branches, labels, commits, PRs/i);
+  assert.doesNotMatch(prompt, /Move the stage label/);
+});
+
+test("read-only runs never receive handover creation or validation instructions", () => {
+  const p = buildPrompt({ agent: agentInfo("maya-ai-pm"), number: 91, isPR: false, repo: "o/r", stage: "ai:discovery", toolMode: "readonly", featureSlug: "registration" });
+  assert.match(p, /Read-only mode/);
+  assert.match(p, /Read-only tasks never create handover packets/);
+  assert.doesNotMatch(p, /handoff\.mjs template|handoff\.mjs validate/);
 });
 
 test("Quinn's prompt points to the QA charter and Maya's to the contract playbook", () => {
@@ -101,8 +133,8 @@ test("v3: QA stages carry seats, onboarding + handover rules, and the right brie
   assert.equal(route({ labels: ["ai:tests-signoff"], engines: freeOnly }).seat, "accountable");
   assert.equal(STAGE_SEAT["ai:tests"], "author");
   const q = agentInfo("quinn-qa"), a = agentInfo("arjun-cpto");
-  const ch = buildPrompt({ agent: q, number: 42, isPR: false, repo: "o/r", stage: "ai:tests-review" });
-  assert.match(ch, /onboarding\.md/); assert.match(ch, /handoff\.mjs validate/); assert.match(ch, /Do NOT edit the spec/); assert.match(ch, /would still pass if the feature were built wrong/);
+  const ch = buildPrompt({ agent: q, number: 42, isPR: false, repo: "o/r", stage: "ai:tests-review", featureSlug: "registration" });
+  assert.match(ch, /onboarding\.md/); assert.match(ch, /handoff\.mjs template ai:tests-review quinn-qa/); assert.match(ch, /handoff\.mjs validate <path>/); assert.match(ch, /Do NOT edit the spec/); assert.match(ch, /would still pass if the feature were built wrong/);
   const so = buildPrompt({ agent: a, number: 42, isPR: false, repo: "o/r", stage: "ai:tests-signoff" });
   assert.match(so, /Verdict: APPROVE/); assert.match(so, /Memory proposals/); assert.match(so, /ai:founder-decision/);
   assert.match(buildPrompt({ agent: q, number: 42, isPR: false, repo: "o/r", stage: "ai:tests" }), /challenger or CPTO verdict of CHANGES/);

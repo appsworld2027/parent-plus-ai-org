@@ -1,6 +1,6 @@
 # Private repository connectivity (functional prerequisite)
 
-The four AppsWorld repositories are private as of 26 November 2026. The authenticated audit returned HTTP 403 for branch protection and rulesets. Founder direction: defer branch protection and security hardening; prioritize a working autonomous delivery system. Do not make repositories public or purchase services to work around this.
+Live GitHub metadata audit on 27 November 2026 reports: `parent-plus-ai-org` public, `ai-org-studio` public, `Parent-plus-` public, and `studio-garage` private. This does not meet the intended all-private security posture. Do not enable unattended agents or send confidential product code to hosted models until all four repositories are private. The earlier 26 November private-state note is superseded by this live check. Branch protection/ruleset access remains unverified; defer changing it until repository visibility and workflow connectivity are corrected.
 
 The dependency is: product caller → AI Org reusable workflow → handbook checkout → router and loop controller. The caller's GITHUB_TOKEN is restricted to its own repository. For a separate private handbook checkout, use one read-only SSH deploy key. Add its public key to parent-plus-ai-org as a read-only deploy key, then store the private key as the Actions secret AI_ORG_HANDBOOK_SSH_KEY in Parent Plus and Studio. Same-repository jobs use the repository GITHUB_TOKEN. External caller jobs pass the SSH key only to actions/checkout and set persist-credentials: false. No personal access token is required.
 

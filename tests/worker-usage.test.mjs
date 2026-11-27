@@ -10,8 +10,10 @@ test("exports adapter model and measured fields from the result, without transcr
   const report = workerUsage(events.map(JSON.stringify).join("\n") + "\n{", { agent_name: "Maya", free_model: "configured" });
   assert.equal(report.rows.length, 1);
   assert.deepEqual(report.rows[0], {
-    engine: "github:groq", role: "Maya", model: "served", modelSource: "adapter",
-    requestedModel: "configured", input: 12, output: 0, cache: null, cost: null,
+    engine: "github:groq", provider: "groq", role: "Maya", model: "configured", modelSource: "router",
+    clientModelAlias: "served", requestedModel: "configured", input: 12, output: 0, cache: null, cost: null,
+    usageSource: "claude-code-client", providerUsageConfirmed: false,
+    billingStatus: "free-tier route; provider billing details are not exposed by the adapter",
   });
   assert.doesNotMatch(JSON.stringify(report), /fictional/);
 });

@@ -1,6 +1,5 @@
-# Reusable agent worker. Called by each repo's ai-agents.yml when an ai:* stage label is added
-# (or by workflow_dispatch to chain agent -> agent). The router decides: skip, pause (no
-# engine connected) or run the free Groq model through the pinned Free Claude Code adapter as the named agent.
+# Reusable agent worker. The router assigns a role and the canonical free-only execution path.
+# The workflow owns issue-stage transitions; agents provide implementation and evidence.
 name: Agent worker
 
 on:
@@ -20,17 +19,32 @@ on:
         required: false
         type: string
         default: ai-agents.yml
-    secrets:
-      AI_ORG_HANDBOOK_SSH_KEY:
+      tool_mode:
+        description: standard or readonly; readonly is restricted to read and one issue comment
         required: false
+        type: string
+        default: standard
+      stage_override:
+        description: Restricted synthetic-stage override for read-only AI Org smoke tests only
+        required: false
+        type: string
+        default: ""
+      feature_slug:
+        description: Optional stable feature slug; blank during initial discovery
+        required: false
+        type: string
+        default: ""
+    secrets:
       GROQ_API_KEY:
+        required: false
+      AI_ORG_HANDBOOK_SSH_KEY:
         required: false
 
 jobs:
   agent:
-    # Founder-controlled emergency stop: set UNATTENDED_AGENTS=off in the caller repo.
-    # Unset means enabled; a missing free-model key still causes the router to pause.
-    if: vars.UNATTENDED_AGENTS != 'off'
+    if: >-
+      vars.UNATTENDED_AGENTS == 'on' &&
+      (github.repository == 'appsworld2027/parent-plus-ai-org' || github.event.repository.private == true)
     runs-on: ubuntu-latest
     timeout-minutes: 95
     concurrency:
@@ -39,6 +53,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       NUMBER: ${{ inputs.number }}
+      TOOL_MODE: ${{ inputs.tool_mode }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -53,6 +68,7 @@ jobs:
             echo "::error::Private AI Org handbook access requires AI_ORG_HANDBOOK_SSH_KEY (read-only deploy key for the AI Org repository)."
             exit 1
           fi
+
       - name: Load AI Org handbook
         uses: actions/checkout@v5
         with:
@@ -69,38 +85,61 @@ jobs:
 
       - name: Read item
         id: item
+        env:
+          STAGE_OVERRIDE: ${{ inputs.stage_override }}
+          INPUT_FEATURE_SLUG: ${{ inputs.feature_slug }}
         run: |
           set -euo pipefail
           gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER" > /tmp/item.json
           jq -r '.body // ""' /tmp/item.json > /tmp/body.md
-          echo "labels=$(jq -r '[.labels[].name] | join(",")' /tmp/item.json)" >> "$GITHUB_OUTPUT"
+          TITLE=$(jq -r '.title // ""' /tmp/item.json)
+          LABELS=$(jq -r '[.labels[].name] | join(",")' /tmp/item.json)
+          STAGE=$(jq -r '[.labels[].name | select(startswith("ai:"))] | first // ""' /tmp/item.json)
+          if [ -n "$STAGE_OVERRIDE" ]; then
+            if [ "$GITHUB_REPOSITORY" != "appsworld2027/parent-plus-ai-org" ] || [ "$TOOL_MODE" != "readonly" ] || [ "$STAGE_OVERRIDE" != "ai:discovery" ] || [[ ! "$TITLE" =~ ^\[SMOKE\ TEST\] ]]; then
+              echo "::error::Synthetic stage override is restricted to read-only AI Org smoke-test issues."
+              exit 1
+            fi
+            STAGE="$STAGE_OVERRIDE"
+            LABELS="$STAGE_OVERRIDE"
+          fi
+          FEATURE_SLUG="$INPUT_FEATURE_SLUG"
+          if [ -z "$FEATURE_SLUG" ]; then
+            FEATURE_SLUG=$(sed -nE 's/^[[:space:]]*Feature slug:[[:space:]]*([a-z0-9]+(-[a-z0-9]+)*)[[:space:]]*$/\1/p' /tmp/body.md | head -1)
+          fi
+          if [ -n "$FEATURE_SLUG" ] && ! [[ "$FEATURE_SLUG" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+            echo "::error::Invalid feature slug: $FEATURE_SLUG"
+            exit 1
+          fi
+          echo "labels=$LABELS" >> "$GITHUB_OUTPUT"
           echo "is_pr=$(jq -r 'has("pull_request")' /tmp/item.json)" >> "$GITHUB_OUTPUT"
-          echo "stage=$(jq -r '[.labels[].name | select(startswith("ai:"))] | first // ""' /tmp/item.json)" >> "$GITHUB_OUTPUT"
+          echo "stage=$STAGE" >> "$GITHUB_OUTPUT"
+          echo "feature_slug=$FEATURE_SLUG" >> "$GITHUB_OUTPUT"
 
       - name: Route
         id: router
         env:
           LABELS: ${{ steps.item.outputs.labels }}
           IS_PR: ${{ steps.item.outputs.is_pr }}
+          FEATURE_SLUG: ${{ steps.item.outputs.feature_slug }}
           ENGINE_FREE: ${{ secrets.GROQ_API_KEY != '' }}
+          TOOL_MODE: ${{ inputs.tool_mode }}
         run: |
           set -euo pipefail
           PRFLAG=""; [ "$IS_PR" = "true" ] && PRFLAG="--pr"
-          # Optional per-stage free model chosen by the product (after a model trial): .ai-org/manifest.json ai.freeModels["ai:tests"]
           STAGE=$(printf '%s' "$LABELS" | tr ',' '\n' | grep -m1 '^ai:' || true)
           SEAT=$(case "$STAGE" in ai:tests) echo author;; ai:tests-review) echo challenger;; ai:tests-signoff) echo accountable;; *) echo "";; esac)
           FREE_MODEL_OVERRIDE=$(jq -r --arg s "$STAGE" --arg seat "$SEAT" '(.raci["ai:tests"].models[$seat] // .ai.freeModels[$s]) // ""' .ai-org/manifest.json 2>/dev/null || true)
-          export FREE_MODEL_OVERRIDE; [ -n "$FREE_MODEL_OVERRIDE" ] && echo "free model for $STAGE from manifest: $FREE_MODEL_OVERRIDE"
-          node .ai-org-handbook/scripts/agent-router.mjs --labels "$LABELS" $PRFLAG --body-file /tmp/body.md --number "$NUMBER" --repo "$GITHUB_REPOSITORY" | tee /tmp/route.json
+          export FREE_MODEL_OVERRIDE
+          node .ai-org-handbook/scripts/agent-router.mjs --labels "$LABELS" $PRFLAG --tool-mode "$TOOL_MODE" --body-file /tmp/body.md --number "$NUMBER" --repo "$GITHUB_REPOSITORY" | tee /tmp/route.json
           {
             echo "### AI Org router — #$NUMBER"
-            echo '```json'; cat /tmp/route.json; echo '```'
+            echo "Router result:"
+            cat /tmp/route.json
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # Install the product's dependencies and test browser BEFORE the agent starts, so its time budget goes to the
-      # work itself (2026-11-23: Quinn spent part of a 50-minute run discovering and installing them).
       - name: Prepare the product workspace (dependencies + test browser)
-        if: steps.router.outputs.action == 'run'
+        if: steps.router.outputs.action == 'run' && inputs.tool_mode != 'readonly' && (steps.router.outputs.stage == 'ai:build' || steps.router.outputs.stage == 'ai:fix' || steps.router.outputs.stage == 'ai:qa' || steps.router.outputs.stage == 'ai:tests')
         continue-on-error: true
         run: |
           set -uo pipefail
@@ -109,8 +148,6 @@ jobs:
             npx playwright install --with-deps chromium >>/tmp/prepare.log 2>&1 && echo "Playwright chromium: OK" || echo "Playwright install failed"
           fi
 
-      # AI Org v3: no agent starts from zero. Build the onboarding pack (role + RACI seat, role lessons, product memory,
-      # contract + every handover so far, why the previous attempt failed, the task) at /tmp/onboarding.md.
       - name: Onboarding pack
         if: steps.router.outputs.action == 'run'
         shell: bash --noprofile --norc {0}
@@ -118,29 +155,37 @@ jobs:
           STAGE: ${{ steps.item.outputs.stage }}
           ROLE: ${{ steps.router.outputs.role }}
           SEAT: ${{ steps.router.outputs.seat }}
+          TOOL_MODE: ${{ inputs.tool_mode }}
+          FEATURE_SLUG: ${{ steps.item.outputs.feature_slug }}
         run: |
           set -uo pipefail
           mkdir -p /tmp/agent-logs
-          SLUG=$(grep -o 'ai/contract-[a-z0-9-]*' /tmp/body.md | head -1 | sed 's#ai/contract-##')
-          [ -n "$SLUG" ] || SLUG=$(jq -r '.title' /tmp/item.json | grep -o '\[[a-z0-9-]*\]$' | tr -d '[]')
+          SLUG=$(grep -o 'ai/contract-[a-z0-9-]*' /tmp/body.md | head -1 | sed 's#ai/contract-##' || true)
+          if [ -z "$SLUG" ]; then
+            SLUG=$(jq -r '.title' /tmp/item.json | sed -nE 's/.*\[([a-z0-9-]+)\]$/\1/p')
+          fi
+          [ -n "$SLUG" ] || SLUG="$FEATURE_SLUG"
           FEATURE=""
           if [ -n "$SLUG" ] && git ls-remote --exit-code --heads origin "ai/contract-$SLUG" >/dev/null 2>&1; then
-            # Read the feature branch in a separate worktree so the agent's own checkout stays clean.
             git fetch -q origin "ai/contract-$SLUG" && git worktree add -q -f --detach /tmp/feature-wt "origin/ai/contract-$SLUG" && FEATURE="/tmp/feature-wt/docs/product/$SLUG"
           fi
-          # Trial controls are known-good answers for model trials; agents must never see them.
           rm -rf .ai-org-handbook/trial
-          # Attempt memory: the most recent failed run on this item, summarised by the worker that failed.
-          # Only failures from the last 24 hours count as "the previous attempt"; older ones are history, not guidance.
           SINCE=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
-          gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" --jq "[.[] | select(.created_at > \"$SINCE\") | select(.body | contains(\"ai-org:failed\"))] | last | .body // \"\"" > /tmp/attempt.md 2>/dev/null || true
-          printf 'Item #%s, stage %s, seat %s. Read the item: gh issue view %s --comments\n' "$NUMBER" "$STAGE" "${SEAT:-none}" "$NUMBER" > /tmp/task.md
-          node .ai-org-handbook/scripts/onboarding-pack.mjs --role "$ROLE" --stage "$STAGE" --slug "$SLUG" --seat "$SEAT" --feature "$FEATURE" \
-            --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md
+          if [ "$TOOL_MODE" = "readonly" ]; then
+            : > /tmp/attempt.md
+          else
+            gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" --jq "[.[] | select(.created_at > \"$SINCE\") | select(.body | contains(\"ai-org:failed\"))] | last | .body // \"\"" > /tmp/attempt.md 2>/dev/null || true
+          fi
+          sed -i -E '/^[[:space:]]*total[[:space:]]+used[[:space:]]/d; /^Mem:/d; /^Swap:/d' /tmp/attempt.md
+          printf 'Item #%s, stage %s, seat %s. Read issue metadata and body only: gh issue view %s --json title,body,labels,assignees\n' "$NUMBER" "$STAGE" "${SEAT:-none}" "$NUMBER" > /tmp/task.md
+          READONLY_FLAG=""; [ "$TOOL_MODE" = "readonly" ] && READONLY_FLAG="--read-only"
+          node .ai-org-handbook/scripts/onboarding-pack.mjs --role "$ROLE" --stage "$STAGE" --slug "$SLUG" --seat "$SEAT" --feature "$FEATURE" --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md --max 8000 $READONLY_FLAG
           cp /tmp/onboarding.md /tmp/agent-logs/onboarding.md
           echo "onboarding pack: $(wc -c < /tmp/onboarding.md) characters for $ROLE ($STAGE, seat ${SEAT:-none}, feature ${SLUG:-none})"
           echo "slug=$SLUG" >> "$GITHUB_ENV"
-          echo "contract_before=$(git rev-parse -q --verify "origin/ai/contract-$SLUG" 2>/dev/null || true)" >> "$GITHUB_ENV"
+          CONTRACT_BEFORE=""
+          if [ -n "$SLUG" ]; then CONTRACT_BEFORE=$(git rev-parse -q --verify "origin/ai/contract-$SLUG" 2>/dev/null || true); fi
+          echo "contract_before=$CONTRACT_BEFORE" >> "$GITHUB_ENV"
 
       - name: Pause (no engine connected)
         if: steps.router.outputs.action == 'pause'
@@ -162,10 +207,13 @@ jobs:
           FREE_MODEL: ${{ steps.router.outputs.free_model }}
           PROMPT: ${{ steps.router.outputs.prompt }}
           AGENT_NAME: ${{ steps.router.outputs.agent_name }}
+          AGENT_ROLE: ${{ steps.router.outputs.agent_role }}
+          STAGE: ${{ steps.item.outputs.stage }}
+          TOOL_MODE: ${{ inputs.tool_mode }}
+          FEATURE_SLUG: ${{ steps.item.outputs.feature_slug }}
         run: |
           set -uo pipefail
           mkdir -p /tmp/agent-logs
-          # Fail closed before installing the coding CLI: prove the selected free model can make a tool call.
           MODEL_ROUTE="$FREE_MODEL"; MODEL_ID="${MODEL_ROUTE#groq/}"; MODEL_ID="${MODEL_ID%%@*}"
           jq -n --arg model "$MODEL_ID" '{
             model:$model,
@@ -181,7 +229,7 @@ jobs:
             if [ "$HTTP_STATUS" = "429" ] || [[ "$HTTP_STATUS" =~ ^5 ]]; then
               touch /tmp/agent-logs/groq-probe-retryable
               RETRY_AFTER=$(awk 'tolower($1)=="retry-after:" {print $2}' /tmp/agent-logs/groq-probe.headers | tr -d '\r' | tail -1)
-              echo "Groq free tier temporarily unavailable (HTTP $HTTP_STATUS, Retry-After=${RETRY_AFTER:-unknown})."
+              echo "Groq free tier temporarily unavailable (HTTP $HTTP_STATUS, Retry-After=$RETRY_AFTER)."
             else
               echo "::error::Groq free model preflight failed (HTTP $HTTP_STATUS); no agent was started."
               jq -r '.error.message // "Provider request failed."' /tmp/agent-logs/groq-probe-response.json | cut -c1-300
@@ -198,7 +246,6 @@ jobs:
           uv tool install "free-claude-code==6.19.56" >/dev/null
           npm install -g @anthropic-ai/claude-code >/dev/null
           mkdir -p "$HOME/.fcc" "$HOME/.claude"
-          # FREE_MODEL is an approved Groq free-tier route; an optional effort suffix is forwarded to FCC.
           EFFORT=""; case "$FREE_MODEL" in *@*) EFFORT="${FREE_MODEL##*@}"; FREE_MODEL="${FREE_MODEL%@*}";; esac
           printf 'GROQ_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$GROQ_API_KEY" "$FREE_MODEL" > "$HOME/.fcc/.env"
           [ -n "$EFFORT" ] && printf 'REASONING_POLICY=%s\n' "$EFFORT" >> "$HOME/.fcc/.env" && echo "reasoning effort: $EFFORT"
@@ -210,30 +257,77 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           PROMPT="$PROMPT
           7. Engine facts: you are running on the model $FREE_MODEL, served by the Groq free tier through Free Claude Code. You are not a Claude model. Whenever you name the model or engine that did the work (comments, commits, PRs), state exactly this.
-          8. Post every comment and PR body with --body-file pointing to a file you wrote first (never inline --body), so code formatting survives.
-          9. Evidence rule: every claim that checks passed must link a CI run or quote the command and its result line."
+          8. Normal work: use --body-file for comments and PR bodies. Read-only mode: the only permitted write is the requested issue comment; use gh issue comment --body with a single-quoted plain-text body, never unescaped backticks or \$() shell substitutions; do not create files.
+          9. Feature slug: $FEATURE_SLUG. Never use literal _none_. If no feature slug is assigned, do not create a handoff.
+          10. Do not change issue stage labels or issue state; the workflow owns stage transitions.
+          11. Evidence rule: every claim that checks passed must link a CI run or quote the command and its result line."
           if [ -f .ai-org/manifest.json ] && jq -e '.governance.autoMerge == false' .ai-org/manifest.json >/dev/null; then
             PROMPT="$PROMPT
-          10. This repository forbids agents from merging. Never run gh pr merge or enable auto-merge here; open the PR and stop."
+          12. This repository forbids agents from merging. Never run gh pr merge or enable auto-merge here; open the PR and stop."
           fi
           [ -d node_modules ] && PROMPT="$PROMPT
-          11. Dependencies (node_modules) and the Playwright Chromium browser are already installed. Do not reinstall them and do not read dependency source code."
+          13. Dependencies (node_modules) and the Playwright Chromium browser are already installed. Do not reinstall them and do not read dependency source code."
+          case "$TOOL_MODE" in
+            readonly)
+              TOOLS="Bash,Read"
+              ALLOWED_TOOLS="Read,Bash(grep:*),Bash(sed:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(git status:*),Bash(pwd:*),Bash(head:*),Bash(tail:*),Bash(wc:*)"
+              ;;
+            standard)
+              TOOLS="Bash,Read,Edit,Write,Glob,Grep"
+              ALLOWED_TOOLS="$TOOLS"
+              if [ "$STAGE" = "ai:discovery" ]; then TOOLS="$TOOLS,WebSearch,WebFetch"; ALLOWED_TOOLS="$TOOLS"; fi
+              ;;
+            *)
+              echo "::error::Unsupported tool mode: $TOOL_MODE"
+              exit 1
+              ;;
+          esac
+          date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/agent-logs/started-at
           start=$(date +%s)
-          ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
-            timeout 3600 claude -p "$PROMPT" --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch" --max-turns 150 \
+          CLAUDE_CODE_MAX_OUTPUT_TOKENS=512 CLAUDE_CODE_MAX_RETRIES=2 \
+            ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
+            timeout 3600 claude --bare -p "$PROMPT" \
+            --system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md \
+            --tools "$TOOLS" --allowedTools "$ALLOWED_TOOLS" --max-turns 60 \
             --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr
           rc=$?
+          # Groq may map free-tier TPM exhaustion to HTTP 413/400 instead of HTTP 429.
+          # Treat explicit rate/TPM errors as resumable pauses, never as a reason to use paid fallback.
+          if [ "$rc" -ne 0 ] && grep -Eiq 'rate_limit_exceeded|tokens per minute|HTTP 413|HTTP 429|TPM' /tmp/agent-logs/agent.stderr /tmp/agent-logs/agent.jsonl 2>/dev/null; then
+            touch /tmp/agent-logs/groq-probe-retryable
+            echo "Detected Groq free-tier rate/TPM limit; recording a resumable pause." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
           secs=$(( $(date +%s) - start ))
           stats=$(jq -r 'select(.type=="result") | "turns=\(.num_turns) subtype=\(.subtype) is_error=\(.is_error)"' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -1)
           final=$(jq -r 'select(.type=="result") | .result // ""' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -c 3000)
           {
-            echo "### Free engine run — $AGENT_NAME on \`$FREE_MODEL\` — exit $rc in ${secs}s — ${stats:-no result event}"
-            echo '```'; printf '%s\n' "${final:-<no final message; see agent.jsonl / agent.stderr artifacts>}"; echo '```'
+            echo "### Free engine run — $AGENT_NAME on $FREE_MODEL — exit $rc in $secs seconds — $stats"
+            echo "Router and final response are available in the artifacts."
+            printf '%s\n' "$final"
           } >> "$GITHUB_STEP_SUMMARY"
-          echo "AGENT_RESULT exit=$rc secs=$secs ${stats:-no-result-event}"
+          echo "AGENT_RESULT exit=$rc secs=$secs $stats"
           printf '%s\n' "$final" | tail -c 3000
           tail -c 1500 /tmp/agent-logs/agent.stderr
           exit $rc
+
+      - name: Verify read-only completion comment
+        if: success() && inputs.tool_mode == 'readonly' && steps.router.outputs.action == 'run'
+        env:
+          NUMBER: ${{ steps.item.outputs.number }}
+          AGENT_NAME: ${{ steps.router.outputs.agent_name }}
+          AGENT_ROLE: ${{ steps.router.outputs.agent_role }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          STARTED_AT=$(cat /tmp/agent-logs/started-at)
+          MARKER="[$AGENT_NAME — $AGENT_ROLE]"
+          if ! gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | \
+            jq -e --arg marker "$MARKER" --arg started "$STARTED_AT" \
+              'any(.[]; .user.login == "github-actions[bot]" and (.body | startswith($marker)) and (.created_at >= $started))' >/dev/null; then
+            echo "::error::Read-only agent exited without posting its required issue comment; process exit alone is not completion."
+            exit 1
+          fi
+          echo "Verified the read-only agent report comment."
 
       - name: Export free-model worker usage
         if: always() && steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'free'
@@ -250,10 +344,8 @@ jobs:
           path: /tmp/ai-org-usage.json
           if-no-files-found: ignore
 
-      # Independent check of Quinn's locked tests: they must be red for the right reason (scripts/grade-acceptance.mjs).
-      # The loop only opens the build when this commit status is green, so broken tests never reach Dev.
       - name: Acceptance-test gate (ai:tests only)
-        if: always() && steps.router.outputs.action == 'run' && steps.router.outputs.stage == 'ai:tests'
+        if: always() && steps.router.outputs.action == 'run' && inputs.tool_mode != 'readonly' && steps.router.outputs.stage == 'ai:tests'
         shell: bash --noprofile --norc {0}
         run: |
           set -uo pipefail
@@ -267,23 +359,19 @@ jobs:
           else
             npx tsc --noEmit >/tmp/agent-logs/gate-tsc.txt 2>&1; tsc=$?
             npx playwright test "$SPEC" --reporter=json --timeout=20000 --workers=2 > /tmp/agent-logs/gate-report.json 2>/tmp/agent-logs/gate-pw.txt || true
-            node .ai-org-handbook/scripts/grade-acceptance.mjs --spec "$SPEC" --report /tmp/agent-logs/gate-report.json \
-              --contract "docs/product/$SLUG/ACCEPTANCE.md" --src src --tsc-exit "$tsc" --md /tmp/gate.md >/dev/null; g=$?
+            node .ai-org-handbook/scripts/grade-acceptance.mjs --spec "$SPEC" --report /tmp/agent-logs/gate-report.json --contract "docs/product/$SLUG/ACCEPTANCE.md" --src src --tsc-exit "$tsc" --md /tmp/gate.md >/dev/null; g=$?
           fi
           cat /tmp/gate.md | tee -a "$GITHUB_STEP_SUMMARY"
-          { echo "<!-- ai-org:gate $SHA -->"; echo "**[Acceptance-test gate — automatic, not an agent]** on \`${SHA:0:7}\`"; echo; cat /tmp/gate.md; } > /tmp/gate-comment.md
+          { echo "<!-- ai-org:gate $SHA -->"; echo "Acceptance-test gate on ${SHA:0:7}"; echo; cat /tmp/gate.md; } > /tmp/gate-comment.md
           gh pr comment "$PRN" --repo "$GITHUB_REPOSITORY" --body-file /tmp/gate-comment.md >/dev/null
           STATE=$([ "$g" = 0 ] && echo success || echo failure)
-          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state="$STATE" -f context=acceptance-gate \
-            -f description="$(head -1 /tmp/gate.md | sed 's/^### //' | cut -c1-130)" >/dev/null
+          gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" -f state="$STATE" -f context=acceptance-gate -f description="$(head -1 /tmp/gate.md | sed 's/^### //' | cut -c1-130)" >/dev/null
           echo "acceptance-gate = $STATE on ${SHA:0:7}"
 
-      # AI Org v3: the run is only complete with a valid handover packet committed for the next role.
       - name: Handover check
         env:
           STAGE: ${{ steps.item.outputs.stage }}
-        # Pilot scope: the QA chain stages (they all commit to the contract branch). Other stages read packs but are not yet gated.
-        if: steps.router.outputs.action == 'run' && startsWith(steps.router.outputs.stage, 'ai:tests')
+        if: steps.router.outputs.action == 'run' && inputs.tool_mode != 'readonly' && startsWith(steps.router.outputs.stage, 'ai:tests')
         shell: bash --noprofile --norc {0}
         run: |
           set -uo pipefail
@@ -298,10 +386,8 @@ jobs:
             node .ai-org-handbook/scripts/handoff.mjs validate /tmp/handoff.md | tee -a "$GITHUB_STEP_SUMMARY" /tmp/agent-logs/handover.txt; [ "${PIPESTATUS[0]}" = 0 ] || ok=0
           fi
           if [ "$ok" = 1 ]; then
-            # The stage is done: clear its label even if the agent forgot, so the loop can move on.
             gh issue edit "$NUMBER" --repo "$GITHUB_REPOSITORY" --remove-label "$STAGE" >/dev/null 2>&1 || true
           else
-            # Context would be lost: stop the chain instead of handing over blind.
             gh issue edit "$NUMBER" --repo "$GITHUB_REPOSITORY" --add-label ai:blocked >/dev/null 2>&1 || true
             exit 1
           fi
@@ -320,7 +406,7 @@ jobs:
         env:
           AGENT_NAME: ${{ steps.router.outputs.agent_name }}
           AGENT_ROLE: ${{ steps.router.outputs.agent_role }}
-          ENGINE: ${{ steps.router.outputs.engine }}
+          FREE_MODEL: ${{ steps.router.outputs.free_model }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           if [ -f /tmp/agent-logs/groq-probe-retryable ]; then
@@ -332,17 +418,16 @@ jobs:
           fi
           {
             printf '<!-- %s -->\n' "$MARKER"
-            printf '%s\n' "**[$AGENT_NAME — $AGENT_ROLE] Run did not complete** on the `$ENGINE` engine. Logs: $RUN_URL (artifact `agent-logs-$NUMBER-${{ github.run_attempt }}`)." ""
+            printf '%s\n' "**[$AGENT_NAME — $AGENT_ROLE] Run did not complete on Groq free tier ($FREE_MODEL). Logs: $RUN_URL (artifact agent-logs-$NUMBER-${{ github.run_attempt }})." ""
             echo "$SUMMARY"
-            echo "**What the next attempt must know (attempt memory):**"; echo '```'
+            echo "What the next attempt must know (attempt memory):"
             grep -h "AGENT_RESULT\|handover INVALID\|^- " /tmp/agent-logs/*.txt 2>/dev/null | head -10
             jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -c 1200
-            echo '```'
           } > /tmp/failed.md
           gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/failed.md
 
       - name: Chain to the next agent if the stage changed
-        if: steps.router.outputs.action == 'run'
+        if: steps.router.outputs.action == 'run' && inputs.tool_mode != 'readonly'
         env:
           BEFORE: ${{ steps.item.outputs.stage }}
           WORKFLOW: ${{ inputs.dispatch_workflow }}
@@ -354,7 +439,5 @@ jobs:
             gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" -f number="$NUMBER"
             echo "Dispatched $WORKFLOW for #$NUMBER ($AFTER)" | tee -a "$GITHUB_STEP_SUMMARY"
           fi
-          # Agent pushes made with the workflow token do not trigger CI. Let the loop controller
-          # dispatch CI, run contract-lock and move the outer loop (it ignores unknown modes safely).
           gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" -f number=0 -f mode=advance 2>/dev/null \
             && echo "Dispatched loop advance" | tee -a "$GITHUB_STEP_SUMMARY" || echo "Loop advance not available in this repo"

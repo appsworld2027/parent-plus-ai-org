@@ -39,22 +39,24 @@ test("the concise standard covers lifecycle, evidence, portable handover, direct
   assert.match(dashboard, /Use this dashboard only for substantive operating reviews, scheduled reports, milestone summaries, and readiness assessments/);
 });
 
-test("the scheduled GitHub path checks out a selectable handbook and assembles canonical policies and reporting standard before role work", () => {
-  assert.match(worker, /description: Branch\/tag of the AI Org handbook to use/);
-  assert.match(worker, /default: main/);
-  assert.match(worker, /path: \.ai-org-handbook/);
+test("the scheduled GitHub path loads the canonical handbook with compact task-specific context", () => {
+  assert.ok(worker.includes("description: Branch/tag of the AI Org handbook to use"));
+  assert.ok(worker.includes("default: main"));
+  assert.ok(worker.includes("path: .ai-org-handbook"));
+  assert.ok(worker.includes("--system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md"));
+  assert.ok(worker.includes("claude --bare -p"));
+  assert.ok(worker.includes("Verify read-only completion comment"));
+  assert.ok(worker.includes("single-quoted plain-text body"));
   const prompt = buildPrompt({ agent: agentInfo("dev-coder"), number: 1, isPR: false, repo: "o/r", stage: "ai:build" });
-  const charterAt = prompt.indexOf(".ai-org-handbook/FOUNDER_OPERATING_CHARTER.md");
-  const standardAt = prompt.indexOf(".ai-org-handbook/governance/PERSONAL_OPERATING_STANDARD.md");
-  const dashboardAt = prompt.indexOf(".ai-org-handbook/governance/FOUNDER_DASHBOARD.md");
-  const handbookAt = prompt.indexOf(".ai-org-handbook/AGENTS.md");
-  const roleAt = prompt.indexOf(".ai-org-handbook/org/agents/dev-coder.md");
-  assert.ok(charterAt >= 0 && standardAt > charterAt && dashboardAt > standardAt && handbookAt > dashboardAt && roleAt > handbookAt);
+  assert.ok(prompt.includes("Read the onboarding pack first"));
+  assert.ok(prompt.includes(".ai-org-handbook/org/agents/dev-coder.md"));
+  assert.ok(!prompt.includes("Read `.ai-org-handbook/governance/PERSONAL_OPERATING_STANDARD.md`"));
+  assert.ok(!prompt.includes("Read `.ai-org-handbook/governance/FOUNDER_DASHBOARD.md`"));
   for (const action of ["CONTINUE", "COMPACT", "SWITCH", "ESCALATE"]) assert.ok(prompt.includes(action));
-  assert.match(prompt, /If any required source is absent/);
-  assert.match(prompt, /Use the Founder Dashboard standard only for substantive operating reviews/);
-  assert.match(prompt, /technical explanations, or evidence-led blocker reports/);
-  assert.match(prompt, /Do not claim delivery to a founder conversation/);
+  assert.ok(prompt.includes("If a required role or policy source is absent"));
+  assert.ok(prompt.includes("Use the Founder Dashboard standard only for substantive operating reviews"));
+  assert.ok(prompt.includes("technical explanations or evidence-led blocker reports"));
+  assert.ok(prompt.includes("Do not claim delivery to a founder conversation"));
 });
 
 test("reusable agent workflows enforce free-only Groq execution", () => {
@@ -78,7 +80,11 @@ test("reusable agent workflows enforce free-only Groq execution", () => {
   assert.ok(worker.includes("groq-probe-retryable"));
   assert.ok(worker.includes('MARKER="ai-org:paused"'));
   const resume = read(".github/workflows/agent-resume.yml");
-  assert.ok(resume.includes("ai:tests-review") && resume.includes("ai:tests-signoff"));
+  assert.ok(resume.includes("github.event.repository.private == true"));
+  assert.ok(resume.includes("vars.UNATTENDED_AGENTS == 'on'"));
+  for (const label of ["ai:lane-a", "ai:lane-b", "ai:design", "ai:database", "ai:integration", "ai:release-ops", "ai:tests-review", "ai:tests-signoff"]) {
+    assert.ok(resume.includes(label), `resume must cover ${label}`);
+  }
   assert.doesNotMatch(worker, /Run agent with Claude Code|Run agent with Codex|CODEX_AUTH_JSON|CLAUDE_CODE_OAUTH_TOKEN|NVIDIA_NIM_API_KEY/);
 });
 
@@ -120,12 +126,12 @@ test("autonomy rule keeps its escalation limits; role models are routed and the 
 test("cross-repository private handbook checkout uses a read-only deploy key without persisting it", () => {
   for (const path of [".github/workflows/agent-worker.yml", ".github/workflows/ai-loop.yml", ".github/workflows/handbook-connectivity.yml", ".github/workflows/contract-lock.yml"]) {
     const workflow = read(path);
-    assert.match(workflow, /AI_ORG_HANDBOOK_SSH_KEY:\n\s+required: false/);
-    assert.match(workflow, /HANDBOOK_ACCESS:.*secrets\.AI_ORG_HANDBOOK_SSH_KEY != ''/);
-    assert.match(workflow, /ssh-key:.*secrets\.AI_ORG_HANDBOOK_SSH_KEY/);
-    assert.match(workflow, /token:.*github\.token/);
-    assert.match(workflow, /persist-credentials: false/);
-    assert.doesNotMatch(workflow, /AI_ORG_HANDBOOK_TOKEN/);
+    assert.ok(workflow.includes("AI_ORG_HANDBOOK_SSH_KEY:") && workflow.includes("required: false"));
+    assert.ok(workflow.includes("HANDBOOK_ACCESS: ${{ secrets.AI_ORG_HANDBOOK_SSH_KEY != '' }}"));
+    assert.ok(workflow.includes("ssh-key: ${{ github.repository == 'appsworld2027/parent-plus-ai-org' && '' || secrets.AI_ORG_HANDBOOK_SSH_KEY }}"));
+    assert.ok(workflow.includes("token: ${{ github.token }}"));
+    assert.ok(workflow.includes("persist-credentials: false"));
+    assert.ok(!workflow.includes("AI_ORG_HANDBOOK_TOKEN"));
   }
   const smoke = read(".github/workflows/handbook-connectivity.yml");
   assert.match(smoke, /contents: read/);
