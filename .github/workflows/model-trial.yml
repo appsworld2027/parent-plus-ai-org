@@ -2961,7 +2961,7 @@ jobs:
       - name: Verify exact receipt hashes and isolated source
         run: bash handbook/trial/controls/course-suite-grade.sh prepare
       - name: No-key browser grade of each accepted case and relevant defects
-        run: bash handbook/trial/controls/course-suite-grade.sh grade
+        run: bash "$RUNNER_TEMP/control/grade.sh" grade
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -2969,4 +2969,37 @@ jobs:
           path: |
             /srv/trial/out/*.json
             /srv/trial/out/*.exit
+            /srv/trial/out/*.ts
+          retention-days: 14
+
+  course-suite-stored-grade:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE SUITE GRADE STORED' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          path: handbook
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Recover exact previous actual author artifacts without new inference
+        run: node handbook/trial/controls/quinn-suite-packet-author.mjs unpack "$GITHUB_WORKSPACE/authored"
+      - name: Verify exact receipt hashes and isolated source
+        run: bash handbook/trial/controls/course-suite-grade.sh prepare
+      - name: No-key browser grade of each accepted case and relevant defects
+        run: bash "$RUNNER_TEMP/control/grade.sh" grade
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-suite-stored-grade
+          path: |
+            /srv/trial/out/*.json
+            /srv/trial/out/*.exit
+            /srv/trial/out/*.ts
           retention-days: 14

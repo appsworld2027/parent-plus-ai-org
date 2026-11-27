@@ -17,6 +17,15 @@
           "reason": "Optional visibility assertion before edit is valid"
         }
       ]
+    },
+    {
+      "runId": 46064445273,
+      "path": "trial/evidence/course/46064445273/suite-author-bundle.json",
+      "blob": "2b3bc103da508df594da74e369c8ae445ccc8f73",
+      "packets": [
+        "CRS-01-SC-001/entry"
+      ],
+      "revalidate": []
     }
   ]
 }

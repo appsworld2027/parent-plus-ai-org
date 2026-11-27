@@ -4,6 +4,7 @@ set -euo pipefail
 test -z "${GROQ_API_KEY:-}" && test -z "${NVIDIA_NIM_API_KEY:-}" || { echo 'Unexpected model credential in grading'; exit 1; }
 if [ "$1" = prepare ]; then
   mkdir -p "$RUNNER_TEMP/control"
+  cp "$0" "$RUNNER_TEMP/control/grade.sh"
   cp handbook/trial/controls/course-test-control-server.mjs "$RUNNER_TEMP/control/server.mjs"
   cp handbook/trial/controls/course-suite-grade.mjs "$RUNNER_TEMP/control/grade.mjs"
   node --check "$RUNNER_TEMP/control/grade.mjs"
@@ -27,6 +28,8 @@ elif [ "$1" = grade ]; then
   lock_workspace grading
   mkdir -p /srv/trial/out
   cp "$RUNNER_TEMP/control/"{compiled,support}.json /srv/trial/out/
+  cp "$RUNNER_TEMP/control/suite.spec.ts" /srv/trial/out/
+  if [ -f "$RUNNER_TEMP/control/guard.spec.ts" ]; then cp "$RUNNER_TEMP/control/guard.spec.ts" /srv/trial/out/; fi
   cd /srv/trial/product
   start_server(){ MUTANT="$1" PORT=18082 node "$RUNNER_TEMP/control/server.mjs" >/srv/trial/out/server.log 2>&1 & SERVER=$!; for i in $(seq 1 25); do if curl -sf http://127.0.0.1:18082/ >/dev/null; then return 0; fi; sleep 1; done; return 1; }
   stop_server(){ kill "$SERVER" 2>/dev/null || true; wait "$SERVER" 2>/dev/null || true; }

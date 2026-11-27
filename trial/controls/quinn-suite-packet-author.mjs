@@ -150,6 +150,20 @@ function preflight(root){
  if(!rejected||!recovered.some(x=>x.id===id(2)&&x.key==='invalid')||!recovered.some(x=>x.id===id(3)&&x.key==='restore-ordered'&&x.revalidated))throw Error('Resume or extra-objective regression is not proven');
  console.log(JSON.stringify({preflightPassed:true,recovered,originalExtraObjectiveRejected:true,inference:false}));
 }
+function unpack(root){
+ const pointer=JSON.parse(readFileSync(new URL('../evidence/course/suite-grade-input.json',import.meta.url)));
+ if(pointer.schema!=='course-suite-grade-input/v1'||pointer.source!==source||pointer.contractHash!==contractHash||!/^trial\/evidence\/course\/[0-9]+\/suite-author-bundle\.json$/.test(pointer.path)||!/^([a-f0-9]{40})$/.test(pointer.blob))throw Error('Untrusted stored grade pointer');
+ const bytes=readFileSync(new URL('../../'+pointer.path,import.meta.url));if(gitBlob(bytes)!==pointer.blob)throw Error('Stored bundle blob changed');
+ const bundle=JSON.parse(bytes);if(bundle.runId!==pointer.runId||!Array.isArray(bundle.files)||bundle.files.some(f=>sha(f.utf8)!==f.sha256))throw Error('Stored grade input mismatch');
+ const files=new Map(bundle.files.map(f=>[f.file,f.utf8]));if(files.size!==bundle.files.length)throw Error('Duplicate artifact paths');
+ const summary=JSON.parse(files.get('summary.json'));if(summary.source!==source||summary.contractHash!==contractHash||!Array.isArray(summary.complete))throw Error('Stored summary mismatch');
+ mkdirSync(root,{recursive:true});writeFileSync(join(root,'summary.json'),files.get('summary.json'));
+ for(const row of rows.filter(r=>summary.complete.includes(r.id))){
+  const r=join(root,row.id);mkdirSync(r,{recursive:true});const c=files.get(row.id+'/case.json');if(typeof c!=='string')throw Error('Missing stored case');writeFileSync(join(r,'case.json'),c);
+  for(const part of row.parts){const dir=join(r,part.key);mkdirSync(dir,{recursive:true});for(const n of ['raw.txt','context.json','artifact.json','receipt.json']){const data=files.get(row.id+'/'+part.key+'/'+n);if(typeof data!=='string')throw Error('Missing stored packet');writeFileSync(join(dir,n),data)}checkPacket(row,part,dir);}
+ }
+ console.log(JSON.stringify({storedRun:pointer.runId,storedBlob:pointer.blob,complete:summary.complete,noInference:true}));
+}
 const [mode,a,b]=process.argv.slice(2);
 if(mode==='author'){if(!process.env.RUNNER_TEMP)throw Error('Missing runner directory');await author(join(process.env.RUNNER_TEMP,'course-suite-author'))}
-else if(mode==='verify'&&a&&b)verify(a,b);else if(mode==='preflight'&&process.env.RUNNER_TEMP)preflight(join(process.env.RUNNER_TEMP,'course-suite-preflight'));else throw Error('Use author, preflight or verify <artifact dir> <output>');
+else if(mode==='verify'&&a&&b)verify(a,b);else if(mode==='preflight'&&process.env.RUNNER_TEMP)preflight(join(process.env.RUNNER_TEMP,'course-suite-preflight'));else if(mode==='unpack'&&a)unpack(a);else throw Error('Use author, preflight, unpack <input dir>, or verify <artifact dir> <output>');
