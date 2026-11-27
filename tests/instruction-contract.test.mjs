@@ -45,6 +45,9 @@ test("the scheduled GitHub path loads the canonical handbook with compact task-s
   assert.ok(worker.includes("path: .ai-org-handbook"));
   assert.ok(worker.includes("--system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md"));
   assert.ok(worker.includes("claude --bare -p"));
+  assert.ok(worker.includes("CLAUDE_CODE_MAX_OUTPUT_TOKENS=768"));
+  assert.ok(worker.includes("--max-turns 60"));
+  assert.ok(worker.includes("--max 8000"));
   const prompt = buildPrompt({ agent: agentInfo("dev-coder"), number: 1, isPR: false, repo: "o/r", stage: "ai:build" });
   assert.ok(prompt.includes("Read the onboarding pack first"));
   assert.ok(prompt.includes(".ai-org-handbook/org/agents/dev-coder.md"));
