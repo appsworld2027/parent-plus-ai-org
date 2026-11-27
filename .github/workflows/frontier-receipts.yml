@@ -28,4 +28,4 @@ jobs:
           test -n "$FRONTIER_TEST_NODE_IMAGE"
           echo "Controller-selected CI Node image digest: $FRONTIER_TEST_NODE_IMAGE"
           export FRONTIER_TEST_NODE_IMAGE
-          node --test tests/frontier-board-evaluator.test.mjs tests/frontier-review-evaluator.test.mjs tests/frontier-release-evaluator.test.mjs
+          node --test tests/frontier-board-evaluator.test.mjs tests/frontier-review-evaluator.test.mjs tests/frontier-release-evaluator.test.mjs tests/frontier-integration-evaluator.test.mjs
