@@ -82,8 +82,8 @@ test("the canonical background worker uses approved free providers with bounded 
   const systemPrompt = read("../governance/FREE_AGENT_SYSTEM_PROMPT.md");
   assert.ok(systemPrompt.includes("approved free-only provider set"));
   assert.ok(systemPrompt.includes("Never call an unapproved provider"));
-  assert.ok(systemPrompt.includes("single-quoted"));
-  assert.ok(systemPrompt.includes("unescaped backticks"));
+  assert.ok(systemPrompt.includes("The workflow owns publication"));
+  assert.ok(systemPrompt.includes("do not invoke a write tool"));
   assert.ok(worker.includes("Publish and verify read-only completion report"));
   assert.ok(worker.includes("The workflow publishes it as the issue comment"));
   assert.ok(worker.includes("## Compact onboarding pack"));
@@ -180,4 +180,15 @@ test("read-only work receives bounded authoritative issue body and reviewer fixt
   assert.ok(worker.includes("Read-only issue body exceeds bounded prompt size."));
   assert.ok(worker.includes("Synthetic reviewer did not reject the flawed rule."));
   assert.ok(worker.includes("registration email password duplicate"));
+});
+
+test("read-only reporting is workflow-owned across all prompt sources", () => {
+  const worker = read("../.github/workflows/agent-worker.yml");
+  const prompt = read("../governance/FREE_AGENT_SYSTEM_PROMPT.md");
+  const router = read("../scripts/agent-router.mjs");
+  assert.ok(worker.includes("Read-only mode: never write or post comments."));
+  assert.ok(worker.includes("start with a separate Verdict: APPROVE or Verdict: REJECT line"));
+  assert.ok(prompt.includes("Never attempt to publish a read-only report"));
+  assert.ok(router.includes("The workflow owns stage transitions and publishes your final assistant report."));
+  assert.ok(!router.includes("Only perform the specific issue comment explicitly requested"));
 });

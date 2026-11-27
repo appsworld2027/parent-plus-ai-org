@@ -348,11 +348,11 @@ jobs:
           PROMPT="$(printf '%s\\n\\n## Compact onboarding pack\\n' "$PROMPT"; cat .ai-org-runtime/onboarding.md)"
           if [ "$TOOL_MODE" = "readonly" ]; then
             [ "$(wc -c < /tmp/body.md)" -le 12000 ] || { echo "::error::Read-only issue body exceeds bounded prompt size."; exit 1; }
-            PROMPT="$(printf '%s\n\n## Authoritative current task: issue #%s\n' "$PROMPT" "$NUMBER"; cat /tmp/body.md; printf '\n\nUse this exact task body as the source of truth. Do not substitute another issue, and report only findings about this task. If reviewing, include a separate Verdict: APPROVE or Verdict: REJECT line.\n')"
+            PROMPT="$(printf '%s\n\n## Authoritative current task: issue #%s\n' "$PROMPT" "$NUMBER"; cat /tmp/body.md; printf '\n\nUse this exact task body as the source of truth. Do not substitute another issue, and report only findings about this task. If reviewing, start with a separate Verdict: APPROVE or Verdict: REJECT line, then give concise evidence. Return only an assistant report; do not use tools to publish it.\n')"
           fi
           PROMPT="$PROMPT
           7. Engine facts: you are running on model $FREE_MODEL, served by the $PROVIDER free endpoint through the Free Claude Code compatibility adapter. This is not Claude inference or a paid model. Whenever you name the model or engine that did the work (comments, commits, PRs), state the exact provider and model.
-          8. Normal work: use --body-file for comments and PR bodies. Read-only mode: the only permitted write is the requested issue comment; use gh issue comment --body with a single-quoted plain-text body, never unescaped backticks or \$() shell substitutions; do not create files.
+          8. Normal work: use --body-file for comments and PR bodies. Read-only mode: never write or post comments. Return the final assistant report directly; the workflow publishes it. Keep the report concise.
           9. Feature slug: $FEATURE_SLUG. Never use literal _none_. If no feature slug is assigned, do not create a handoff.
           10. Do not change issue stage labels or issue state; the workflow owns stage transitions.
           11. Evidence rule: every claim that checks passed must link a CI run or quote the command and its result line."
