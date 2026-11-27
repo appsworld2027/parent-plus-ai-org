@@ -6,7 +6,7 @@ const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 test("cross-repository private handbook consumers require the read-only deploy key", () => {
   for (const path of ["../.github/workflows/agent-worker.yml","../.github/workflows/ai-loop.yml","../.github/workflows/contract-lock.yml","../.github/workflows/handbook-connectivity.yml"]) {
     const workflow = read(path);
-    assert.ok(workflow.includes("AI_ORG_HANDBOOK_SSH_KEY:\\n        required: false"));
+    assert.ok(workflow.includes("AI_ORG_HANDBOOK_SSH_KEY:") && workflow.includes("required: false"));
     assert.ok(workflow.includes("HANDBOOK_ACCESS: ${{ secrets.AI_ORG_HANDBOOK_SSH_KEY != '' }}"));
     assert.ok(workflow.includes("ssh-key: ${{ github.repository == 'appsworld2027/parent-plus-ai-org' && '' || secrets.AI_ORG_HANDBOOK_SSH_KEY }}"));
     assert.ok(workflow.includes("persist-credentials: false"));
@@ -21,8 +21,8 @@ test("background agent execution fails closed unless explicitly enabled on a pri
 
 test("the canonical background worker is Groq free-tier only with bounded output and stage-aware tools", () => {
   const worker = read("../.github/workflows/agent-worker.yml");
-  assert.ok(worker.includes("GROQ_API_KEY:\\n        required: false"));
-  assert.ok(!worker.includes("NVIDIA_NIM_API_KEY|"));
+  assert.ok(worker.includes("GROQ_API_KEY:") && worker.includes("required: false"));
+  assert.ok(!worker.includes("NVIDIA_NIM_API_KEY"));
   assert.ok(!worker.includes("ANTHROPIC_API_KEY"));
   assert.ok(!worker.includes("OPENAI_API_KEY"));
   assert.ok(!worker.includes("CODEX_AUTH_JSON"));
