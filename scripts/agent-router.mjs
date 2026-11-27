@@ -128,7 +128,7 @@ export function onboardingRules(number) {
   return [
     "## Onboarding and handover (every run)",
     "- Read the onboarding pack first; it already contains your role card, RACI, role lessons, relevant product memory, current feature context and task. Do not reread those files or load unrelated handovers.",
-    "- Consult only the relevant section of the AI Org Founder Operating Charter when a policy decision requires it. Read the Founder Dashboard only for substantive milestone/reporting work, and the Personal Operating Standard only when session lifecycle or reporting is relevant.",
+    "- For large handbooks and policy files, use targeted grep/sed excerpts; do not load entire files unless the task explicitly requires a full audit. Consult only the relevant section of the AI Org Founder Operating Charter when a policy decision requires it.",
     "- Use the Parent Plus founder-response reference only when writing a founder-facing report; do not load it for routine engineering work.",
     "- If a required role or policy source is absent, stop and report the exact missing path; do not invent or silently substitute.",
     "- Use the Founder Dashboard standard only for substantive operating reviews, scheduled reports, milestone summaries and readiness assessments.",
