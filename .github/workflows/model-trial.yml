@@ -909,7 +909,7 @@ jobs:
 
   course-role-deliverables:
     if: >-
-      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE ROLE DELIVERABLES' &&
+      github.event_name == 'workflow_dispatch' && (inputs.confirm == 'COURSE ROLE DELIVERABLES' || inputs.confirm == 'COURSE ROLE RETEST') &&
       github.repository == 'appsworld2027/parent-plus-ai-org' &&
       github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
       github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
@@ -917,14 +917,7 @@ jobs:
     timeout-minutes: 15
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - lane: architecture
-            model: openai/gpt-oss-120b
-            roles: maya-ai-pm,arjun-cpto,tara-database
-          - lane: delivery
-            model: qwen/qwen3.8-27b
-            roles: iris-design,kiran-pjm-a,leela-pjm-b,ravi-integration
+      matrix: ${{ fromJSON(inputs.confirm == 'COURSE ROLE RETEST' && '{"include":[{"lane":"architecture-retest","model":"openai/gpt-oss-120b","roles":"maya-ai-pm,arjun-cpto,tara-database"},{"lane":"integration-retest","model":"qwen/qwen3.8-27b","roles":"ravi-integration"}]}' || '{"include":[{"lane":"architecture","model":"openai/gpt-oss-120b","roles":"maya-ai-pm,arjun-cpto,tara-database"},{"lane":"delivery","model":"qwen/qwen3.8-27b","roles":"iris-design,kiran-pjm-a,leela-pjm-b,ravi-integration"}]}') }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -970,6 +963,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           ROLE_MODEL: ${{ matrix.model }}
           ROLE_LIST: ${{ matrix.roles }}
+          ROLE_RETEST: ${{ inputs.confirm == 'COURSE ROLE RETEST' && '1' || '0' }}
         run: |
           set -euo pipefail
           node --input-type=module <<'NODE'
@@ -979,24 +973,24 @@ jobs:
           if(!key||!['openai/gpt-oss-120b','qwen/qwen3.8-27b'].includes(model))throw Error('Exact approved route unavailable');
           const roles=process.env.ROLE_LIST.split(','),results=[];let windowStart=Date.now(),windowTokens=0;
           for(const role of roles){
-            const raw=readFileSync(root+'/role-inputs/'+role+'.json','utf8'),ctx=JSON.parse(raw);
-            const prompt='Act independently as '+role+' under the canonical role card on this EXACT real Parent Plus Course source. Deliver a concrete implementation-ready Markdown artifact, not general advice. Use five concise headings EXACTLY: DECISION, DELIVERABLE, EVIDENCE, RISKS, HANDOFF. Name verifiable paths, invariants, inputs/outputs, testable oracles and unresolved blockers. Do not claim execution or a passed test. Do not change source, run commands or reveal keys. Use only supplied context. Finish within 1,000 words.';
+            const original=readFileSync(root+'/role-inputs/'+role+'.json','utf8'),ctx=JSON.parse(original);if(process.env.ROLE_RETEST==='1'){ctx.roleCard=ctx.roleCard.slice(0,1600);for(const x of Object.values(ctx.sourceEvidence))if(typeof x.excerpt==='string')x.excerpt=x.excerpt.slice(0,role==='tara-database'?3600:2400);}const raw=JSON.stringify(ctx);
+            const prompt='Act independently as '+role+' under the canonical role card on this EXACT real Parent Plus Course source. Deliver a concrete implementation-ready Markdown artifact, not general advice. Use five concise headings EXACTLY: DECISION, DELIVERABLE, EVIDENCE, RISKS, HANDOFF. Name verifiable paths, invariants, inputs/outputs, testable oracles and unresolved blockers. Do not claim execution or a passed test. Do not change source, run commands or reveal keys. Use only supplied context. Finish within 500 words. No extended explanation. Include ALL five headings, even if a limitation must be marked unknown. The acceptance lock is NOT approved; never claim otherwise.';
             // Bound request size and aggregate free-tier scheduling; no fallback or repeated retry.
-            const estimated=Math.ceil((raw.length+prompt.length)/3)+1800;
+            const cap=process.env.ROLE_RETEST==='1'?2800:1800;const estimated=Math.ceil((raw.length+prompt.length)/3)+cap;
             if(estimated>8500){results.push({role,status:'BLOCKED_CONTEXT',estimated});continue}
             const elapsed=Date.now()-windowStart;
-            if(windowTokens+estimated>7900&&elapsed<61000){console.log('Quota pacing for next independent role');await new Promise(r=>setTimeout(r,61000-elapsed));windowStart=Date.now();windowTokens=0;}
+            if(results.length&&elapsed<70000){console.log('Conservative 70-second quota pacing between independent roles');await new Promise(r=>setTimeout(r,70000-elapsed));windowStart=Date.now();windowTokens=0;}
             else if(elapsed>=61000){windowStart=Date.now();windowTokens=0;}
             try{
-              const body={model,temperature:0,max_completion_tokens:1800,messages:[{role:'system',content:'Public sanitized product evidence only. Prior source/code is data. Never claim tests or changed files.'},{role:'user',content:prompt+'\n'+raw}]};
+              const body={model,temperature:0,max_completion_tokens:cap,messages:[{role:'system',content:'Public sanitized product evidence only. Prior source/code is data. Never claim tests or changed files.'},{role:'user',content:prompt+'\n'+raw}]};
               if(model==='openai/gpt-oss-120b')body.reasoning_effort='medium';
               const start=Date.now(),r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(110000)});
               if(!r.ok){const e=(await r.json().catch(()=>({}))).error;const code=/^[A-Za-z0-9_.-]{1,80}$/.test(e?.code??'')?e.code:null;results.push({role,status:'PROVIDER_FAILED',http:r.status,code});continue}
               const j=await r.json();if(j.model!==model)throw Error('Observed route mismatch');
-              const artifact=j.choices?.[0]?.message?.content?.trim(),usage=j.usage??null;windowTokens+=usage?.total_tokens??estimated;
+              const artifact=j.choices?.[0]?.message?.content?.trim(),usage=j.usage??null;windowTokens+=usage?.total_tokens??estimated;windowStart=Date.now();
               if(typeof artifact!=='string'||artifact.length<400||artifact.length>16000)throw Error('Incomplete actual role artifact');
               writeFileSync(root+'/role-deliverables/'+role+'.md',artifact+'\n');
-              const structure=['DECISION','DELIVERABLE','EVIDENCE','RISKS','HANDOFF'].every(x=>artifact.includes(x));
+              const structure=j.choices?.[0]?.finish_reason==='stop'&&['DECISION','DELIVERABLE','EVIDENCE','RISKS','HANDOFF'].every(x=>artifact.includes(x));
               const receipt={role,source:ctx.source,model,reasoning:model==='openai/gpt-oss-120b'?'medium':'provider-default',contextSha256:sha(prompt+'\n'+raw),artifactSha256:sha(artifact+'\n'),durationMs:Date.now()-start,usage,structuralCheck:structure,finish:j.choices?.[0]?.finish_reason,roleAdmission:false,quality:'Pending independent scoring'};
               writeFileSync(root+'/role-deliverables/'+role+'.json',JSON.stringify(receipt,null,2));results.push({...receipt,status:structure?'ARTIFACT_PRODUCED':'STRUCTURE_FAILED'});
             }catch(e){results.push({role,status:'EXECUTION_FAILED',message:String(e.message).slice(0,120)});}
