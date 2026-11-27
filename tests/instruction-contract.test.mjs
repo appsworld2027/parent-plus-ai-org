@@ -46,8 +46,12 @@ test("the scheduled GitHub path loads the canonical handbook with compact task-s
   assert.ok(worker.includes("--system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md"));
   assert.ok(worker.includes("claude --bare -p"));
   assert.ok(worker.includes("Verify read-only completion comment"));
+  assert.ok(worker.includes("## Compact onboarding pack"));
+  assert.ok(worker.includes("cat .ai-org-runtime/onboarding.md"));
   assert.ok(worker.includes("single-quoted plain-text body"));
   const prompt = buildPrompt({ agent: agentInfo("dev-coder"), number: 1, isPR: false, repo: "o/r", stage: "ai:build" });
+  assert.ok(prompt.includes("compact onboarding pack is embedded below in this initial prompt"));
+  assert.ok(prompt.toLowerCase().includes("do not attempt to access `/tmp/onboarding.md`"));
   assert.ok(prompt.includes("Read the onboarding pack first"));
   assert.ok(prompt.includes(".ai-org-handbook/org/agents/dev-coder.md"));
   assert.ok(!prompt.includes("Read `.ai-org-handbook/governance/PERSONAL_OPERATING_STANDARD.md`"));
