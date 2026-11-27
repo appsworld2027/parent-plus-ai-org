@@ -6,7 +6,7 @@ on:
       confirm:
         type: string
         required: true
-        description: Enter COURSE BASELINE ONLY, GROQ METADATA ONLY, ROUTE QUALIFICATION FOLLOWUP QUALIFICATION ADAPTER QUALIFICATION or COURSE TEST AUTHOR
+        description: Enter COURSE BASELINE ONLY, GROQ METADATA ONLY, ROUTE QUALIFICATION FOLLOWUP QUALIFICATION ADAPTER QUALIFICATION or COURSE TEST AUTHOR RETEST
 permissions:
   contents: read
 concurrency:
@@ -402,7 +402,7 @@ jobs:
 
   quinn-author:
     if: >-
-      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE TEST AUTHOR' &&
+      github.event_name == 'workflow_dispatch' && (inputs.confirm == 'COURSE TEST AUTHOR' || inputs.confirm == 'COURSE TEST AUTHOR RETEST') &&
       github.repository == 'appsworld2027/parent-plus-ai-org' &&
       github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
       github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
