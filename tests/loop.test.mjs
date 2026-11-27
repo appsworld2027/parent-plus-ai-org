@@ -162,7 +162,7 @@ test("unauthorized human account cannot satisfy the independent PR approval allo
   assert.equal(hasIndependentApproval([unauthorized], options), false);
 });
 
-import { selectDeliveryItems, scopesConflict } from "../scripts/delivery-lanes.mjs";
+import { selectDeliveryItems, scopesConflict, verifyScopedChanges } from "../scripts/delivery-lanes.mjs";
 
 test("delivery lanes allow disjoint declared scopes and cap at two", () => {
   const scoped = path => ({ files:[path], migrations:[], apis:[], rules:[], dependsOn:[] });
@@ -192,4 +192,22 @@ test("delivery lanes detect shared API, migration, and product-rule scopes", () 
     const b = {...a,files:["src/b"],[key]:["shared"]};
     assert.equal(scopesConflict({...a,[key]:["shared"]},b),true);
   }
+});
+
+
+test("scope gate checks actual inventory, exact head/base and both rename sides", () => {
+  const scope = {files:["src/alpha"],migrations:[],apis:[],rules:[],dependsOn:[]};
+  const meta = {head:{sha:"head-a"},base:{ref:"ai/contract-alpha",sha:"base-a"},changed_files:1};
+  const check = (files, before=meta, after=meta) => verifyScopedChanges(scope, files, before, after, "head-a", "ai/contract-alpha");
+  assert.deepEqual(check([{filename:"src/alpha/file.js",status:"modified"}]),{ok:true});
+  assert.deepEqual(check([{filename:"src/alpha-other/file.js",status:"added"}]).outside,["src/alpha-other/file.js"]);
+  assert.deepEqual(check([{filename:"src/alpha/moved.js",previous_filename:"src/beta/old.js",status:"renamed"}]).outside,["src/beta/old.js"]);
+  assert.equal(check([{filename:"src/alpha/moved.js",status:"renamed"}]).ok,false);
+  assert.equal(check([]).ok,false);
+  const duplicate = [{filename:"src/alpha/file.js",status:"added"},{filename:"src/alpha/file.js",status:"modified"}];
+  assert.equal(check(duplicate,{...meta,changed_files:2},{...meta,changed_files:2}).ok,false);
+  assert.equal(verifyScopedChanges(scope, [], meta, meta, undefined, "ai/contract-alpha").ok,false);
+  assert.equal(check([{filename:"src/alpha/file.js",status:"modified"}],meta,{...meta,head:{sha:"new-head"}}).ok,false);
+  assert.equal(check([{filename:"src/alpha/file.js",status:"modified"}],meta,{...meta,base:{...meta.base,sha:"new-base"}}).ok,false);
+  assert.equal(check([{filename:"src/alpha/../beta/file.js",status:"modified"}]).ok,false);
 });

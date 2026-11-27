@@ -7,7 +7,7 @@
 // Founder touches only two gates: approve the Feature Contract, and approve the Demo Pack (ship to main).
 // Everything else (contract tests, build, QA, review, merge into the feature branch, release checks) is automatic.
 import { execFileSync } from "node:child_process";
-import { selectDeliveryItems } from "./delivery-lanes.mjs";
+import { selectDeliveryItems, verifyScopedChanges } from "./delivery-lanes.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { realpathSync } from "node:fs";
@@ -260,6 +260,24 @@ function previewUrl(sha) {
 const referencedIssues = (body = "") => [...new Set([...body.matchAll(/#(\d+)/g)].map((m) => m[1]))];
 
 // ---------- steps ----------
+// Read scope policy only from the main product checkout, not the PR under review.
+function deliveryScopes() {
+  if (!existsSync(".ai-org/delivery-lanes.json")) return {};
+  const scopes = JSON.parse(readFileSync(".ai-org/delivery-lanes.json", "utf8")).features;
+  if (!scopes || typeof scopes !== "object" || Array.isArray(scopes)) throw Error("invalid scopes");
+  return scopes;
+}
+function deliveryScopeGate(pr, slug) {
+  try {
+    const scopes = deliveryScopes();
+    // Unscoped legacy features remain serialized by lane admission.
+    if (!Object.hasOwn(scopes, slug)) return { ok: true, legacy: true };
+    const before = api(`pulls/${pr.number}`);
+    const files = apiItems(`pulls/${pr.number}/files?per_page=100`, ".[]");
+    const after = api(`pulls/${pr.number}`);
+    return verifyScopedChanges(scopes[slug], files, before, after, pr.headRefOid, pr.baseRefName);
+  } catch { return { ok: false, reason: "could not verify PR scope inventory" }; }
+}
 function advanceBuildPR(pr) {
   const L = labelsOf(pr), slug = slugOfBranch(pr.baseRefName);
   if (!slug || L.some((l) => INNER.includes(l))) return log(`#${pr.number}: inner loop still running (${L.join(",") || "no label"})`);
@@ -276,6 +294,11 @@ function advanceBuildPR(pr) {
   if (g === "pending") return log(`#${pr.number}: checks pending`);
   if (g === "fail") { label(pr.number, ["ai:fix"]); comment(pr.number, `**[Sam — Release]** CI failed on ${pr.headRefOid.slice(0, 7)} after review. Back to Dev (\`ai:fix\`).`); return wake(pr.number); }
   if (!lock(pr.baseRefName, pr.headRefName, pr.headRefOid, L).ok) { label(pr.number, ["ai:fix"]); comment(pr.number, "**[Sam — Release]** contract-lock failed: this PR touched locked acceptance tests. Revert those changes (`ai:fix`)."); return wake(pr.number); }
+  const scope = deliveryScopeGate(pr, slug);
+  if (!scope.ok) {
+    if (scope.outside?.length) { label(pr.number, ["ai:fix"]); comment(pr.number, `**[Kiran — Project Manager]** File scope violation: ${scope.outside.slice(0, 20).join(", ")}. Keep changes within the declared delivery scope; do not widen it from this PR.`); return wake(pr.number); }
+    return log(`#${pr.number}: scope gate blocked merge: ${scope.reason}`);
+  }
   act(`merge #${pr.number} into ${pr.baseRefName}`, () => gh("pr", "merge", String(pr.number), "--repo", REPO, "--merge", "--match-head-commit", pr.headRefOid, "--delete-branch"));
   const contract = openPRs().find((p) => p.headRefName === pr.baseRefName);
   if (contract) { label(contract.number, ["ai:delivery", "ai:release"], ["ai:contract", "ai:founder-test"]); comment(contract.number, `**[Sam — Release]** Reviewed build #${pr.number} merged into this branch. Running release checks; the Demo Pack follows when everything is green.`); }
@@ -388,13 +411,9 @@ export function next() {
   const items = [];
   for (let item; (item = nextBacklogItem(md, [...used, ...items.map(i => i.slug)]));) items.push(item);
   if (!items.length) return log("next: backlog empty — Maya will propose new items when asked");
-  let scopes = {};
-  try {
-    if (existsSync(".ai-org/delivery-lanes.json")) {
-      scopes = JSON.parse(readFileSync(".ai-org/delivery-lanes.json", "utf8")).features;
-      if (!scopes || typeof scopes !== "object" || Array.isArray(scopes)) throw Error("invalid scopes");
-    }
-  } catch { return log("next: invalid delivery scope configuration; scheduling paused"); }
+  let scopes;
+  try { scopes = deliveryScopes(); }
+  catch { return log("next: invalid delivery scope configuration; scheduling paused"); }
   const policy = JSON.parse(readFileSync(join(HERE, "../governance/AUTONOMY_POLICY.json"), "utf8"));
   const completed = Object.keys(scopes).length ? ghj("pr", "list", "--repo", REPO, "--state", "merged", "--base", "main", "--limit", "300", "--json", "headRefName").map(p => slugOfBranch(p.headRefName)).filter(Boolean) : [];
   const selected = selectDeliveryItems({items, active:busy, scopes, completed, maxLanes:policy.execution.maxConcurrentDeliveryLanes});
@@ -425,6 +444,8 @@ function command() {
       }
       if (gate(pr.headRefName, pr.headRefOid) !== "success") return comment(n, "**[Sam — Release]** Checks are not green on the latest commit any more, so I did not ship. I'll post a new Demo Pack when they are.");
       if (!lock("main", pr.headRefName, pr.headRefOid, ["ai:delivery"]).ok) return comment(n, "**[Sam — Release]** Delivery lock failed; not shipped.");
+      const scope = deliveryScopeGate(pr, slugOfBranch(pr.headRefName));
+      if (!scope.ok) return log(`#${n}: scope gate blocked release: ${scope.reason}`);
       act(`merge #${n} into main (founder @${who} approved)`, () => gh("pr", "merge", String(n), "--repo", REPO, "--merge", "--match-head-commit", pr.headRefOid, "--delete-branch", "--subject", `Merge PR #${n}: ${pr.title.replace(/^Contract:\s*/i, "")} (approved by @${who})`));
       label(n, [], ["ai:founder-test", "ai:delivery"]);
       const { checksWorkflow, qaWorkflow } = cfg().loop;
