@@ -72,9 +72,11 @@ slice. It must not edit the same paths concurrently.
 
 ## Usage budget
 
-- Discovery attempts: completed through the existing ChatGPT/Codex allowance.
-- Implementation pilot limit: six Codex attempts per UTC day.
-- Incremental paid spend: zero unless founders explicitly approve a budget.
+- Discovery and unattended implementation use only approved free-tier model providers.
+- No Codex, ChatGPT Work, paid API, subscription login or paid fallback is permitted.
+- Current routing preference: NVIDIA NIM free endpoint for builder work, Groq free-tier builder fallback and independent review.
+- Free-tier quota exhaustion pauses work; resume only after quota recovery or an approved free fallback.
+- Incremental paid spend: zero.
 - Required record: attempts, available token counts, missing measurements,
   candidate commit and CI run.
 
