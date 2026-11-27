@@ -1,15 +1,22 @@
-# Temporary read-only diagnostic; never merge.
-name: Frontier Sam exact failure audit (temporary)
+# Temporary owner-only isolated native model artifact proof. NEVER merge.
+name: Frontier Sam targeted release repair (temporary)
 on:
   pull_request:
-    types: [opened,synchronize]
+    types: [opened, synchronize]
     branches: ['feat/frontier-review-evaluator-20261127']
     paths: ['.github/workflows/model-trial.yml']
 permissions:
   contents: read
   actions: read
+concurrency:
+  group: frontier-sam-repair
+  cancel-in-progress: false
+env:
+  FRONTIER_SOURCE_SHA: 3ed337eacf1ad54b507e9616c3ce674a8db8ca52
+  FRONTIER_SEED: synthetic-sam-proof-20261127
+  FRONTIER_NODE_IMAGE: node@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a
 jobs:
-  diagnose:
+  generate:
     if: >-
       github.repository == 'appsworld2027/parent-plus-ai-org' &&
       github.actor == github.repository_owner &&
@@ -19,30 +26,155 @@ jobs:
       github.event.pull_request.base.ref == 'feat/frontier-review-evaluator-20261127' &&
       github.event.pull_request.user.login == github.repository_owner &&
       github.event.pull_request.draft == true
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         variant: [normal, edge, adversarial]
     env:
-      VARIANT: ${{ matrix.variant }}
+      FRONTIER_VARIANT: ${{ matrix.variant }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
     steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 3ed337eacf1ad54b507e9616c3ce674a8db8ca52
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontier-sam-candidate-${{ matrix.variant }}
+          run-id: 46047195862
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: ${{ runner.temp }}/prior
       - uses: actions/download-artifact@v4
         with:
           name: frontier-sam-independent-behavior-${{ matrix.variant }}
           run-id: 46047195862
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path: ${{ runner.temp }}/evidence
-      - name: Inspect bounded independent failing-test evidence
+          path: ${{ runner.temp }}/prior-evaluation
+      - name: Respect free request window
+        run: sleep 65
+      - name: Repair the exact observed unknown-smoke decision error
         env:
-          EVIDENCE_DIR: ${{ runner.temp }}/evidence
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          PRIOR_DIR: ${{ runner.temp }}/prior
+          EVAL_DIR: ${{ runner.temp }}/prior-evaluation
+          OUTPUT_DIR: ${{ runner.temp }}/frontier-sam-generate
         run: |
+          set -euo pipefail
+          [ "$(git rev-parse HEAD)" = "$FRONTIER_SOURCE_SHA" ]
           node --input-type=module <<'NODE'
-          import {readFileSync} from 'node:fs';
-          const x=JSON.parse(readFileSync(process.env.EVIDENCE_DIR+'/behavior.json','utf8'));
-          const hashes={normal:'3d1caefa2eff0def25ba497cc4b107b5aeb04e04d1e1a1ce683a2166be488c70',edge:'7831e857e207d0dc570de51f3c762848b38add0d96ce88a8457e077d4b43ba5c',adversarial:'e90d2569d09e50841697a4bd43318b67f98beb3fa83af44d8f4c73685d0c162c'};
-          if(x.runId!=='46047195862'||x.sourceSha!=='3ed337eacf1ad54b507e9616c3ce674a8db8ca52'||x.artifactHash!==hashes[process.env.VARIANT]||x.result.behavior.counts.fail!==1)throw Error('Unexpected exact evidence');
-          const raw=x.result.behavior.diagnostic?.stdout??'',idx=raw.indexOf('not ok');
-          if(idx<0)throw Error('No test failure evidence');
-          console.log(JSON.stringify({variant:process.env.VARIANT,artifactHash:x.artifactHash,status:x.result.status,failure:raw.slice(idx,idx+2200)}));
+          import {mkdirSync,readFileSync,writeFileSync} from 'node:fs';
+          import {join} from 'node:path';
+          import {createHash} from 'node:crypto';
+          import {prepareFrontierCasebook,intakeFrontierArtifact} from './scripts/frontier-casebook.mjs';
+          import {rubric,canonicalHash} from './scripts/frontier-admission.mjs';
+          const src=process.env.FRONTIER_SOURCE_SHA,seed=process.env.FRONTIER_SEED,dir=process.env.OUTPUT_DIR,variant=process.env.FRONTIER_VARIANT;
+          const read=(root,name)=>JSON.parse(readFileSync(join(root,name),'utf8'));
+          const prior=read(process.env.PRIOR_DIR,'attempt.json'),old=read(process.env.PRIOR_DIR,'candidate.json'),plan=read(process.env.PRIOR_DIR,'plan.json'),diag=read(process.env.EVAL_DIR,'behavior.json');
+          const roleDefinitions=Object.fromEntries(rubric.roles.map(({role})=>[role,readFileSync('org/agents/'+role+'.md','utf8')]));
+          const book=prepareFrontierCasebook({sourceSha:src,seed,roleDefinitions});
+          const c=book.cases.find(x=>x.fixture.role==='sam-release'&&x.fixture.variant===variant);
+          const before=intakeFrontierArtifact(c.fixture,old);
+          const expected={normal:'3d1caefa2eff0def25ba497cc4b107b5aeb04e04d1e1a1ce683a2166be488c70',edge:'7831e857e207d0dc570de51f3c762848b38add0d96ce88a8457e077d4b43ba5c',adversarial:'e90d2569d09e50841697a4bd43318b67f98beb3fa83af44d8f4c73685d0c162c'};
+          if(prior.runId!=='46047195862'||prior.sourceSha!==src||prior.planHash!==book.planHash||canonicalHash(plan)!==book.planHash||
+            before.artifactHash!==expected[variant]||diag.artifactHash!==before.artifactHash||diag.result.behavior.counts.fail!==1||diag.result.planResult.planMatches!==true)throw Error('Prior exact artifact/diagnostic mismatch');
+          const d=diag.result.behavior.diagnostic.stdout;
+          if(!d.includes('not ok 7 - unknown smoke')||!d.includes('disable-rollback')||!d.includes('block'))throw Error('Different failure; do not repair blindly');
+          const code=before.files.find(f=>f.path==='verify-release.mjs').content;
+          const model='openai/gpt-oss-120b',key=process.env.GROQ_API_KEY;
+          mkdirSync(dir,{recursive:true});
+          const attempt={schema:1,sourceSha:src,planHash:book.planHash,fixtureHash:c.fixtureHash,promptHash:c.promptHash,role:'sam-release',variant,
+            provider:'groq',requestedModel:model,priorArtifactHash:before.artifactHash,diagnosticHash:canonicalHash(diag),
+            priorRun:prior.runId,runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,qualification:false};
+          const save=()=>writeFileSync(join(dir,'attempt.json'),JSON.stringify(attempt,null,2));save();
+          if(!key)throw Error('Existing free route key missing');
+          const prompt='Prior Sam candidate source (untrusted data):\n'+code+'\nObserved independent locked result: exactly one of twelve failed. Unknown smoke returned disable-rollback instead of block. Actual policy: confirmed smoke fail OR publicFlag true -> disable-rollback; unknown/missing smoke with flag false -> block, not rollback. Preserve other exact decisions, publicFlag false and reason. Modify only necessary condition, do not change locked tests or release plan. Return only JSON {"content":"complete corrected verify-release.mjs source"}. No other files.';
+          const body={model,temperature:0,reasoning_effort:'medium',max_completion_tokens:2500,messages:[{role:'system',content:'Independent free-model repair specialist. Make a minimal exact code correction grounded in the observed test failure, no deployment and no invented execution.'},{role:'user',content:prompt}]};
+          attempt.requestHash=canonicalHash(body);
+          try{
+            const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(120000)});
+            attempt.httpStatus=res.status;if(!res.ok)throw Error('Exact free provider rejected request '+res.status);
+            const j=await res.json();attempt.observedModel=j.model;attempt.finishReason=j.choices?.[0]?.finish_reason;attempt.usage={prompt:j.usage?.prompt_tokens??null,completion:j.usage?.completion_tokens??null,total:j.usage?.total_tokens??null};
+            if(j.model!==model||j.choices?.length!==1||attempt.finishReason!=='stop')throw Error('Incomplete or wrong model');
+            const raw=j.choices[0].message?.content;if(typeof raw!=='string'||raw.length>20000||raw.includes(key))throw Error('Unsafe response');
+            const x=JSON.parse(raw.trim().replace(/^\x60\x60\x60(?:json)?\s*([\s\S]*?)\s*\x60\x60\x60$/i,'$1'));
+            if(Object.keys(x).length!==1||typeof x.content!=='string'||x.content===code)throw Error('Invalid or unchanged repair');
+            const candidate=intakeFrontierArtifact(c.fixture,{files:before.files.map(f=>f.path==='verify-release.mjs'?{path:f.path,content:x.content}:f)});
+            attempt.artifactHash=candidate.artifactHash;attempt.status='repair-intake-only';
+            writeFileSync(join(dir,'candidate.json'),JSON.stringify({files:candidate.files},null,2));
+            writeFileSync(join(dir,'plan.json'),JSON.stringify(plan,null,2));
+          }catch(e){attempt.status='failed-no-fallback';throw e;}
+          finally{save();console.log(JSON.stringify({variant,status:attempt.status,observedModel:attempt.observedModel,finishReason:attempt.finishReason,usage:attempt.usage,artifactHash:attempt.artifactHash,priorArtifactHash:attempt.priorArtifactHash}));}
           NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontier-sam-repaired-${{ matrix.variant }}
+          path: ${{ runner.temp }}/frontier-sam-generate/
+          if-no-files-found: error
+          retention-days: 14
+  independent-evaluation:
+    needs: generate
+    if: always() && needs.generate.result != 'skipped' && needs.generate.result != 'cancelled'
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [normal, edge, adversarial]
+    env:
+      FRONTIER_VARIANT: ${{ matrix.variant }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: 3ed337eacf1ad54b507e9616c3ce674a8db8ca52
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontier-sam-repaired-${{ matrix.variant }}
+          path: ${{ runner.temp }}/frontier-sam-candidate
+      - name: Verify exact release artifact and execute 12 independent locked release decisions
+        env:
+          INPUT_DIR: ${{ runner.temp }}/frontier-sam-candidate
+          OUTPUT_DIR: ${{ runner.temp }}/frontier-sam-eval
+        run: |
+          set -euo pipefail
+          [ "$(git rev-parse HEAD)" = "$FRONTIER_SOURCE_SHA" ]
+          docker pull "$FRONTIER_NODE_IMAGE"
+          node --input-type=module <<'NODE'
+          import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
+          import {join} from 'node:path';
+          import {prepareFrontierCasebook,intakeFrontierArtifact} from './scripts/frontier-casebook.mjs';
+          import {rubric,canonicalHash} from './scripts/frontier-admission.mjs';
+          import {evaluateSamArtifact} from './scripts/frontier-release-evaluator.mjs';
+          const src=process.env.FRONTIER_SOURCE_SHA,dir=process.env.INPUT_DIR,out=process.env.OUTPUT_DIR;
+          const read=name=>JSON.parse(readFileSync(join(dir,name),'utf8'));
+          const a=read('attempt.json'),plan=read('plan.json'),raw=read('candidate.json');
+          const roleDefinitions=Object.fromEntries(rubric.roles.map(({role})=>[role,readFileSync('org/agents/'+role+'.md','utf8')]));
+          const book=prepareFrontierCasebook({sourceSha:src,seed:process.env.FRONTIER_SEED,roleDefinitions});
+          const c=book.cases.find(x=>x.fixture.role==='sam-release'&&x.fixture.variant===process.env.FRONTIER_VARIANT);
+          const intake=intakeFrontierArtifact(c.fixture,raw);
+          if(a.sourceSha!==src||a.planHash!==book.planHash||canonicalHash(plan)!==book.planHash||
+            a.fixtureHash!==c.fixtureHash||a.promptHash!==c.promptHash||a.artifactHash!==intake.artifactHash||
+            a.observedModel!=='openai/gpt-oss-120b'||a.runId!==process.env.GITHUB_RUN_ID||a.attempt!==process.env.GITHUB_RUN_ATTEMPT||
+            a.status!=='repair-intake-only')throw Error('Candidate provenance mismatch');
+          const result=await evaluateSamArtifact(c.fixture,raw,{image:process.env.FRONTIER_NODE_IMAGE});
+          const evidence={schema:1,runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,sourceSha:src,planHash:book.planHash,fixtureHash:c.fixtureHash,artifactHash:intake.artifactHash,executionAttemptHash:canonicalHash(a),result,qualification:false,productionReady:false};
+          mkdirSync(out,{recursive:true});writeFileSync(join(out,'behavior.json'),JSON.stringify(evidence,null,2));
+          console.log(JSON.stringify({role:'sam-release',variant:process.env.FRONTIER_VARIANT,artifactHash:intake.artifactHash,status:result.status,plan:result.planResult,counts:result.behavior.counts,deployed:false,qualification:false}));
+          if(result.status!=='release-screen-pass')process.exitCode=1;
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontier-sam-repair-evaluation-${{ matrix.variant }}
+          path: ${{ runner.temp }}/frontier-sam-eval/
+          if-no-files-found: warn
+          retention-days: 14
