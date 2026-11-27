@@ -334,6 +334,8 @@ jobs:
           [ -n "$EFFORT" ] && printf 'REASONING_POLICY=%s\n' "$EFFORT" >> "$HOME/.fcc/.env" && echo "reasoning effort: $EFFORT"
           chmod 600 "$HOME/.fcc/.env"
           echo '{"includeCoAuthoredBy": false}' > "$HOME/.claude/settings.json"
+          # The adapter reads its protected env file; do not pass provider keys into the agent shell.
+          unset GROQ_API_KEY NVIDIA_NIM_API_KEY API_KEY
           nohup fcc-server > /tmp/agent-logs/fcc.log 2>&1 &
           for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8082/v1/models && break; sleep 1; done
           git config user.name "$AGENT_NAME (AppsWorld AI Org)"
