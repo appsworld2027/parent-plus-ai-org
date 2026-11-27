@@ -1,0 +1,24 @@
+{
+  "schema": 1,
+  "scope": "NVIDIA-developer-trial-synthetic-only",
+  "strategy": "per-file",
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "reviewer": "nvidia/nemotron-3-ultra-550b-a55b",
+  "role": "kiran-pjm-a",
+  "variant": "edge",
+  "paidFallback": false,
+  "authorOutputBudget": 3900,
+  "reviewOutputBudget": 2400,
+  "steps": [
+    {
+      "path": "task-graph.json",
+      "format": "json_object",
+      "maxTokens": 3000
+    },
+    {
+      "path": "handover.md",
+      "format": "text",
+      "maxTokens": 900
+    }
+  ]
+}
