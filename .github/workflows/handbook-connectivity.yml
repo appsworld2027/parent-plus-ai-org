@@ -23,23 +23,50 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Check handbook access
-        if: github.repository != 'appsworld2027/parent-plus-ai-org'
+      - name: Detect AI Org handbook visibility
+        id: handbook_visibility
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          status=$(curl -sS -o "$RUNNER_TEMP/ai-org-repo.json" -w '%{http_code}' \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/appsworld2027/parent-plus-ai-org)
+          if [ "$status" = "200" ]; then
+            private=$(jq -er '.private | tostring' "$RUNNER_TEMP/ai-org-repo.json")
+          elif [ "$status" = "404" ]; then
+            # A caller token cannot see a private repository. Treat it as private and require the read-only key.
+            private=true
+          else
+            echo "::error::Could not verify AI Org handbook visibility (HTTP $status); refusing an unknown checkout mode."
+            exit 1
+          fi
+          case "$private" in true|false) ;; *) echo "::error::Invalid repository visibility response"; exit 1;; esac
+          echo "private=$private" >> "$GITHUB_OUTPUT"
+
+      - name: Check private handbook access
+        if: steps.handbook_visibility.outputs.private == 'true' && github.repository != 'appsworld2027/parent-plus-ai-org'
         env:
           HANDBOOK_ACCESS: ${{ secrets.AI_ORG_HANDBOOK_SSH_KEY != '' }}
         run: |
           if [ "$HANDBOOK_ACCESS" != true ]; then
-            echo "::error::Private AI Org handbook access requires AI_ORG_HANDBOOK_SSH_KEY (read-only deploy key for the AI Org repository)."
+            echo "::error::AI Org handbook is private or hidden from the caller token; configure AI_ORG_HANDBOOK_SSH_KEY (read-only deploy key)."
             exit 1
           fi
-      - uses: actions/checkout@v5
+
+      - name: Load AI Org handbook
+        uses: actions/checkout@v5
         with:
           repository: appsworld2027/parent-plus-ai-org
           ref: ${{ inputs.handbook_ref }}
+          path: .ai-org-handbook
           token: ${{ github.token }}
-          ssh-key: ${{ github.repository == 'appsworld2027/parent-plus-ai-org' && '' || secrets.AI_ORG_HANDBOOK_SSH_KEY }}
+          ssh-key: ${{ github.repository != 'appsworld2027/parent-plus-ai-org' && steps.handbook_visibility.outputs.private == 'true' && secrets.AI_ORG_HANDBOOK_SSH_KEY || '' }}
           persist-credentials: false
+
       - name: Verify exact handbook and role router availability
+        working-directory: .ai-org-handbook
         env:
           EXPECTED: ${{ inputs.handbook_ref }}
         run: |
