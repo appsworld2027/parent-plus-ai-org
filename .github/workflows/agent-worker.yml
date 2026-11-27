@@ -59,8 +59,21 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Check handbook access
+      - name: Detect AI Org handbook visibility
+        id: handbook_visibility
         if: github.repository != 'appsworld2027/parent-plus-ai-org'
+        run: |
+          status="$(curl -sS -o "$RUNNER_TEMP/ai-org-repo.json" -w "%{http_code}" https://api.github.com/repos/appsworld2027/parent-plus-ai-org)"
+          if [ "$status" = "200" ]; then
+            private="$(jq -r '.private // true' "$RUNNER_TEMP/ai-org-repo.json")"
+          else
+            private=true
+          fi
+          [ "$private" = "false" ] || private=true
+          echo "private=$private" >> "$GITHUB_OUTPUT"
+
+      - name: Check handbook access
+        if: github.repository != 'appsworld2027/parent-plus-ai-org' && steps.handbook_visibility.outputs.private == 'true'
         env:
           HANDBOOK_ACCESS: ${{ secrets.AI_ORG_HANDBOOK_SSH_KEY != '' }}
         run: |
@@ -76,7 +89,7 @@ jobs:
           ref: ${{ inputs.handbook_ref }}
           path: .ai-org-handbook
           token: ${{ github.token }}
-          ssh-key: ${{ github.repository == 'appsworld2027/parent-plus-ai-org' && '' || secrets.AI_ORG_HANDBOOK_SSH_KEY }}
+          ssh-key: ${{ github.repository != 'appsworld2027/parent-plus-ai-org' && steps.handbook_visibility.outputs.private == 'true' && secrets.AI_ORG_HANDBOOK_SSH_KEY || '' }}
           persist-credentials: false
 
       - uses: actions/setup-node@v5
