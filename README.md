@@ -19,7 +19,7 @@ Live pilot example from the organization directory:
 
     python3 org.py run A qa demo/brief.md --ledger /tmp/ai-org-usage.jsonl
 
-Use an existing Codex allowance with paid overages disabled. CLI runs start read-only. Native agent profiles are also available for a trusted Codex checkout. Use a separate approved workspace for implementation and keep product remotes and production credentials out of the pilot. Use the ledger from one shared operator machine for the pilot. GitHub merge enforcement depends on the selected repository plan. CI calculates check results on a pull request. A founder verifies results for the current commit before merging if required checks are unavailable.
+Unattended agent execution is free-provider-only: NVIDIA NIM free endpoint for builder work when available, with Groq free-tier builder fallback and independent review. No Codex, ChatGPT Work, subscription login, paid inference API or paid fallback is used. Keep production credentials and customer data out of hosted model prompts. GitHub merge enforcement depends on the selected repository plan; a founder verifies current-commit evidence before production release.
 
 
 Run `python3 org.py gate demo/blocked.json` for an example decision from

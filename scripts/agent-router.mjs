@@ -2,7 +2,7 @@
 // Decides which agent (and engine) should act on an issue/PR, based on its ai:* stage label.
 // Pure logic + a small CLI used by .github/workflows/agent-worker.yml.
 // CLI: node agent-router.mjs --labels "ai:build,engine:codex" [--pr] [--body-file f] [--number N] [--repo o/r]
-//      env ENGINE_CLAUDE / ENGINE_CODEX / ENGINE_FREE = "true" when that engine's secret exists.
+//      env ENGINE_FREE / ENGINE_GROQ / ENGINE_NVIDIA = "true" when that engine's secret exists.
 import { readFileSync, appendFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { realpathSync } from "node:fs";
@@ -38,7 +38,7 @@ const NO_AGENT = ["ai:founder-decision", "ai:founder-test", "ai:blocked", "ai:re
 const STAGE_ORDER = [...NO_AGENT, ...Object.keys(STAGE_ROLE)];
 
 // Engine preference when no engine:* label is set, among the allowed engines.
-export const ENGINES = ["claude", "codex", "free"];
+export const ENGINES = ["free"];
 // Canonical engine policy comes from governance/AUTONOMY_POLICY.json.
 // No paid fallback is permitted. Background execution remains separately gated below.
 export const ALLOWED_ENGINES = Object.freeze([...AUTONOMY_POLICY.execution.allowedEngines]);
@@ -47,10 +47,11 @@ export const ALLOWED_ENGINES = Object.freeze([...AUTONOMY_POLICY.execution.allow
 // Builder and reviewer are distinct Groq free-tier model families; model quality is tracked by regression evidence.
 export const FREE_MODELS = {
   builder: "groq/openai/gpt-oss-120b",
+  nvidiaBuilder: "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
   reviewer: "groq/qwen/qwen3.8-27b",
 };
-// Groq free-tier model override with an optional reasoning-effort suffix.
-const FREE_OVERRIDE = /^groq\/(openai\/gpt-oss-120b|qwen\/qwen3\.8-27b)(@(off|low|medium|high|xhigh|max))?$/;
+// Only approved free model IDs are accepted. NVIDIA is builder-only until independent-review latency is qualified.
+const FREE_OVERRIDE = /^(?:groq\/(?:openai\/gpt-oss-120b|qwen\/qwen3\.8-27b)(?:@(off|low|medium|high|xhigh|max))?|nvidia\/nvidia\/nemotron-3-ultra-550b-a55b)$/;
 const REVIEW_ROLES = ["quinn-qa", "rex-reviewer"];
 
 export function agentInfo(slug, dir = AGENTS_DIR) {
@@ -61,9 +62,10 @@ export function agentInfo(slug, dir = AGENTS_DIR) {
   return { slug, name: meta.name, role: meta.role, model: meta.model };
 }
 
-export function route({ labels = [], body = "", isPR = false, engines = { claude: false, codex: false, free: false }, freeModel = "", allowed = ALLOWED_ENGINES, supervisedTrial = false }) {
+export function route({ labels = [], body = "", isPR = false, engines = { free: false }, freeModel = "", allowed = ALLOWED_ENGINES, supervisedTrial = false, freeProviders = { groq: true, nvidia: false } }) {
   const policyAllowed = new Set(ALLOWED_ENGINES);
   engines = Object.fromEntries(ENGINES.map((e) => [e, policyAllowed.has(e) && allowed.includes(e) && !!engines[e]]));
+  freeProviders = { groq: freeProviders?.groq === true, nvidia: freeProviders?.nvidia === true };
   const stage = STAGE_ORDER.find((s) => labels.includes(s));
   if (!stage) return { action: "skip", reason: "no ai:* stage label" };
   if (NO_AGENT.includes(stage)) return { action: "skip", stage, reason: `${stage} waits for a founder or a project manager` };
@@ -76,7 +78,7 @@ export function route({ labels = [], body = "", isPR = false, engines = { claude
   }
 
   const wanted = ENGINES.find((e) => labels.includes(`engine:${e}`)) || null;
-  let preferred = wanted || ENGINES.find((e) => engines[e]) || "claude";
+  let preferred = wanted || ENGINES.find((e) => engines[e]) || "free";
   // Independence: QA and review prefer an engine that did NOT author the PR.
   if ((stage === "ai:qa" || stage === "ai:review") && isPR && wanted) {
     preferred = ENGINES.filter((e) => e !== wanted).find((e) => engines[e]) || wanted;
@@ -91,9 +93,28 @@ export function route({ labels = [], body = "", isPR = false, engines = { claude
   // Writing tests is authoring work: use the faster builder model. Verdicts (ai:qa, ai:review) stay on the reviewer model,
   // so the code is still judged by a different model than the one that wrote it. (2026-11-23: Quinn on the reviewer model
   // made 52 tool calls in 50 minutes and timed out on #42; the builder model averaged ~10 s per call on #37.)
-  if (engine === "free") out.free_model = REVIEW_ROLES.includes(role) && stage !== "ai:tests" ? FREE_MODELS.reviewer : FREE_MODELS.builder;
-  // Overrides are limited to approved Groq free-tier endpoints; a product setting cannot route to a billed provider.
-  if (engine === "free" && FREE_OVERRIDE.test(freeModel)) out.free_model = freeModel; // explicit override (model trials, manifest choice)
+  if (engine === "free") {
+    const reviewerSeat = REVIEW_ROLES.includes(role) && stage !== "ai:tests";
+    const available = (model) => freeProviders[model.split("/")[0]] === true;
+    const override = FREE_OVERRIDE.test(freeModel) && available(freeModel) ? freeModel : "";
+    const candidates = reviewerSeat
+      ? [FREE_MODELS.reviewer]
+      : [FREE_MODELS.nvidiaBuilder, FREE_MODELS.builder];
+    const selected = override || candidates.find(available) || "";
+    if (!selected) {
+      return {
+        action: "pause",
+        stage,
+        role,
+        reason: reviewerSeat
+          ? "Independent review requires the approved Groq reviewer model; connect GROQ_API_KEY."
+          : "No approved free provider key is connected for the assigned agent seat."
+      };
+    }
+    out.free_model = selected;
+    out.free_provider = selected.split("/")[0];
+    out.free_model_role = reviewerSeat ? "independent-reviewer" : "builder";
+  }
   return out;
 }
 
@@ -217,7 +238,9 @@ if (isMain(import.meta.url)) {
   const toolMode = arg("tool-mode") || "standard";
   const r = route({
     labels, isPR, body: bodyFile && existsSync(bodyFile) ? readFileSync(bodyFile, "utf8") : "",
-    freeModel: process.env.FREE_MODEL_OVERRIDE || "", supervisedTrial: process.env.SUPERVISED_SYNTHETIC_TRIAL === "1", engines: { claude: process.env.ENGINE_CLAUDE === "true", codex: process.env.ENGINE_CODEX === "true", free: process.env.ENGINE_FREE === "true" },
+    freeModel: process.env.FREE_MODEL_OVERRIDE || "", supervisedTrial: process.env.SUPERVISED_SYNTHETIC_TRIAL === "1",
+    engines: { free: process.env.ENGINE_FREE === "true" },
+    freeProviders: { groq: process.env.ENGINE_GROQ === "true", nvidia: process.env.ENGINE_NVIDIA === "true" },
   });
   const out = { ...r };
   if (r.role) {

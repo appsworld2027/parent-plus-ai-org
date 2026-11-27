@@ -168,7 +168,8 @@ test("hourly resume is enabled only for approved repos; AI Org self-work is the 
   assert.ok(resume.includes("vars.UNATTENDED_AGENTS == 'on'"));
   for (const label of ["ai:lane-a", "ai:lane-b", "ai:design", "ai:database", "ai:integration", "ai:release-ops"]) assert.ok(resume.includes(label), `resume covers ${label}`);
   assert.match(resume, /GROQ_API_KEY/);
-  assert.doesNotMatch(resume, /CLAUDE_CODE_OAUTH_TOKEN|CODEX_AUTH_JSON|NVIDIA_NIM_API_KEY/);
+  assert.match(resume, /NVIDIA_NIM_API_KEY/);
+  assert.doesNotMatch(resume, /CLAUDE_CODE_OAUTH_TOKEN|CODEX_AUTH_JSON/);
 });
 test("engine commands run with a clean environment, never inheriting runner settings", () => {
   assert.doesNotMatch(read("scripts/safe-trial/engine.sh"), /sudo -u trialproxy/);

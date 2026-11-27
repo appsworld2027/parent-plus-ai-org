@@ -22,12 +22,30 @@
     "allowPaidFallback": false,
     "requirePrivateRepositoriesForConfidentialCode": true,
     "requireApprovedProviderForConfidentialCode": false,
-    "freeProvider": "groq",
+    "freeProvider": "nvidia-nim+groq",
     "freeModels": {
       "builder": "groq/openai/gpt-oss-120b",
+      "builderPreferred": "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
       "reviewer": "groq/qwen/qwen3.8-27b"
     },
-    "maxConcurrentDeliveryLanes": 2
+    "maxConcurrentDeliveryLanes": 2,
+    "freeProviders": [
+      "nvidia",
+      "groq"
+    ],
+    "providerPolicy": {
+      "mode": "free-only",
+      "paidFallback": false,
+      "subscriptionAuthentication": false,
+      "builderPreference": [
+        "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
+        "groq/openai/gpt-oss-120b"
+      ],
+      "independentReviewer": "groq/qwen/qwen3.8-27b",
+      "reviewerProviderMustDifferFromBuilder": true,
+      "nvidiaReviewerEnabled": false,
+      "quotaExhaustion": "pause-or-approved-free-fallback-only"
+    }
   },
   "release": {
     "founderOnlyDeploymentMayBeAutonomousAfterVerification": true,
@@ -46,6 +64,9 @@
     "This policy is the machine-readable authority contract for AI Org.",
     "Unattended development agents use only the Groq free tier through the pinned Free Claude Code adapter.",
     "If the free key, model, or quota is unavailable, execution pauses; no paid fallback or automatic upgrade is permitted.",
-    "Never send secrets, production credentials, customer data, or child personal data to hosted models."
+    "Never send secrets, production credentials, customer data, or child personal data to hosted models.",
+    "NVIDIA NIM free Nemotron endpoint is preferred for builder turns when available; Groq GPT-OSS is the approved free builder fallback.",
+    "Groq Qwen is the independent reviewer. NVIDIA is not assigned reviewer work until separate latency and review-quality qualification passes.",
+    "Only exact model IDs in the free-provider allowlist may execute. Paid API fallback, subscription sign-in, automatic upgrades and unapproved provider substitution are prohibited."
   ]
 }

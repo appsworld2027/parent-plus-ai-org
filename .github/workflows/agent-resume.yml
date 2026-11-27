@@ -1,5 +1,5 @@
-# Reusable "resume paused work" sweep. When the Groq free-tier key exists, resume open agent-stage
-# issues/PRs whose latest comment is the AI Org pause notice. No paid fallback is available.
+# Reusable resume sweep. Resume open agent-stage issues/PRs when an approved Groq or NVIDIA free key exists.
+# Reviewer stages still require Groq; no paid fallback is available.
 name: Agent resume
 
 on:
@@ -12,6 +12,8 @@ on:
     secrets:
       GROQ_API_KEY:
         required: false
+      NVIDIA_NIM_API_KEY:
+        required: false
 
 jobs:
   resume:
@@ -21,13 +23,13 @@ jobs:
     timeout-minutes: 10
     env:
       GH_TOKEN: ${{ github.token }}
-      HAS_ENGINE: ${{ secrets.GROQ_API_KEY != '' }}
+      HAS_ENGINE: ${{ secrets.GROQ_API_KEY != '' || secrets.NVIDIA_NIM_API_KEY != '' }}
       WORKFLOW: ${{ inputs.dispatch_workflow }}
     steps:
       - name: Re-dispatch paused items
         run: |
           set -euo pipefail
-          if [ "$HAS_ENGINE" != "true" ]; then echo "No engine connected - nothing to resume." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          if [ "$HAS_ENGINE" != "true" ]; then echo "No approved free provider connected - nothing to resume." | tee -a "$GITHUB_STEP_SUMMARY"; exit 0; fi
           count=0
           for n in $(gh api "repos/$GITHUB_REPOSITORY/issues?state=open&per_page=100" --jq '.[] | select([.labels[].name] | index("ai:blocked") | not) | select([.labels[].name] | any(. == "ai:discovery" or . == "ai:plan" or . == "ai:lane-a" or . == "ai:lane-b" or . == "ai:design" or . == "ai:tests" or . == "ai:tests-review" or . == "ai:tests-signoff" or . == "ai:build" or . == "ai:database" or . == "ai:integration" or . == "ai:qa" or . == "ai:review" or . == "ai:release-ops" or . == "ai:fix")) | .number'); do
             last=$(gh api "repos/$GITHUB_REPOSITORY/issues/$n/comments?per_page=100" --jq 'last | .body // ""')
