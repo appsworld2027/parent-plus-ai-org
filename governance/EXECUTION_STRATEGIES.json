@@ -81,6 +81,14 @@
           "completionTokenLimit": 1600,
           "reasoningEffort": "provider-default"
         }
+      },
+      "taskModelAdjustments": {
+        "review": {
+          "groq/openai/gpt-oss-120b": {
+            "completionTokenLimit": 1800,
+            "reasoningEffort": "medium"
+          }
+        }
       }
     },
     "frontier-loop": {

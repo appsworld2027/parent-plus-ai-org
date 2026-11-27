@@ -22,7 +22,9 @@ export function validateExecutionStrategies(config){
   validateNums(p.packet,packetKeys,name+'.packet');validateNums(p.worker,workerKeys,name+'.worker');validateNums(p.quota,quotaKeys,name+'.quota');
   if(p.quota.pauseOnExhaustion!==true||p.quota.retryAfterRequired!==true)throw Error('Quota exhaustion must pause and respect provider');
   for(const [task,over] of Object.entries(p.taskOverrides??{})){if(!['planning','authoring','review','integration'].includes(task)||Object.keys(over).some(k=>!Object.hasOwn(packetKeys,k)))throw Error('Unknown task override');validateNums(over,packetKeys,'task override',true);}
-  for(const [model,over] of Object.entries(p.modelAdjustments??{})){if(!model||Object.keys(over).some(k=>!['completionTokenLimit','reasoningEffort'].includes(k))||!validNum(over.completionTokenLimit,packetKeys.completionTokenLimit)||!['low','medium','high','provider-default'].includes(over.reasoningEffort))throw Error('Invalid model tuning');}
+  const checkModelTuning=adjustments=>{for(const [model,over] of Object.entries(adjustments??{})){if(!model||Object.keys(over).some(k=>!['completionTokenLimit','reasoningEffort'].includes(k))||!validNum(over.completionTokenLimit,packetKeys.completionTokenLimit)||!['low','medium','high','provider-default'].includes(over.reasoningEffort))throw Error('Invalid model tuning');}};
+  checkModelTuning(p.modelAdjustments);
+  for(const [task,adjustments] of Object.entries(p.taskModelAdjustments??{})){if(!['planning','authoring','review','integration'].includes(task)||!adjustments||typeof adjustments!=='object'||Array.isArray(adjustments))throw Error('Invalid task/model tuning');checkModelTuning(adjustments);}
  }
  if(F.worker.outputTokenCap>=1000||F.worker.embeddedReviewOutputTokenCap>=1000||F.packet.inputTokenTarget>8000||F.packet.completionTokenLimit>3000||F.quota.maxTransientRetries>1)throw Error('Free limits exceed bounded policy');
  if(!config.stageClasses||Object.values(config.stageClasses).some(v=>!['planning','authoring','review','integration'].includes(v)))throw Error('Unknown stage class');
@@ -42,7 +44,7 @@ export function selectExecutionStrategy({engine,stage,model='',config=EXECUTION_
  }
  const taskClass=config.stageClasses[stage];if(!taskClass)throw Error('Unknown working stage');
  const modelKey=typeof model==='string'?model.split('@')[0]:'';
- const packet={...profile.packet,...(profile.taskOverrides?.[taskClass]??{}),...(profile.modelAdjustments?.[modelKey]??{})};
+ const packet={...profile.packet,...(profile.taskOverrides?.[taskClass]??{}),...(profile.modelAdjustments?.[modelKey]??{}),...(profile.taskModelAdjustments?.[taskClass]?.[modelKey]??{})};
  validateNums(packet,packetKeys,'effective packet');
  if(engine==='free'&&(packet.inputTokenTarget>8000||packet.completionTokenLimit>3000))throw Error('Free effective packet exceeds bounds');
  return {id,engine,taskClass,mode:profile.mode,contextMode:profile.contextMode,progressMode:profile.progressMode,packet,worker:{...profile.worker},quota:{...profile.quota},quality:{...config.sharedQuality},requiresExplicitSpendApproval:profile.requiresExplicitSpendApproval};
