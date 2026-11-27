@@ -134,7 +134,7 @@ test("v3: QA stages carry seats, onboarding + handover rules, and the right brie
   assert.equal(STAGE_SEAT["ai:tests"], "author");
   const q = agentInfo("quinn-qa"), a = agentInfo("arjun-cpto");
   const ch = buildPrompt({ agent: q, number: 42, isPR: false, repo: "o/r", stage: "ai:tests-review", featureSlug: "registration" });
-  assert.match(ch, /onboarding\.md/); assert.match(ch, /handoff\.mjs template ai:tests-review quinn-qa/); assert.match(ch, /handoff\.mjs validate <path>/); assert.match(ch, /Do NOT edit the spec/); assert.match(ch, /would still pass if the feature were built wrong/);
+  assert.match(ch, /FIRST read `\.ai-org-runtime\/onboarding\.md` completely/); assert.match(ch, /handoff\.mjs template ai:tests-review quinn-qa/); assert.match(ch, /handoff\.mjs validate <path>/); assert.match(ch, /Do NOT edit the spec/); assert.match(ch, /would still pass if the feature were built wrong/);
   const so = buildPrompt({ agent: a, number: 42, isPR: false, repo: "o/r", stage: "ai:tests-signoff" });
   assert.match(so, /Verdict: APPROVE/); assert.match(so, /Memory proposals/); assert.match(so, /ai:founder-decision/);
   assert.match(buildPrompt({ agent: q, number: 42, isPR: false, repo: "o/r", stage: "ai:tests" }), /challenger or CPTO verdict of CHANGES/);

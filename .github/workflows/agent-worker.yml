@@ -160,6 +160,13 @@ jobs:
         run: |
           set -uo pipefail
           mkdir -p /tmp/agent-logs
+          ONBOARDING_DIR="$GITHUB_WORKSPACE/.ai-org-runtime"
+          mkdir -p "$ONBOARDING_DIR"
+          EXCLUDE_FILE="$(git rev-parse --git-path info/exclude)"
+          mkdir -p "$(dirname "$EXCLUDE_FILE")"
+          touch "$EXCLUDE_FILE"
+          grep -qxF '.ai-org-runtime/' "$EXCLUDE_FILE" || printf '\n.ai-org-runtime/\n' >> "$EXCLUDE_FILE"
+          ONBOARDING_FILE="$ONBOARDING_DIR/onboarding.md"
           SLUG=$(grep -o 'ai/contract-[a-z0-9-]*' /tmp/body.md | head -1 | sed 's#ai/contract-##' || true)
           if [ -z "$SLUG" ]; then
             SLUG=$(jq -r '.title' /tmp/item.json | sed -nE 's/.*\[([a-z0-9-]+)\]$/\1/p')
@@ -179,9 +186,10 @@ jobs:
           sed -i -E '/^[[:space:]]*total[[:space:]]+used[[:space:]]/d; /^Mem:/d; /^Swap:/d' /tmp/attempt.md
           printf 'Item #%s, stage %s, seat %s. Read issue metadata and body only: gh issue view %s --json title,body,labels,assignees\n' "$NUMBER" "$STAGE" "${SEAT:-none}" "$NUMBER" > /tmp/task.md
           READONLY_FLAG=""; [ "$TOOL_MODE" = "readonly" ] && READONLY_FLAG="--read-only"
-          node .ai-org-handbook/scripts/onboarding-pack.mjs --role "$ROLE" --stage "$STAGE" --slug "$SLUG" --seat "$SEAT" --feature "$FEATURE" --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md --max 8000 $READONLY_FLAG
-          cp /tmp/onboarding.md /tmp/agent-logs/onboarding.md
-          echo "onboarding pack: $(wc -c < /tmp/onboarding.md) characters for $ROLE ($STAGE, seat ${SEAT:-none}, feature ${SLUG:-none})"
+          node .ai-org-handbook/scripts/onboarding-pack.mjs --role "$ROLE" --stage "$STAGE" --slug "$SLUG" --seat "$SEAT" --feature "$FEATURE" --attempt /tmp/attempt.md --task /tmp/task.md --out "$ONBOARDING_FILE" --max 8000 $READONLY_FLAG
+          test -s "$ONBOARDING_FILE" || { echo "::error::Onboarding pack was not created."; exit 1; }
+          cp "$ONBOARDING_FILE" /tmp/agent-logs/onboarding.md
+          echo "onboarding pack: $(wc -c < "$ONBOARDING_FILE") characters for $ROLE ($STAGE, seat ${SEAT:-none}, feature ${SLUG:-none})"
           echo "slug=$SLUG" >> "$GITHUB_ENV"
           CONTRACT_BEFORE=""
           if [ -n "$SLUG" ]; then CONTRACT_BEFORE=$(git rev-parse -q --verify "origin/ai/contract-$SLUG" 2>/dev/null || true); fi
@@ -213,6 +221,8 @@ jobs:
           FEATURE_SLUG: ${{ steps.item.outputs.feature_slug }}
         run: |
           set -uo pipefail
+          cd "$GITHUB_WORKSPACE"
+          test -s .ai-org-runtime/onboarding.md || { echo "::error::Workspace onboarding pack is missing; refusing to start the model."; exit 1; }
           mkdir -p /tmp/agent-logs
           MODEL_ROUTE="$FREE_MODEL"; MODEL_ID="${MODEL_ROUTE#groq/}"; MODEL_ID="${MODEL_ID%%@*}"
           jq -n --arg model "$MODEL_ID" '{

@@ -140,7 +140,7 @@ export function onboardingRules(number, { toolMode = "standard", featureSlug = "
     "- Use the Founder Dashboard standard only for substantive operating reviews, scheduled reports, milestone summaries and readiness assessments.",
     "- Founder-facing reports must use plain English for technical explanations or evidence-led blocker reports. Do not claim delivery to a founder conversation unless the actual artifact or link is verified.",
     "- At onboarding, meaningful milestones, repeated failures, environment or model changes, and before ending, assess context only from available measurements, progress, repeated work, decisions, dependencies, and risks. Record CONTINUE / COMPACT / SWITCH / ESCALATE; never claim unsupported context metrics or actions.",
-    "- FIRST read `/tmp/onboarding.md` completely. It contains the current task context and at most the two latest handovers for this feature. Do not rediscover what it already tells you.",
+    "- FIRST read `.ai-org-runtime/onboarding.md` completely. It contains the current task context and at most the two latest handovers for this feature. Do not rediscover what it already tells you.",
     "- Your first message is the 5-line Understanding: goal · constraints · known traps · what you must not touch · how you will prove it is done.",
     "- Put lessons that would help future features under `## Memory proposals` (fact + evidence). Never edit `docs/ai-memory/` directly; Arjun merges approved memory.",
   ];
