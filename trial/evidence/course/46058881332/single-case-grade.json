@@ -1,0 +1,65 @@
+{
+  "schema": "course-single-case-grade/v1",
+  "source": "710082b2d8cf3c1007086df31f87b34ae8e02573",
+  "contractHash": "6695ab62149003b833c1afa04a2f6e674db3494efe7048864357095de07176aa",
+  "artifactSha256": "628efbb2a88c5701d9fcfc7806da441380b74d05b3109c3094b257e3f6a84a39",
+  "authorModel": "qwen/qwen3.8-27b",
+  "testHash": "c462bab72da0d76c6a9840083c386035c32c3f8623230e1baed94cb4beb670d5",
+  "roleAdmission": false,
+  "lockApproved": false,
+  "caseId": "CRS-01-SC-004",
+  "clean": {
+    "label": "clean",
+    "sha256": "0910547bda1ace24f3ff81dae40aac66e58beda365f08aa8db7bf00e3e1db635",
+    "exit": 0,
+    "cases": [
+      {
+        "title": "CRS-01-SC-004",
+        "status": "expected",
+        "error": null
+      }
+    ]
+  },
+  "mutants": [
+    {
+      "label": "overwrite-history",
+      "sha256": "4ff0ec2cba3de666a191ff94e219aa9a810b3d56c0f14afecb65960f4d162f7f",
+      "exit": 1,
+      "cases": [
+        {
+          "title": "CRS-01-SC-004",
+          "status": "unexpected",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Course Beta', { exact: true })\nExpected: visible\nError: strict mode violation: getByText('Course Beta', { exact: true }) resolved to 2 elements:\n    1) <p>Course Beta</p> aka getByText('Course Beta').first()\n    2) <p>Course Beta</p> aka getByText('Course Beta').nth(1)\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByText('Course Beta', { exact: true }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Course Beta', { exact: true })\u001b[22m\n"
+        }
+      ]
+    },
+    {
+      "label": "duplicate-history",
+      "sha256": "78465d66b80c357bc252d4d05146243ccfe173fb02b7148143146b7ee87a7cd4",
+      "exit": 1,
+      "cases": [
+        {
+          "title": "CRS-01-SC-004",
+          "status": "unexpected",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Course Beta', { exact: true })\nExpected: visible\nError: strict mode violation: getByText('Course Beta', { exact: true }) resolved to 2 elements:\n    1) <p>Course Beta</p> aka getByText('Course Beta').first()\n    2) <p>Course Beta</p> aka getByText('Course Beta').nth(1)\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByText('Course Beta', { exact: true }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Course Beta', { exact: true })\u001b[22m\n"
+        }
+      ]
+    }
+  ],
+  "red": {
+    "label": "actual-red",
+    "sha256": "95885869b57e43421bf47c4dedc094d6544f6c7ab18af015a86323ce7e9397c1",
+    "exit": 1,
+    "cases": [
+      {
+        "title": "CRS-01-SC-004",
+        "status": "unexpected",
+        "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Courses', exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('button', { name: 'Courses', exact: true }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Courses', exact: true })\u001b[22m\n"
+      }
+    ]
+  },
+  "cleanPass": true,
+  "historyMutationRecall": 2,
+  "intendedRed": true,
+  "passed": true
+}
