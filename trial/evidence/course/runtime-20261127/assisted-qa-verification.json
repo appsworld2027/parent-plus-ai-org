@@ -1,0 +1,196 @@
+{
+  "schema": "course-assisted-diagnostic-verification/v1",
+  "roleAdmission": false,
+  "lockApproved": false,
+  "diagnosticOnly": true,
+  "cleanPass": true,
+  "mutationRecall": 6,
+  "guardPass": true,
+  "intendedRed": true,
+  "actualGuard": true,
+  "criticalMutationControlsPassed": true,
+  "clean": {
+    "label": "author-clean",
+    "sha256": "fad3756913ff607ea5c8df6633aa368015153808b8942bd7309dcd2cf8e76793",
+    "exit": 0,
+    "cases": [
+      {
+        "title": "CRS-01-SC-001: Current authenticated Coach sees a Courses button on Today. Enter opens heading Courses, the honest pilot label and an empty state \"No courses yet\" with Create course. Existing five tabs remain.",
+        "status": "expected",
+        "error": null
+      },
+      {
+        "title": "CRS-01-SC-002: Create course form provides accessible labels Course title, Stage 1 title, Stage 1 objective 1; Save draft validates a blank title visibly (\"Course title is required\"), without discarding the other inputs or creating a course.",
+        "status": "expected",
+        "error": null
+      },
+      {
+        "title": "CRS-01-SC-003: A valid draft can have multiple ordered stages and objectives. Add stage creates Stage 2 title and Stage 2 objective 1. Add objective to stage 1 creates Stage 1 objective 2. Save draft returns to list, showing title and Draft, and Edit course restores all fields.",
+        "status": "expected",
+        "error": null
+      },
+      {
+        "title": "CRS-01-SC-004: Publish version requires a confirmation with button Confirm publish. A successful local publish shows Version 1; edit and publish a changed title creates Version 2. View history shows both Version 1 and Version 2 and their original titles, not overwritten.",
+        "status": "expected",
+        "error": null
+      },
+      {
+        "title": "CRS-01-SC-005: Leaving a dirty course form via Today opens existing \"Leave your unsaved changes?\" confirmation; Keep editing preserves input; Discard and leave abandons it.",
+        "status": "expected",
+        "error": null
+      },
+      {
+        "title": "CRS-01-SC-006: A draft saved in the authenticated pilot session remains when navigating Today → Courses, and no course/curriculum network request was sent. The user is not told the draft is synced.",
+        "status": "expected",
+        "error": null
+      }
+    ]
+  },
+  "mutants": [
+    {
+      "label": "mutant-001",
+      "sha256": "a6760082ce7f174019a6cab9c7933e09801d93d504d059bd46746900876fab8c",
+      "exit": 1,
+      "cases": [
+        {
+          "title": "CRS-01-SC-001: Current authenticated Coach sees a Courses button on Today. Enter opens heading Courses, the honest pilot label and an empty state \"No courses yet\" with Create course. Existing five tabs remain.",
+          "status": "unexpected",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Courses' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('button', { name: 'Courses' }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Courses' })\u001b[22m\n"
+        }
+      ]
+    },
+    {
+      "label": "mutant-002",
+      "sha256": "9b832b646d80643b17478d1a592db26c6094043589ea2d09cbbf5abca167f856",
+      "exit": 1,
+      "cases": [
+        {
+          "title": "CRS-01-SC-002: Create course form provides accessible labels Course title, Stage 1 title, Stage 1 objective 1; Save draft validates a blank title visibly (\"Course title is required\"), without discarding the other inputs or creating a course.",
+          "status": "unexpected",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Course title is required')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByText('Course title is required') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Course title is required')\u001b[22m\n"
+        }
+      ]
+    },
+    {
+      "label": "mutant-003",
+      "sha256": "f551d5ecf4cc33c11bc03f40c6255a50f0c9a7497e4d4b1a07822c48a7f06aa7",
+      "exit": 1,
+      "cases": [
+        {
+          "title": "CRS-01-SC-003: A valid draft can have multiple ordered stages and objectives. Add stage creates Stage 2 title and Stage 2 objective 1. Add objective to stage 1 creates Stage 1 objective 2. Save draft returns to list, showing title and Draft, and Edit course restores all fields.",
+          "status": "unexpected",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveValue\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: getByLabel('Stage 1 objective 2')\nExpected: \u001b[32m\"Add double digits\"\u001b[39m\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toHaveValue\" getByLabel('Stage 1 objective 2') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByLabel('Stage 1 objective 2')\u001b[22m\n"
+        }
+      ]
+    },
+    {
+      "label": "mutant-004",
+      "sha256": "0e72d052e4cfc2f31acda30263256b11e6d287f446474d060659a78c43a80dbf",
+      "exit": 1,
+      "cases": [
+        {
+          "title": "CRS-01-SC-004: Publish version requires a confirmation with button Confirm publish. A successful local publish shows Version 1; edit and publish a changed title creates Version 2. View history shows both Version 1 and Version 2 and their original titles, not overwritten.",
+          "status": "unexpected",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Science Basics', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByText('Science Basics', { exact: true }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Science Basics', { exact: true })\u001b[22m\n"
+        }
+      ]
+    },
+    {
+      "label": "mutant-005",
+      "sha256": "f4a54310f544e4f031c49bf73f0e56b660456db69220e38072add0922c4179e3",
+      "exit": 1,
+      "cases": [
+        {
+          "title": "CRS-01-SC-005: Leaving a dirty course form via Today opens existing \"Leave your unsaved changes?\" confirmation; Keep editing preserves input; Discard and leave abandons it.",
+          "status": "unexpected",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByText('Leave your unsaved changes?')\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByText('Leave your unsaved changes?') with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByText('Leave your unsaved changes?')\u001b[22m\n"
+        }
+      ]
+    },
+    {
+      "label": "mutant-006",
+      "sha256": "c41bd3ce282ea102083ed7b1026d09914f38db058709663a8b929d0cf39d7c35",
+      "exit": 1,
+      "cases": [
+        {
+          "title": "CRS-01-SC-006: A draft saved in the authenticated pilot session remains when navigating Today → Courses, and no course/curriculum network request was sent. The user is not told the draft is synced.",
+          "status": "unexpected",
+          "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoHaveLength\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected length: \u001b[32m0\u001b[39m\nReceived length: \u001b[31m1\u001b[39m\nReceived array:  \u001b[31m[\"/course-leak\"]\u001b[39m"
+        }
+      ]
+    }
+  ],
+  "g": {
+    "label": "guard-clean",
+    "sha256": "3a477dbb4f801b65a92cd17edc7c2c086553b626bbc150080f5ae49d02480f24",
+    "exit": 0,
+    "cases": [
+      {
+        "title": "GUARD-CRS-FLAG-OFF: Feature flag off hides Courses button and prevents course/curriculum traffic.",
+        "status": "expected",
+        "error": null
+      }
+    ]
+  },
+  "gm": {
+    "label": "guard-mutant",
+    "sha256": "7876cb6a6caa45caac7e260cb97f984a28d61ee1f8d83557f293a837db988e6d",
+    "exit": 1,
+    "cases": [
+      {
+        "title": "GUARD-CRS-FLAG-OFF: Feature flag off hides Courses button and prevents course/curriculum traffic.",
+        "status": "unexpected",
+        "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).not.\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('button', { name: 'Courses' })\nExpected: not visible\nReceived: visible\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"not toBeVisible\" getByRole('button', { name: 'Courses' }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Courses' })\u001b[22m\n\u001b[2m    14 × locator resolved to <button>Courses</button>\u001b[22m\n\u001b[2m       - unexpected value \"visible\"\u001b[22m\n"
+      }
+    ]
+  },
+  "red": {
+    "label": "actual-red",
+    "sha256": "c78b2733c4b727fea13c516605ce1d61fc00f1c4ef4c00111b9f950d7a3481cb",
+    "exit": 1,
+    "cases": [
+      {
+        "title": "CRS-01-SC-001: Current authenticated Coach sees a Courses button on Today. Enter opens heading Courses, the honest pilot label and an empty state \"No courses yet\" with Create course. Existing five tabs remain.",
+        "status": "unexpected",
+        "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Courses' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('button', { name: 'Courses' }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Courses' })\u001b[22m\n"
+      },
+      {
+        "title": "CRS-01-SC-002: Create course form provides accessible labels Course title, Stage 1 title, Stage 1 objective 1; Save draft validates a blank title visibly (\"Course title is required\"), without discarding the other inputs or creating a course.",
+        "status": "unexpected",
+        "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Courses' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('button', { name: 'Courses' }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Courses' })\u001b[22m\n"
+      },
+      {
+        "title": "CRS-01-SC-003: A valid draft can have multiple ordered stages and objectives. Add stage creates Stage 2 title and Stage 2 objective 1. Add objective to stage 1 creates Stage 1 objective 2. Save draft returns to list, showing title and Draft, and Edit course restores all fields.",
+        "status": "unexpected",
+        "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Courses' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('button', { name: 'Courses' }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Courses' })\u001b[22m\n"
+      },
+      {
+        "title": "CRS-01-SC-004: Publish version requires a confirmation with button Confirm publish. A successful local publish shows Version 1; edit and publish a changed title creates Version 2. View history shows both Version 1 and Version 2 and their original titles, not overwritten.",
+        "status": "unexpected",
+        "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Courses' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('button', { name: 'Courses' }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Courses' })\u001b[22m\n"
+      },
+      {
+        "title": "CRS-01-SC-005: Leaving a dirty course form via Today opens existing \"Leave your unsaved changes?\" confirmation; Keep editing preserves input; Discard and leave abandons it.",
+        "status": "unexpected",
+        "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Courses' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('button', { name: 'Courses' }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Courses' })\u001b[22m\n"
+      },
+      {
+        "title": "CRS-01-SC-006: A draft saved in the authenticated pilot session remains when navigating Today → Courses, and no course/curriculum network request was sent. The user is not told the draft is synced.",
+        "status": "unexpected",
+        "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m(\u001b[22m\u001b[2m)\u001b[22m failed\n\nLocator: getByRole('button', { name: 'Courses' })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" getByRole('button', { name: 'Courses' }) with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('button', { name: 'Courses' })\u001b[22m\n"
+      }
+    ]
+  },
+  "ag": {
+    "label": "actual-guard",
+    "sha256": "a196bd51c7b3fc0946386d9f4ef488ccaf418d8e42baa4d17bd8b9591ccf8189",
+    "exit": 0,
+    "cases": [
+      {
+        "title": "GUARD-CRS-FLAG-OFF: Feature flag off hides Courses button and prevents course/curriculum traffic.",
+        "status": "expected",
+        "error": null
+      }
+    ]
+  }
+}
