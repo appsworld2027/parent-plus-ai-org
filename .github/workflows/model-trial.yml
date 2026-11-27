@@ -1,5 +1,5 @@
 # Temporary owner-only isolated native model artifact proof. NEVER merge.
-name: Frontier Tara actual artifact proof (temporary)
+name: Frontier Tara NIM synthetic evaluation (temporary)
 on:
   pull_request:
     types: [opened, synchronize]
@@ -9,7 +9,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: frontier-tara-native-proof
+  group: frontier-tara-nim-proof
   cancel-in-progress: false
 env:
   FRONTIER_SOURCE_SHA: 2f29db417e2570fa024271be7ec391d1bf82f46a
@@ -22,7 +22,7 @@ jobs:
       github.actor == github.repository_owner &&
       github.triggering_actor == github.repository_owner &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      github.event.pull_request.head.ref == 'review/frontier-tara-artifact-20261127' &&
+      github.event.pull_request.head.ref == 'review/frontier-tara-nim-20261127' &&
       github.event.pull_request.base.ref == 'ai/frontier-database-evaluator-20261127' &&
       github.event.pull_request.user.login == github.repository_owner &&
       github.event.pull_request.draft == true
@@ -34,7 +34,7 @@ jobs:
     env:
       FRONTIER_VARIANT: ${{ matrix.variant }}
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 9
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
@@ -43,11 +43,9 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
-      - name: Respect free request window
-        run: sleep 65
       - name: Execute bounded native free Tara model fixture
         env:
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
           OUTPUT_DIR: ${{ runner.temp }}/frontier-tara-generate
         run: |
           set -euo pipefail
@@ -64,20 +62,20 @@ jobs:
           const roleDefinitions=Object.fromEntries(rubric.roles.map(({role})=>[role,readFileSync('org/agents/'+role+'.md','utf8')]));
           const book=prepareFrontierCasebook({sourceSha,seed,roleDefinitions});
           const c=book.cases.find(x=>x.fixture.role==='tara-database'&&x.fixture.variant===process.env.FRONTIER_VARIANT);
-          const model='qwen/qwen3.8-27b',key=process.env.GROQ_API_KEY;
+          const model='nvidia/nemotron-3-ultra-550b-a55b',key=process.env.NVIDIA_NIM_API_KEY;
           const supplement=readFileSync("governance/FRONTIER_DATABASE_BEHAVIOR.md","utf8").split("## Candidate interface")[1].split("## Evidence")[0];
           const attempt={schema:1,supplementHash:sha(supplement),sourceSha,planHash:book.planHash,fixtureHash:c.fixtureHash,promptHash:c.promptHash,
-            role:'tara-database',variant:process.env.FRONTIER_VARIANT,provider:'groq',requestedModel:model,route:'native-readonly-artifact-response',
+            role:'tara-database',variant:process.env.FRONTIER_VARIANT,provider:'nvidia',requestedModel:model,route:'native-readonly-artifact-response',
             runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,
             scope:'isolated-synthetic',qualification:false,toolExecution:false,productionReady:false};
           const save=()=>writeFileSync(join(dir,'attempt.json'),JSON.stringify(attempt,null,2));
           save();
           if(!key)throw Error('Approved free-route key missing; no fallback');
-          const body={model,temperature:0,max_completion_tokens:6500,messages:[{role:'system',content:'You are Tara, database specialist. Produce the three required artifacts as exact JSON only, using the supplemental interface below. Keep migration SQL under 5500 chars and tests under 2600 chars. Make no unobserved claims. '+supplement},{role:'user',content:c.prompt}]};
+          const body={model,temperature:0.2,top_p:0.95,max_tokens:10000,reasoning_effort:'medium',reasoning_budget:2048,stream:false,messages:[{role:'system',content:'You are Tara, database specialist. Produce the three required artifacts as exact JSON only, using the supplemental interface below. Keep migration SQL under 5500 chars and tests under 2600 chars. Make no unobserved claims. '+supplement},{role:'user',content:c.prompt}]};
           attempt.requestHash=canonicalHash(body);
           const t=Date.now();
           try{
-            const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(120000)});
+            const res=await fetch('https://integrate.api.nvidia.com/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(240000)});
             attempt.httpStatus=res.status;
             if(!res.ok){
               try{const e=(await res.json()).error||{};if(typeof e.code==='string'&&/^[a-zA-Z0-9_-]{1,64}$/.test(e.code))attempt.errorCode=e.code;}catch{}
@@ -154,7 +152,7 @@ jobs:
           const supplementHash=createHash('sha256').update(supplement).digest('hex');
           if(a.supplementHash!==supplementHash||a.sourceSha!==src||a.planHash!==book.planHash||canonicalHash(plan)!==book.planHash||
             a.fixtureHash!==c.fixtureHash||a.promptHash!==c.promptHash||a.artifactHash!==intake.artifactHash||
-            a.observedModel!=='qwen/qwen3.8-27b'||a.runId!==process.env.GITHUB_RUN_ID||a.attempt!==process.env.GITHUB_RUN_ATTEMPT||
+            a.provider!=='nvidia'||a.requestedModel!=='nvidia/nemotron-3-ultra-550b-a55b'||a.observedModel!=='nvidia/nemotron-3-ultra-550b-a55b'||a.httpStatus!==200||a.finishReason!=='stop'||a.runId!==process.env.GITHUB_RUN_ID||a.attempt!==process.env.GITHUB_RUN_ATTEMPT||
             a.status!=='artifact-intake-only')throw Error('Candidate provenance mismatch');
           const result=await evaluateDatabaseMigration(intake.files.find(f=>f.path==='migration.sql').content,{image:process.env.FRONTIER_POSTGRES_IMAGE});
           const evidence={schema:1,runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,sourceSha:src,planHash:book.planHash,fixtureHash:c.fixtureHash,artifactHash:intake.artifactHash,executionAttemptHash:canonicalHash(a),result,qualification:false,productionReady:false};
