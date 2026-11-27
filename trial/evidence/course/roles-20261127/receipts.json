@@ -1,0 +1,179 @@
+{
+  "iris-design": {
+    "role": "iris-design",
+    "source": "710082b2d8cf3c1007086df31f87b34ae8e02573",
+    "model": "qwen/qwen3.8-27b",
+    "reasoning": "provider-default",
+    "contextSha256": "3ccca625ac7364c767522f147b02e855eafb1af7aaf85a08ae0d9d1d424cbba7",
+    "artifactSha256": "71106e8f6f1128eb63518c90e2e65744c3e4e641a058ee6b759197d55e44f472",
+    "durationMs": 6105,
+    "usage": {
+      "queue_time": 0.160398092,
+      "prompt_tokens": 2585,
+      "prompt_time": 0.285086128,
+      "completion_tokens": 1768,
+      "completion_time": 5.426927443,
+      "total_tokens": 4353,
+      "total_time": 5.712013571
+    },
+    "structuralCheck": true,
+    "finish": "stop",
+    "roleAdmission": false,
+    "quality": "Pending independent scoring",
+    "artifactId": 15220956377,
+    "run": 46041764862
+  },
+  "kiran-pjm-a": {
+    "role": "kiran-pjm-a",
+    "source": "710082b2d8cf3c1007086df31f87b34ae8e02573",
+    "model": "qwen/qwen3.8-27b",
+    "reasoning": "provider-default",
+    "contextSha256": "4632c41c6eb45a0c4d1444368111a3d2a4a8fbfff9f7fbed25d69b4c694b8d7d",
+    "artifactSha256": "8e8ae5c6ae4b7ef4c2ca060a29d4d80bbc65e7cd966f3a5a3b27cbaea56664b4",
+    "durationMs": 3439,
+    "usage": {
+      "queue_time": 0.075681744,
+      "prompt_tokens": 2703,
+      "prompt_time": 0.194635323,
+      "completion_tokens": 1465,
+      "completion_time": 3.051046483,
+      "total_tokens": 4168,
+      "total_time": 3.245681806
+    },
+    "structuralCheck": true,
+    "finish": "stop",
+    "roleAdmission": false,
+    "quality": "Pending independent scoring",
+    "artifactId": 15220956377,
+    "run": 46041764862
+  },
+  "leela-pjm-b": {
+    "role": "leela-pjm-b",
+    "source": "710082b2d8cf3c1007086df31f87b34ae8e02573",
+    "model": "qwen/qwen3.8-27b",
+    "reasoning": "provider-default",
+    "contextSha256": "b327aa7fb87d8e4690a13acfac958814f5ef816d844bddaa8bc4aeb5fd5311b3",
+    "artifactSha256": "0610fabe19f1b8aecb7efa840b8b0b73313644527da10edefeb417ee96a08950",
+    "durationMs": 4590,
+    "usage": {
+      "queue_time": 0.124461328,
+      "prompt_tokens": 2669,
+      "prompt_time": 0.281429138,
+      "completion_tokens": 1247,
+      "completion_time": 4.090760786,
+      "total_tokens": 3916,
+      "total_time": 4.372189924
+    },
+    "structuralCheck": true,
+    "finish": "stop",
+    "roleAdmission": false,
+    "quality": "Pending independent scoring",
+    "artifactId": 15220956377,
+    "run": 46041764862
+  },
+  "maya-ai-pm": {
+    "role": "maya-ai-pm",
+    "source": "710082b2d8cf3c1007086df31f87b34ae8e02573",
+    "model": "openai/gpt-oss-120b",
+    "reasoning": "medium",
+    "contextSha256": "b2efaa31a210910155d9bae01c74a2e3283d71f97f1f5df027e6a28423164a43",
+    "artifactSha256": "d0abdb2fd60142cbe00a15b4f0c40885663a832b179c5a5edb7d99b62f1022a5",
+    "durationMs": 3806,
+    "usage": {
+      "queue_time": 0.221888347,
+      "prompt_tokens": 2639,
+      "prompt_time": 0.160040268,
+      "completion_tokens": 1547,
+      "completion_time": 3.212399254,
+      "total_tokens": 4186,
+      "total_time": 3.372439522,
+      "completion_tokens_details": {
+        "reasoning_tokens": 207
+      }
+    },
+    "structuralCheck": true,
+    "finish": "stop",
+    "roleAdmission": false,
+    "quality": "Pending independent scoring",
+    "artifactId": 15219914338,
+    "run": 46042584072
+  },
+  "arjun-cpto": {
+    "role": "arjun-cpto",
+    "source": "710082b2d8cf3c1007086df31f87b34ae8e02573",
+    "model": "openai/gpt-oss-120b",
+    "reasoning": "medium",
+    "contextSha256": "c2d4008c6223259f311408a70219c1151c06e100f09ae6bc3e006ddb946979d7",
+    "artifactSha256": "41e2add7af3fadd8e1b1f5e1b3f24f27319540d8afa42cf7c4fb14de3d74fb93",
+    "durationMs": 3848,
+    "usage": {
+      "queue_time": 0.138870411,
+      "prompt_tokens": 3052,
+      "prompt_time": 0.179070705,
+      "completion_tokens": 1649,
+      "completion_time": 3.437355437,
+      "total_tokens": 4701,
+      "total_time": 3.616426142,
+      "completion_tokens_details": {
+        "reasoning_tokens": 355
+      }
+    },
+    "structuralCheck": true,
+    "finish": "stop",
+    "roleAdmission": false,
+    "quality": "Pending independent scoring",
+    "artifactId": 15219914338,
+    "run": 46042584072
+  },
+  "tara-database": {
+    "role": "tara-database",
+    "source": "710082b2d8cf3c1007086df31f87b34ae8e02573",
+    "model": "openai/gpt-oss-120b",
+    "reasoning": "medium",
+    "contextSha256": "74fc722e75a098157a49df98000c7c87e17b1d2cc3932617b51a3b27eb80c0f9",
+    "artifactSha256": "e4b6981f61e13ba381ba307101860c10b34e578eae30f3fca5d1f1867bc4df8b",
+    "durationMs": 3449,
+    "usage": {
+      "queue_time": 0.222455836,
+      "prompt_tokens": 2322,
+      "prompt_time": 0.103642283,
+      "completion_tokens": 1457,
+      "completion_time": 3.032365093,
+      "total_tokens": 3779,
+      "total_time": 3.1360073760000002,
+      "completion_tokens_details": {
+        "reasoning_tokens": 422
+      }
+    },
+    "structuralCheck": true,
+    "finish": "stop",
+    "roleAdmission": false,
+    "quality": "Pending independent scoring",
+    "artifactId": 15219914338,
+    "run": 46042584072
+  },
+  "ravi-integration": {
+    "role": "ravi-integration",
+    "source": "710082b2d8cf3c1007086df31f87b34ae8e02573",
+    "model": "qwen/qwen3.8-27b",
+    "reasoning": "provider-default",
+    "contextSha256": "e8083c7c2515813937ed806f9a5c1ac2f52cbd8b289d9ed994207c9159795ff2",
+    "artifactSha256": "fcb1b2b987b25afe8d289489203473ff42fd637ee6b4b970747e1344a21586db",
+    "durationMs": 2765,
+    "usage": {
+      "queue_time": 0.236552692,
+      "prompt_tokens": 2940,
+      "prompt_time": 0.217698595,
+      "completion_tokens": 1100,
+      "completion_time": 2.157933662,
+      "total_tokens": 4040,
+      "total_time": 2.375632257
+    },
+    "structuralCheck": true,
+    "finish": "stop",
+    "roleAdmission": false,
+    "quality": "Pending independent scoring",
+    "artifactId": 15219893866,
+    "run": 46042584072
+  }
+}
