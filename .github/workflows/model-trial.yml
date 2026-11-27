@@ -7,6 +7,7 @@ on:
     paths: ['.github/workflows/model-trial.yml']
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: frontier-dev-native-proof
   cancel-in-progress: false
@@ -35,6 +36,22 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontier-dev-candidate
+          path: ${{ runner.temp }}/frontier-dev-prior
+          run-id: 46044273665
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Classify prior failed attempt before an explicitly bounded retry
+        env:
+          PRIOR_DIR: ${{ runner.temp }}/frontier-dev-prior
+        run: |
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const a=JSON.parse(readFileSync(process.env.PRIOR_DIR+'/attempt.json','utf8'));
+          console.log(JSON.stringify({previousRun:a.runId,observedModel:a.observedModel,finishReason:a.finishReason,usage:a.usage,status:a.status,httpStatus:a.httpStatus}));
+          if(a.runId!=='46044273665'||a.observedModel!=='qwen/qwen3.8-27b'||a.finishReason!=='length'||a.status!=='failed-no-fallback')throw Error('Prior failure was not verified output-length exhaustion; do not retry');
+          NODE
       - name: Execute bounded native free Dev model fixture
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -62,7 +79,7 @@ jobs:
           const save=()=>writeFileSync(join(dir,'attempt.json'),JSON.stringify(attempt,null,2));
           save();
           if(!key)throw Error('Approved free-route key missing; no fallback');
-          const body={model,temperature:0,max_completion_tokens:2600,messages:[{role:'system',content:'You are an isolated coding specialist. Only produce the exact requested artifact JSON. Write complete runnable ESM and Node tests. Never claim execution or external access.'},{role:'user',content:c.prompt}]};
+          const body={model,temperature:0,max_completion_tokens:3900,messages:[{role:'system',content:'You are an isolated coding specialist. Only produce the exact requested artifact JSON. Write compact complete runnable ESM and Node tests. Limit board.mjs to 2600 characters and board.test.mjs to 1800 characters; no explanations or large examples. Never claim execution or external access.'},{role:'user',content:c.prompt}]};
           attempt.requestHash=canonicalHash(body);
           const t=Date.now();
           try{
@@ -85,7 +102,7 @@ jobs:
             writeFileSync(join(dir,'plan.json'),JSON.stringify(book.payload,null,2));
             console.log(JSON.stringify({role:attempt.role,variant:attempt.variant,model:attempt.observedModel,artifactHash:attempt.artifactHash,usage:attempt.usage,qualification:false}));
           }catch(e){attempt.status='failed-no-fallback';throw e;}
-          finally{attempt.durationMs=Date.now()-t;save();}
+          finally{attempt.durationMs=Date.now()-t;save();console.log(JSON.stringify({observedModel:attempt.observedModel,finishReason:attempt.finishReason,usage:attempt.usage,status:attempt.status,httpStatus:attempt.httpStatus}));}
           NODE
       - uses: actions/upload-artifact@v4
         if: always()
