@@ -1,0 +1,37 @@
+name: GitLab Mirror
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "**"
+    tags:
+      - "*"
+
+permissions:
+  contents: read
+
+jobs:
+  mirror:
+    name: Mirror repository to GitLab
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout complete Git history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Push branches and tags to GitLab
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITLAB_REPOSITORY: ${{ vars.GITLAB_REPOSITORY }}
+        run: |
+          set -euo pipefail
+          if [[ -z "$GITLAB_TOKEN" || -z "$GITLAB_REPOSITORY" ]]; then
+            echo "Configure repository secrets.GITLAB_TOKEN and variable GITLAB_REPOSITORY (group/project)." >&2
+            exit 1
+          fi
+          git remote add gitlab "https://oauth2:${GITLAB_TOKEN}@gitlab.com/${GITLAB_REPOSITORY}.git"
+          git push gitlab --all
+          git push gitlab --tags
