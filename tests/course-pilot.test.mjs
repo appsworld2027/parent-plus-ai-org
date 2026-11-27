@@ -196,3 +196,44 @@ test('declarative QA coverage rejects false approvals and compiles exact stage s
   const sameTitle=structuredClone(artifact);sameTitle.cases[d].find(o=>o[0]==='F'&&o[2]==='B')[2]='A';assert.ok(coverageIssues(sameTitle).some(x=>x.id===d));
   const badGuard=structuredClone(artifact);delete badGuard.cases[g];assert.throws(()=>assertCourseCoverage(badGuard));
 });
+
+test('native controller binds exact model, actual Read/Replace hashes, and no fallback',async()=>{
+  const {runDirectSession}=await import('../scripts/course-pilot/native-adapter.mjs');
+  const {executeBoundedTool}=await import('../scripts/course-pilot/bounded-tool.mjs');
+  const {mkdtempSync,writeFileSync,readFileSync,rmSync,realpathSync}=await import('node:fs');
+  const {tmpdir}=await import('node:os');const {join}=await import('node:path');const {createHash}=await import('node:crypto');
+  const root=realpathSync(mkdtempSync(join(tmpdir(),'native-pilot-'))),p={root,read:['task.txt'],write:['task.txt']};
+  const sha=x=>createHash('sha256').update(x).digest('hex'), model='openai/gpt-oss-120b';
+  const call=(id,name,args)=>({type:'function',id,function:{name,arguments:JSON.stringify(args)}});
+  const tools=(...tool_calls)=>({body:{model,usage:{total_tokens:100},choices:[{finish_reason:'tool_calls',message:{tool_calls}}]}});
+  const stop=(text='done',m=model)=>({body:{model:m,usage:{total_tokens:100},choices:[{finish_reason:'stop',message:{content:text}}]}});
+  const read=tools(call('r','Read',{path:'task.txt'}));
+  const replace=tools(call('w','Replace',{path:'task.txt',sha256:sha('before'),old:'before',replacement:'after'}));
+  const exec=(policy,req)=>({ok:true,result:executeBoundedTool(policy,req)});
+  const run=(replies,extra={})=>{
+    let i=0;return runDirectSession({model,prompt:'Synthetic exact artifact task',policy:p,allowWrite:true,execute:exec,transport:async body=>{
+      assert.equal(body.model,model);assert.equal(body.reasoning_effort,'medium');assert.equal(body.temperature,0);assert.equal(body.tool_choice,i===0?'required':'auto');
+      if(i===1&&replies[0]===read)assert.equal(JSON.parse(body.messages.at(-1).content).result.content,'before');
+      if(i>=replies.length)throw Error('Unexpected retry or fallback');return replies[i++];
+    },...extra});
+  };
+  try{
+    writeFileSync(join(root,'task.txt'),'before');
+    const passed=await run([read,replace,stop()]);
+    assert.equal(passed.readCount,1);assert.equal(passed.writeCount,1);assert.equal(passed.totalTokens,300);
+    assert.equal(passed.toolEvents[1].artifactSha256,sha('after'));assert.equal(readFileSync(join(root,'task.txt'),'utf8'),'after');
+    writeFileSync(join(root,'task.txt'),'before');
+    await assert.rejects(run([stop('done','proxy-alias')]),/identity/);
+    await assert.rejects(run([stop()]),/required tool/);
+    await assert.rejects(run([replace,stop()]),/without exact prior read/);
+    await assert.rejects(run([read,replace,stop()],{allowWrite:false}),/Unapproved tool/);
+    await assert.rejects(run([tools(call('r','Read',{path:'../secret'})),stop()]),/denied/);
+    await assert.rejects(run([tools(call('r','Read',{path:'task.txt',secret:'x'})),stop()]),/Malformed/);
+    await assert.rejects(run([read,tools(call('r','Read',{path:'task.txt'})),stop()]),/Unapproved tool/);
+    await assert.rejects(run([read,replace,replace,stop()]),/Unapproved tool/);
+    writeFileSync(join(root,'task.txt'),'before');
+    await assert.rejects(run([read,replace,stop()],{execute:(policy,req)=>req.tool==='Read'?{ok:true,result:{path:req.path,content:'tampered',sha256:sha('before')}}:exec(policy,req)}),/hash mismatch/);
+    let count=0;await assert.rejects(run([],{transport:async()=>{count++;throw Error('HTTP 429')}}),/429/);assert.equal(count,1);
+    await assert.rejects(run([stop()],{model:'paid-model'}),/Invalid trusted/);
+  }finally{rmSync(root,{recursive:true,force:true})}
+});
