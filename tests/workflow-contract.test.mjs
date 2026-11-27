@@ -39,7 +39,10 @@ test("the canonical background worker is Groq free-tier only with bounded output
   assert.ok(worker.includes("readonly)"));
   assert.ok(worker.includes('TOOLS="Bash,Read"'));
   assert.ok(worker.includes('--tools "$TOOLS"'));
-  assert.ok(worker.includes('--allowedTools "$TOOLS"'));
+  assert.ok(worker.includes('--allowedTools "$ALLOWED_TOOLS"'));
+  assert.ok(worker.includes('ALLOWED_TOOLS="Read,Bash(grep:*),Bash(sed:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(git status:*),Bash(pwd:*),Bash(head:*),Bash(tail:*),Bash(wc:*)'));
+  assert.ok(!worker.includes('--allowedTools "$TOOLS"'), "read-only mode must not pre-authorize unrestricted Bash");
+  assert.equal((worker.match(/- name: Run agent with the free Groq model/g) || []).length, 1, "one workflow run starts one model worker");
   const outputCap = Number(worker.match(/CLAUDE_CODE_MAX_OUTPUT_TOKENS=(\\d+)/)?.[1] || 0);
   assert.ok(outputCap > 0 && outputCap <= 2048, "worker output must remain explicitly bounded");
   const packMax = Number(worker.match(/--max (\\d+)/)?.[1] || 0);
