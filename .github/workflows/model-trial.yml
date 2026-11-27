@@ -2823,4 +2823,5 @@ jobs:
             ${{ runner.temp }}/course-chunk-author/*/raw.txt
             ${{ runner.temp }}/course-chunk-author/*/events.jsonl
             ${{ runner.temp }}/course-chunk-author/*/provider-status.json
+            ${{ runner.temp }}/course-chunk-author/*/packet-rejected.json
           retention-days: 14
