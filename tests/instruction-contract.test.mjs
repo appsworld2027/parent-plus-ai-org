@@ -126,7 +126,9 @@ test("cross-repository private handbook checkout uses a read-only deploy key wit
     const workflow = read(path);
     assert.ok(workflow.includes("AI_ORG_HANDBOOK_SSH_KEY:") && workflow.includes("required: false"));
     assert.ok(workflow.includes("HANDBOOK_ACCESS: ${{ secrets.AI_ORG_HANDBOOK_SSH_KEY != '' }}"));
-    assert.ok(workflow.includes("ssh-key: ${{ github.repository == 'appsworld2027/parent-plus-ai-org' && '' || secrets.AI_ORG_HANDBOOK_SSH_KEY }}"));
+    assert.ok(workflow.includes("Detect AI Org handbook visibility"));
+    assert.ok(workflow.includes("steps.handbook_visibility.outputs.private == 'true'"));
+    assert.ok(workflow.includes("ssh-key: ${{ github.repository != 'appsworld2027/parent-plus-ai-org' && steps.handbook_visibility.outputs.private == 'true' && secrets.AI_ORG_HANDBOOK_SSH_KEY || '' }}"));
     assert.ok(workflow.includes("token: ${{ github.token }}"));
     assert.ok(workflow.includes("persist-credentials: false"));
     assert.ok(!workflow.includes("AI_ORG_HANDBOOK_TOKEN"));
