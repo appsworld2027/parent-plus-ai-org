@@ -265,6 +265,8 @@ jobs:
           for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8082/v1/models && break; sleep 1; done
           git config user.name "$AGENT_NAME (AppsWorld AI Org)"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Embed the bounded onboarding pack directly in the initial prompt; the agent sandbox cannot read /tmp paths.
+          PROMPT="$(printf '%s\\n\\n## Compact onboarding pack\\n' "$PROMPT"; cat /tmp/onboarding.md)"
           PROMPT="$PROMPT
           7. Engine facts: you are running on the model $FREE_MODEL, served by the Groq free tier through Free Claude Code. You are not a Claude model. Whenever you name the model or engine that did the work (comments, commits, PRs), state exactly this.
           8. Normal work: use --body-file for comments and PR bodies. Read-only mode: the only permitted write is the requested issue comment; use gh issue comment --body with a single-quoted plain-text body, never unescaped backticks or \$() shell substitutions; do not create files.
