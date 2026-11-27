@@ -1,0 +1,159 @@
+{
+  "schema": "ai-org-execution-strategies/v1",
+  "notes": "Strategy is not execution authorization. AUTONOMY_POLICY.json remains authoritative for engines, exact models, data and spend. Frontier profile is a disabled design; no paid inference is enabled. Evaluation branch permits a single provider-declared cooldown up to 90 seconds; longer resets stop with exact packet checkpoint.",
+  "defaults": {
+    "free": "free-packeted",
+    "claude": "frontier-loop",
+    "codex": "frontier-loop"
+  },
+  "sharedQuality": {
+    "lockedAcceptance": true,
+    "independentReview": true,
+    "regressionTests": true,
+    "securityChecks": true,
+    "evidenceBoundCheckpoint": true,
+    "founderReleaseGate": true,
+    "noPaidFallback": true
+  },
+  "profiles": {
+    "free-packeted": {
+      "enabled": true,
+      "engines": [
+        "free"
+      ],
+      "mode": "bounded-packets",
+      "contextMode": "fresh-per-packet",
+      "progressMode": "hash-verified-packet-checkpoints",
+      "requiresExplicitSpendApproval": false,
+      "packet": {
+        "inputTokenTarget": 2400,
+        "completionTokenLimit": 1400,
+        "maxFiles": 3,
+        "maxToolCalls": 8,
+        "maxWallSeconds": 180,
+        "repairRounds": 2
+      },
+      "worker": {
+        "maxTurns": 60,
+        "wallSeconds": 3600,
+        "outputTokenCap": 512,
+        "embeddedReviewOutputTokenCap": 768
+      },
+      "quota": {
+        "pauseOnExhaustion": true,
+        "retryAfterRequired": true,
+        "maxInlineRetrySeconds": 90,
+        "maxTransientRetries": 1,
+        "interPacketDelaySeconds": 12
+      },
+      "taskOverrides": {
+        "planning": {
+          "inputTokenTarget": 2200,
+          "maxFiles": 2,
+          "maxToolCalls": 6
+        },
+        "authoring": {
+          "inputTokenTarget": 2400,
+          "maxFiles": 3,
+          "maxToolCalls": 8
+        },
+        "review": {
+          "inputTokenTarget": 2000,
+          "maxFiles": 2,
+          "maxToolCalls": 6
+        },
+        "integration": {
+          "inputTokenTarget": 3000,
+          "maxFiles": 4,
+          "maxToolCalls": 10
+        }
+      },
+      "modelAdjustments": {
+        "groq/openai/gpt-oss-120b": {
+          "completionTokenLimit": 1400,
+          "reasoningEffort": "low"
+        },
+        "groq/qwen/qwen3.8-27b": {
+          "completionTokenLimit": 1800,
+          "reasoningEffort": "provider-default"
+        },
+        "opencode/deepseek-v4.1-flash-free": {
+          "completionTokenLimit": 1600,
+          "reasoningEffort": "provider-default"
+        }
+      }
+    },
+    "frontier-loop": {
+      "enabled": false,
+      "engines": [
+        "claude",
+        "codex"
+      ],
+      "mode": "iterative-product-loop",
+      "contextMode": "persistent-with-compaction",
+      "progressMode": "feature-and-diff-checkpoints",
+      "requiresExplicitSpendApproval": true,
+      "packet": {
+        "inputTokenTarget": 24000,
+        "completionTokenLimit": 6000,
+        "maxFiles": 12,
+        "maxToolCalls": 30,
+        "maxWallSeconds": 900,
+        "repairRounds": 5
+      },
+      "worker": {
+        "maxTurns": 120,
+        "wallSeconds": 5400,
+        "outputTokenCap": 6000,
+        "embeddedReviewOutputTokenCap": 6000
+      },
+      "quota": {
+        "pauseOnExhaustion": true,
+        "retryAfterRequired": true,
+        "maxInlineRetrySeconds": 60,
+        "maxTransientRetries": 1,
+        "interPacketDelaySeconds": 0
+      },
+      "taskOverrides": {
+        "planning": {
+          "inputTokenTarget": 12000,
+          "maxFiles": 8,
+          "maxToolCalls": 15
+        },
+        "authoring": {
+          "inputTokenTarget": 24000,
+          "maxFiles": 12,
+          "maxToolCalls": 30
+        },
+        "review": {
+          "inputTokenTarget": 18000,
+          "maxFiles": 10,
+          "maxToolCalls": 20
+        },
+        "integration": {
+          "inputTokenTarget": 30000,
+          "maxFiles": 16,
+          "maxToolCalls": 35
+        }
+      },
+      "modelAdjustments": {}
+    }
+  },
+  "stageClasses": {
+    "ai:discovery": "planning",
+    "ai:plan": "planning",
+    "ai:lane-a": "planning",
+    "ai:lane-b": "planning",
+    "ai:design": "planning",
+    "ai:database": "planning",
+    "ai:integration": "integration",
+    "ai:tests": "authoring",
+    "ai:tests-review": "review",
+    "ai:tests-signoff": "review",
+    "ai:build": "authoring",
+    "ai:qa": "review",
+    "ai:review": "review",
+    "ai:fix": "authoring",
+    "ai:release-ops": "review"
+  }
+}
