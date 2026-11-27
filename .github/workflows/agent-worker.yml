@@ -147,17 +147,16 @@ jobs:
         run: |
           set -uo pipefail
           mkdir -p /tmp/agent-logs
-          SLUG=$(grep -o 'ai/contract-[a-z0-9-]*' /tmp/body.md | head -1 | sed 's#ai/contract-##')
-          [ -n "$SLUG" ] || SLUG=$(jq -r '.title' /tmp/item.json | grep -o '\[[a-z0-9-]*\]
+          SLUG=$(grep -o 'ai/contract-[a-z0-9-]*' /tmp/body.md | head -1 | sed 's#ai/contract-##' || true)
+          if [ -z "$SLUG" ]; then
+            SLUG=$(jq -r '.title' /tmp/item.json | sed -nE 's/.*\[([a-z0-9-]+)\]$/\1/p')
+          fi
+          [ -n "$SLUG" ] || SLUG="${FEATURE_SLUG:-}"
           FEATURE=""
           if [ -n "$SLUG" ] && git ls-remote --exit-code --heads origin "ai/contract-$SLUG" >/dev/null 2>&1; then
-            # Read the feature branch in a separate worktree so the agent's own checkout stays clean.
             git fetch -q origin "ai/contract-$SLUG" && git worktree add -q -f --detach /tmp/feature-wt "origin/ai/contract-$SLUG" && FEATURE="/tmp/feature-wt/docs/product/$SLUG"
           fi
-          # Trial controls are known-good answers for model trials; agents must never see them.
           rm -rf .ai-org-handbook/trial
-          # Attempt memory: the most recent failed run on this item, summarised by the worker that failed.
-          # Only failures from the last 24 hours count as "the previous attempt"; older ones are history, not guidance.
           SINCE=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
           if [ "$TOOL_MODE" = "readonly" ]; then
             : > /tmp/attempt.md
@@ -166,13 +165,16 @@ jobs:
           fi
           sed -i -E '/^[[:space:]]*total[[:space:]]+used[[:space:]]/d; /^Mem:/d; /^Swap:/d' /tmp/attempt.md
           printf 'Item #%s, stage %s, seat %s. Read issue metadata and body only: gh issue view %s --json title,body,labels,assignees\n' "$NUMBER" "$STAGE" "${SEAT:-none}" "$NUMBER" > /tmp/task.md
-          READONLY_FLAG=""; [ "$TOOL_MODE" = "readonly" ] && READONLY_FLAG="--read-only"
+          READONLY_FLAG=""
+          if [ "$TOOL_MODE" = "readonly" ]; then READONLY_FLAG="--read-only"; fi
           node .ai-org-handbook/scripts/onboarding-pack.mjs --role "$ROLE" --stage "$STAGE" --slug "$SLUG" --seat "$SEAT" --feature "$FEATURE" \
-            --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md --max 8000
+            --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md --max 8000 $READONLY_FLAG
           cp /tmp/onboarding.md /tmp/agent-logs/onboarding.md
           echo "onboarding pack: $(wc -c < /tmp/onboarding.md) characters for $ROLE ($STAGE, seat ${SEAT:-none}, feature ${SLUG:-none})"
           echo "slug=$SLUG" >> "$GITHUB_ENV"
-          echo "contract_before=$(git rev-parse -q --verify "origin/ai/contract-$SLUG" 2>/dev/null || true)" >> "$GITHUB_ENV"
+          CONTRACT_BEFORE=""
+          if [ -n "$SLUG" ]; then CONTRACT_BEFORE=$(git rev-parse -q --verify "origin/ai/contract-$SLUG" 2>/dev/null || true); fi
+          echo "contract_before=$CONTRACT_BEFORE" >> "$GITHUB_ENV"
 
       - name: Pause (no engine connected)
         if: steps.router.outputs.action == 'pause'
@@ -399,7 +401,7 @@ jobs:
           gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/failed.md
 
       - name: Chain to the next agent if the stage changed
-        if: steps.router.outputs.action == 'run'
+        if: steps.router.outputs.action == 'run' && inputs.tool_mode != 'readonly'
         env:
           BEFORE: ${{ steps.item.outputs.stage }}
           WORKFLOW: ${{ inputs.dispatch_workflow }}
@@ -567,7 +569,7 @@ jobs:
       # Independent check of Quinn's locked tests: they must be red for the right reason (scripts/grade-acceptance.mjs).
       # The loop only opens the build when this commit status is green, so broken tests never reach Dev.
       - name: Acceptance-test gate (ai:tests only)
-        if: always() && steps.router.outputs.action == 'run' && steps.router.outputs.stage == 'ai:tests'
+        if: always() && steps.router.outputs.action == 'run' && inputs.tool_mode != 'readonly' && steps.router.outputs.stage == 'ai:tests'
         shell: bash --noprofile --norc {0}
         run: |
           set -uo pipefail
@@ -597,7 +599,7 @@ jobs:
         env:
           STAGE: ${{ steps.item.outputs.stage }}
         # Pilot scope: the QA chain stages (they all commit to the contract branch). Other stages read packs but are not yet gated.
-        if: steps.router.outputs.action == 'run' && startsWith(steps.router.outputs.stage, 'ai:tests')
+        if: steps.router.outputs.action == 'run' && inputs.tool_mode != 'readonly' && startsWith(steps.router.outputs.stage, 'ai:tests')
         shell: bash --noprofile --norc {0}
         run: |
           set -uo pipefail
