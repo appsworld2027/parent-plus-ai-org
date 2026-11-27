@@ -50,9 +50,9 @@ test("the free builder is preferred when no engine label is set", () => {
   assert.equal(route({ labels: ["ai:build"], engines: all }).engine, "free");
   assert.equal(route({ labels: ["ai:build"], engines: all }).free_model, FREE_MODELS.builder);
 });
-test("NVIDIA is preferred for builder work while Groq remains the independent reviewer", () => {
+test("NVIDIA is preferred only in eligible synthetic trials while Groq remains the reviewer", () => {
   const providers = { groq: true, nvidia: true };
-  const b = route({ labels: ["ai:build"], engines: freeOnly, freeProviders: providers });
+  const b = route({ labels: ["ai:build"], engines: freeOnly, freeProviders: providers, supervisedTrial: true });
   const q = route({ labels: ["ai:review"], isPR: true, engines: freeOnly, freeProviders: providers });
   assert.equal(b.free_model, FREE_MODELS.nvidiaBuilder);
   assert.equal(b.free_provider, "nvidia");
@@ -144,7 +144,7 @@ test("Dev gets a build brief on ai:build/ai:fix issues only", () => {
   assert.ok(buildBrief(9).includes("#9"));
 });
 test("an explicit free model overrides the stage default", () => {
-  assert.equal(route({ labels: ["ai:tests"], engines: freeOnly, freeModel: "groq/qwen/qwen3.8-27b" }).free_model, "groq/qwen/qwen3.8-27b");
+  assert.equal(route({ labels: ["ai:tests"], engines: freeOnly, freeModel: "groq/openai/gpt-oss-120b@medium" }).free_model, "groq/openai/gpt-oss-120b@medium");
   assert.equal(route({ labels: ["ai:tests"], engines: freeOnly }).free_model, FREE_MODELS.builder);
 });
 test("v3: QA stages carry seats, onboarding + handover rules, and the right brief", () => {
@@ -174,8 +174,8 @@ test("policy: paid engines never run, even when connected or labelled", () => {
   }
 });
 test("policy: model overrides are restricted to the approved free-provider allowlist", () => {
-  assert.equal(policyRoute({ labels: ["ai:tests"], engines: freeOnly, freeModel: "groq/qwen/qwen3.8-27b@medium" }).free_model, "groq/qwen/qwen3.8-27b@medium");
-  assert.equal(policyRoute({ labels: ["ai:build"], engines: freeOnly, freeProviders: { groq: true, nvidia: true }, freeModel: FREE_MODELS.nvidiaBuilder }).free_model, FREE_MODELS.nvidiaBuilder);
+  assert.equal(policyRoute({ labels: ["ai:tests"], engines: freeOnly, freeModel: "groq/openai/gpt-oss-120b@medium" }).free_model, "groq/openai/gpt-oss-120b@medium");
+  assert.equal(policyRoute({ labels: ["ai:build"], engines: freeOnly, freeProviders: { groq: true, nvidia: true }, supervisedTrial: true, freeModel: FREE_MODELS.nvidiaBuilder }).free_model, FREE_MODELS.nvidiaBuilder);
   for (const freeModel of ["openrouter/vendor/paid-model", "nvidia_nim/a/b", "deepseek/deepseek-chat", "groq/openai/paid-model", "groq/qwen/qwen3.8-27b MODEL=other"])
     assert.equal(policyRoute({ labels: ["ai:build"], engines: freeOnly, freeModel }).free_model, FREE_MODELS.builder);
 });
@@ -187,4 +187,71 @@ test("policy: enabled background stages run only on the approved free engine", (
     assert.equal(r.engine, "free", s);
     assert.ok(r.free_model === FREE_MODELS.builder || r.free_model === FREE_MODELS.reviewer, s);
   }
+});
+
+// A syntactically valid free model is still inadmissible for an incompatible seat.
+test("independent review cannot be overridden to either builder family", () => {
+  for (const stage of ["ai:tests-review", "ai:qa", "ai:review"]) {
+    for (const freeModel of [FREE_MODELS.builder, FREE_MODELS.builder + "@high", FREE_MODELS.nvidiaBuilder]) {
+      const r = route({ labels: [stage], engines: freeOnly, freeProviders: { groq: true, nvidia: true }, freeModel });
+      assert.equal(r.free_model, FREE_MODELS.reviewer, stage + ": " + freeModel);
+      assert.equal(r.free_model_override_rejected, true);
+    }
+  }
+});
+test("test authors and implementation seats cannot use the independent reviewer family", () => {
+  for (const stage of ["ai:tests", "ai:build", "ai:fix", "ai:database", "ai:integration"]) {
+    for (const freeModel of [FREE_MODELS.reviewer, FREE_MODELS.reviewer + "@medium"]) {
+      const r = route({ labels: [stage], engines: freeOnly, freeModel });
+      assert.equal(r.free_model, FREE_MODELS.builder, stage);
+      assert.equal(r.free_model_override_rejected, true);
+    }
+  }
+});
+test("review pauses rather than taking a connected NVIDIA builder when Groq is unavailable", () => {
+  const r = route({ labels: ["ai:review"], engines: freeOnly, freeProviders: { groq: false, nvidia: true }, freeModel: FREE_MODELS.nvidiaBuilder });
+  assert.equal(r.action, "pause");
+  assert.equal(r.free_model, undefined);
+});
+test("a reviewer may choose supported reasoning effort on its own model", () => {
+  const r = route({ labels: ["ai:review"], engines: freeOnly, freeModel: FREE_MODELS.reviewer + "@high" });
+  assert.equal(r.free_model, FREE_MODELS.reviewer + "@high");
+  assert.equal(r.free_model_override_rejected, false);
+});
+
+// Every named role has an actionable quality method, not just a label and model.
+test("all 11 roles get a focused quality method on an actual free route", () => {
+  const roles = new Set();
+  for (const [stage, slug] of Object.entries(STAGE_ROLE)) {
+    const routed = route({ labels: [stage], engines: freeOnly });
+    assert.equal(routed.action, "run", stage);
+    assert.equal(routed.role, slug);
+    const prompt = buildPrompt({ agent: agentInfo(slug), number: 19, isPR: false, repo: "example/synthetic", stage });
+    assert.match(prompt, /Role quality method:/, slug);
+    roles.add(slug);
+  }
+  assert.equal(roles.size, 11);
+});
+test("readonly reviewer prompts do not ask the agent to post, push or advance state", () => {
+  for (const stage of ["ai:review", "ai:tests-review", "ai:tests-signoff", "ai:tests", "ai:build"]) {
+    const prompt = buildPrompt({ agent: agentInfo(STAGE_ROLE[stage]), number: 7, isPR: true, repo: "example/synthetic", stage, toolMode: "readonly", featureSlug: "synthetic" });
+    assert.match(prompt, /workflow.*publish/i);
+    assert.doesNotMatch(prompt, /Finish by commenting|Post the verdict directly|Comment on the contract PR|commit and push|Open the contract PR|handoff\\.mjs template/);
+  }
+});
+
+test("NVIDIA evaluation credentials cannot select unattended product builder inference", () => {
+  const providers = { groq: true, nvidia: true };
+  const r = route({ labels: ["ai:build"], engines: freeOnly, freeProviders: providers, freeModel: FREE_MODELS.nvidiaBuilder });
+  assert.equal(r.free_model, FREE_MODELS.builder);
+  assert.equal(r.free_model_override_rejected, true);
+  const p = route({ labels: ["ai:build"], engines: freeOnly, freeProviders: { groq: false, nvidia: true } });
+  assert.equal(p.action, "pause");
+});
+test("validated read-only synthetic smoke can still use NVIDIA; ordinary readonly is not enough", () => {
+  const providers = { groq: true, nvidia: true };
+  const base = { labels: ["ai:discovery"], engines: freeOnly, freeProviders: providers };
+  assert.equal(route(base).free_model, FREE_MODELS.builder);
+  assert.equal(route({ ...base, syntheticSmoke: true }).free_model, FREE_MODELS.nvidiaBuilder);
+  assert.equal(route({ ...base, labels: ["ai:build"], syntheticSmoke: true }).free_model, FREE_MODELS.builder);
 });

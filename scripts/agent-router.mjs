@@ -62,7 +62,7 @@ export function agentInfo(slug, dir = AGENTS_DIR) {
   return { slug, name: meta.name, role: meta.role, model: meta.model };
 }
 
-export function route({ labels = [], body = "", isPR = false, engines = { free: false }, freeModel = "", allowed = ALLOWED_ENGINES, supervisedTrial = false, freeProviders = { groq: true, nvidia: false } }) {
+export function route({ labels = [], body = "", isPR = false, engines = { free: false }, freeModel = "", allowed = ALLOWED_ENGINES, supervisedTrial = false, syntheticSmoke = false, freeProviders = { groq: true, nvidia: false } }) {
   const policyAllowed = new Set(ALLOWED_ENGINES);
   engines = Object.fromEntries(ENGINES.map((e) => [e, policyAllowed.has(e) && allowed.includes(e) && !!engines[e]]));
   freeProviders = { groq: freeProviders?.groq === true, nvidia: freeProviders?.nvidia === true };
@@ -96,11 +96,18 @@ export function route({ labels = [], body = "", isPR = false, engines = { free: 
   if (engine === "free") {
     const reviewerSeat = REVIEW_ROLES.includes(role) && stage !== "ai:tests";
     const available = (model) => freeProviders[model.split("/")[0]] === true;
-    const override = FREE_OVERRIDE.test(freeModel) && available(freeModel) ? freeModel : "";
+    // NVIDIA developer endpoints are evaluation-only under the founder-approved policy.
+    const evaluation = supervisedTrial === true || (syntheticSmoke === true && stage === "ai:discovery");
     const candidates = reviewerSeat
       ? [FREE_MODELS.reviewer]
-      : [FREE_MODELS.nvidiaBuilder, FREE_MODELS.builder];
+      : evaluation ? [FREE_MODELS.nvidiaBuilder, FREE_MODELS.builder] : [FREE_MODELS.builder];
+    // "Free" is necessary but not sufficient: an override cannot exchange author and
+    // reviewer families. Reasoning-effort variants keep their underlying model identity.
+    const requestedModel = typeof freeModel === "string" ? freeModel : "";
+    const baseModel = requestedModel.split("@")[0];
+    const override = FREE_OVERRIDE.test(requestedModel) && candidates.includes(baseModel) && available(requestedModel) ? requestedModel : "";
     const selected = override || candidates.find(available) || "";
+    out.free_model_override_rejected = !!requestedModel && !override;
     if (!selected) {
       return {
         action: "pause",
@@ -162,7 +169,7 @@ export function onboardingRules(number, { toolMode = "standard", featureSlug = "
     "- Founder-facing reports must use plain English for technical explanations or evidence-led blocker reports. Do not claim delivery to a founder conversation unless the actual artifact or link is verified.",
     "- At onboarding, meaningful milestones, repeated failures, environment or model changes, and before ending, assess context only from available measurements, progress, repeated work, decisions, dependencies, and risks. Record CONTINUE / COMPACT / SWITCH / ESCALATE; never claim unsupported context metrics or actions.",
     "- The compact onboarding pack is embedded below in this initial prompt. Read it completely; it contains the current task context and at most the two latest handovers for this feature. Do not attempt to access `/tmp/onboarding.md` or reread sources it already summarises.",
-    "- Your first message is the 5-line Understanding: goal · constraints · known traps · what you must not touch · how you will prove it is done.",
+    toolMode === "readonly" ? "- Keep intermediate analysis private; provide only the concise report (verdict first for review)." : "- Your first message is the 5-line Understanding: goal · constraints · known traps · what you must not touch · how you will prove it is done.",
     "- Put lessons that would help future features under `## Memory proposals` (fact + evidence). Never edit `docs/ai-memory/` directly; Arjun merges approved memory.",
   ];
   if (toolMode === "readonly") {
@@ -195,6 +202,22 @@ export function signoffBrief(number) {
   ].join("\n");
 }
 
+// Concise, role-specific quality methods. These are checks, not permissions.
+// The task scope, locked acceptance criteria, and workflow-owned transitions still win.
+const ROLE_QUALITY_METHOD = Object.freeze({
+  "maya-ai-pm": "Identify the user's problem and success measure; separate evidence from assumptions; compare alternatives; cover negative and edge cases; define observable acceptance criteria, and escalate only a material strategy decision.",
+  "arjun-cpto": "Compare viable options (including no change); choose the simplest reversible architecture; specify invariants, interfaces, access boundaries, failure modes, migration/rollback, test strategy and dependency order.",
+  "kiran-pjm-a": "Select only ready work; check dependencies, risk, capacity and conflicting file/interface/data scopes; assign one accountable owner and acceptance evidence per task; replan stuck work without duplicate dispatch.",
+  "leela-pjm-b": "Select only ready work; check dependencies, risk, capacity and conflicting file/interface/data scopes against Lane A; assign one accountable owner and acceptance evidence; defer conflicts rather than overwrite work.",
+  "iris-design": "Map the complete user journey and loading, empty, error, offline, permission and success states; check accessibility, responsive layout, existing components, copy and recovery from mistakes.",
+  "dev-coder": "Reproduce the failing acceptance case first; make the smallest scoped change; test negative and regression cases; inspect the exact diff and executed results; never weaken locked tests.",
+  "tara-database": "Check data invariants, cross-tenant authorization, concurrency, indexing and migration compatibility; require synthetic fixtures, negative access tests and a tested rollback or safe forward recovery.",
+  "ravi-integration": "Verify external contract and inputs; cover auth, timeout, malformed responses, rate limits, retries and idempotency; keep credentials out of artifacts; prove failure and recovery with isolated tests.",
+  "quinn-qa": "Map every acceptance criterion to a non-vacuous test; validate correct red before implementation, then green; attack boundary, access and failure states; separate author and challenger; record evidence for the actual revision.",
+  "rex-reviewer": "Challenge correctness against the contract and exact diff; look for security, concurrency, resilience, scope and weak tests; reproduce material flaws where authorized; give a clear verdict and severity with evidence.",
+  "sam-release": "Check exact revision, required CI and independent verdict; verify authorized rollout, smoke, health and rollback/disable evidence; distinguish merged, deployed, founder-ready and released; stop if any release gate lacks proof.",
+});
+
 export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = "standard", featureSlug = "" }) {
   const kind = isPR ? "pull request" : "issue";
   const cli = isPR ? "gh pr" : "gh issue";
@@ -205,7 +228,8 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = 
     `1a. Feature slug: ${featureSlug || "not assigned"}. Never use literal "_none_". If no valid feature slug is assigned, do not create a handoff or write under docs/product/_none_.`,
     `2. Read ${kind} #${number} metadata and body only using ${cli} view ${number} --json title,body,labels,assignees. Read comments only when a retry or explicit task requires history.`,
     `3. Do your role's job for this ${kind} only. Keep changes small and reversible. Run the repo's checks before claiming anything.`,
-    `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,
+    `Role quality method: ${ROLE_QUALITY_METHOD[agent.slug] || "Use evidence, challenge assumptions, test and report only verified outcomes."} These checks do not expand your tools or write authority.`,
+    toolMode === "readonly" ? "4. Return a concise evidence-led final report as assistant text; the workflow publishes it. If reviewing, put the verdict first." : `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,
     ...(toolMode === "readonly" ? [] : featureSlug
       ? [`4a. Create the handover packet at docs/product/${featureSlug}/handoffs/NN-${stage}-${agent.slug}.md on branch ai/contract-${featureSlug}. Generate the template with node .ai-org-handbook/scripts/handoff.mjs template ${stage} ${agent.slug}; fill every section, then validate with node .ai-org-handbook/scripts/handoff.mjs validate <path> before committing and pushing.`]
       : ["4a. No valid feature slug is assigned; do not create a handover packet."]),
@@ -214,13 +238,13 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = 
       : ["5. Do not change issue stage labels or issue state; the workflow owns stage transitions. Apply only PR labels explicitly required by your role brief." ]),
     `6. Never print secrets. Never contact the founder except through ai:founder-decision or ai:founder-test issues.`,
     "", onboardingRules(number, { toolMode, featureSlug, stage, role: agent.slug }),
-    ...(["ai:review", "ai:tests-review", "ai:tests-signoff"].includes(stage) ? [
+    ...(toolMode !== "readonly" && ["ai:review", "ai:tests-review", "ai:tests-signoff"].includes(stage) ? [
       "If the product manifest configures loop.aiVerdictReviewerIds, use the assigned review account. Post the verdict directly on the reviewed PR after pushing your handover. Include a standalone HTML comment in the form <!-- ai-org:reviewed-commit SHA --> using the full SHA you actually reviewed. Confirm it is still the PR head before posting.",
     ] : []),
-    ...(stage === "ai:tests" ? ["", testsBrief(number)] : []),
-    ...(stage === "ai:tests-review" ? ["", challengeBrief(number)] : []),
-    ...(stage === "ai:tests-signoff" ? ["", signoffBrief(number)] : []),
-    ...((stage === "ai:build" || stage === "ai:fix") && !isPR ? ["", buildBrief(number)] : []),
+    ...(toolMode !== "readonly" && stage === "ai:tests" ? ["", testsBrief(number)] : []),
+    ...(toolMode !== "readonly" && stage === "ai:tests-review" ? ["", challengeBrief(number)] : []),
+    ...(toolMode !== "readonly" && stage === "ai:tests-signoff" ? ["", signoffBrief(number)] : []),
+    ...(toolMode !== "readonly" && (stage === "ai:build" || stage === "ai:fix") && !isPR ? ["", buildBrief(number)] : []),
   ].join("\n");
 }
 
@@ -239,6 +263,10 @@ if (isMain(import.meta.url)) {
   const r = route({
     labels, isPR, body: bodyFile && existsSync(bodyFile) ? readFileSync(bodyFile, "utf8") : "",
     freeModel: process.env.FREE_MODEL_OVERRIDE || "", supervisedTrial: process.env.SUPERVISED_SYNTHETIC_TRIAL === "1",
+    // The dedicated manual smoke workflow validates the issue title and read-only stage before routing.
+    // An ordinary labelled issue, even read-only, is not a supervised NVIDIA evaluation.
+    syntheticSmoke: toolMode === "readonly" && arg("repo") === "appsworld2027/parent-plus-ai-org" &&
+      process.env.GITHUB_WORKFLOW === "Free-provider agent smoke test" && process.env.GITHUB_EVENT_NAME === "workflow_dispatch",
     engines: { free: process.env.ENGINE_FREE === "true" },
     freeProviders: { groq: process.env.ENGINE_GROQ === "true", nvidia: process.env.ENGINE_NVIDIA === "true" },
   });
