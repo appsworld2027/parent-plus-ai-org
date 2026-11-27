@@ -3,15 +3,24 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("cross-repository private handbook consumers require the read-only deploy key", () => {
-  for (const path of ["../.github/workflows/agent-worker.yml","../.github/workflows/ai-loop.yml","../.github/workflows/contract-lock.yml","../.github/workflows/handbook-connectivity.yml"]) {
+test("cross-repository handbook consumers prefer public access and require a key only for private access", () => {
+  const worker = read("../.github/workflows/agent-worker.yml");
+  assert.ok(worker.includes("AI_ORG_HANDBOOK_SSH_KEY:") && worker.includes("required: false"));
+  assert.ok(worker.includes("Load AI Org handbook using the caller token"));
+  assert.ok(worker.includes("id: public_handbook"));
+  assert.ok(worker.includes("continue-on-error: true"));
+  assert.ok(worker.includes("steps.public_handbook.outcome == 'failure'"));
+  assert.ok(worker.includes("Check private handbook access"));
+  assert.ok(worker.includes("ssh-key: ${{ secrets.AI_ORG_HANDBOOK_SSH_KEY }}"));
+  assert.ok(worker.includes("persist-credentials: false"));
+  assert.ok(!worker.includes("AI_ORG_HANDBOOK_TOKEN"));
+  for (const path of ["../.github/workflows/ai-loop.yml","../.github/workflows/contract-lock.yml","../.github/workflows/handbook-connectivity.yml"]) {
     const workflow = read(path);
     assert.ok(workflow.includes("AI_ORG_HANDBOOK_SSH_KEY:") && workflow.includes("required: false"));
     assert.ok(workflow.includes("Detect AI Org handbook visibility"));
     assert.ok(workflow.includes("GITHUB_TOKEN: ${{ github.token }}"));
     assert.ok(workflow.includes("Authorization: Bearer $GITHUB_TOKEN"));
     assert.ok(workflow.includes("steps.handbook_visibility.outputs.private == 'true'"));
-    assert.ok(workflow.includes("HANDBOOK_ACCESS: ${{ secrets.AI_ORG_HANDBOOK_SSH_KEY != '' }}"));
     assert.ok(workflow.includes("ssh-key: ${{ github.repository != 'appsworld2027/parent-plus-ai-org' && steps.handbook_visibility.outputs.private == 'true' && secrets.AI_ORG_HANDBOOK_SSH_KEY || '' }}"));
     assert.ok(workflow.includes("persist-credentials: false"));
     assert.ok(!workflow.includes("AI_ORG_HANDBOOK_TOKEN"));
