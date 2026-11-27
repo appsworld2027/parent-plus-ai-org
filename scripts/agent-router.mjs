@@ -192,7 +192,7 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "" }) {
 
 export const PAUSE_MARKER = "<!-- ai-org:paused -->";
 export function pauseComment({ agent, stage }) {
-  return `${PAUSE_MARKER}\n**[${agent.name} — ${agent.role}] Paused.** This item is at \`${stage}\`, but background agents are paused. Paid engines are switched off, and the free engine is limited to supervised trials on synthetic data (founder decision).\n\nIt stays paused until the founder records that this use is permitted and the rule is changed. Nothing is lost.`;
+  return `${PAUSE_MARKER}\n**[${agent.name} — ${agent.role}] Paused.** This item is at \`${stage}\`, but no approved free-model engine is currently available. Background agents use the Groq free tier only. A missing key, provider outage or exhausted free quota pauses work; there is no paid fallback.\n\nNothing is lost. The item can resume when the approved free route is available and the workflow is re-dispatched.`;
 }
 
 // ---- CLI ----
