@@ -1,6 +1,10 @@
 # TEMPORARY isolated exact-head review branch. Never merge to main.
 name: Frontier admission independent review (temporary)
 on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: ['feat/frontier-admission-gate-20261127']
+    paths: ['.github/workflows/model-trial.yml']
   workflow_dispatch:
     inputs:
       confirm:
@@ -15,12 +19,18 @@ concurrency:
 jobs:
   review:
     if: >-
-      github.event_name == 'workflow_dispatch' &&
-      inputs.confirm == 'FRONTIER REVIEW ONLY' &&
       github.repository == 'appsworld2027/parent-plus-ai-org' &&
-      github.ref == 'refs/heads/review/frontier-admission-20261127' &&
       github.actor == github.repository_owner &&
-      github.triggering_actor == github.repository_owner
+      github.triggering_actor == github.repository_owner &&
+      ((github.event_name == 'workflow_dispatch' &&
+        inputs.confirm == 'FRONTIER REVIEW ONLY' &&
+        github.ref == 'refs/heads/review/frontier-admission-20261127') ||
+       (github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.pull_request.head.ref == 'review/frontier-admission-20261127' &&
+        github.event.pull_request.base.ref == 'feat/frontier-admission-gate-20261127' &&
+        github.event.pull_request.user.login == github.repository_owner &&
+        github.event.pull_request.draft == true))
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
