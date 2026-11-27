@@ -28,7 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: db78384d39d65ee02be846979cb0dab5f0b2151f
+          ref: 9ca107c3fe23688e8defe88fd3d46836f6e28bbd
           path: handbook
           persist-credentials: false
       - uses: actions/setup-node@v5
@@ -52,7 +52,7 @@ jobs:
           bash /srv/trial/judge/scripts/safe-trial/run-tests.sh /srv/trial/out
           [ "$(cat /srv/trial/out/check.exit)" = 0 ] || { echo "::error::Baseline TypeScript/unit checks failed"; exit 1; }
           node /srv/trial/judge/scripts/course-pilot/baseline.mjs /srv/trial/out/acceptance.json /srv/trial/out/all.json
-          echo "Exact harness db78384d39d65ee02be846979cb0dab5f0b2151f; exact public product 7100828dcf3c1007086df31f87b34ae8e02573; no inference or product writes." >> "$GITHUB_STEP_SUMMARY"
+          echo "Exact harness 9ca107c3fe23688e8defe88fd3d46836f6e28bbd; exact public product 710082b2d8cf3c1007086df31f87b34ae8e02573; no inference or product writes." >> "$GITHUB_STEP_SUMMARY"
       - name: Scan non-model baseline evidence
         if: always()
         id: scan
