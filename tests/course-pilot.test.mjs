@@ -255,3 +255,21 @@ test('native controller binds exact model, actual Read/Replace hashes, and no fa
     await assert.rejects(run([stop()],{model:'paid-model'}),/Invalid trusted/);
   }finally{rmSync(root,{recursive:true,force:true})}
 });
+
+test('native qualification receipts reject smoke, alias, stale adapter, missing grade and mismatched artifacts',async()=>{
+  const {verifyNativeQualification}=await import('../scripts/course-pilot/native-qualification.mjs');
+  const h=n=>String(n).repeat(64),model='openai/gpt-oss-120b',adapterSha256=h(1),helperSha256=h(2);
+  const shared={model,adapterSha256,helperSha256,syntheticOnly:true,roleAdmission:false,adapterQualification:false,mode:'actual'};
+  const candidate={...shared,schema:'course-native-adapter-qualification-candidate/v1',providerIdentityVerified:true,baselineSha256:h(3),candidateSha256:h(4),negativeControls:['a','b','c','d','e'],session:{schema:'course-native-adapter-session/v1',model,readCount:1,writeCount:1,totalTokens:300,toolEvents:[{tool:'Read',ok:true,artifactSha256:h(3)},{tool:'Replace',ok:true,artifactSha256:h(4)}],events:Array.from({length:3},(_,i)=>({model,usage:{total_tokens:100},finish:i===2?'stop':'tool_calls'}))}};
+  const grade={...shared,schema:'canonical-native-independent-grade/v1',actualProviderIdentity:true,artifactSha256:h(4),passed:true,casesPassed:12,casesTotal:12,negativeControlCount:5};
+  const run=(c=candidate,g=grade,m=model,adapter=adapterSha256)=>verifyNativeQualification({candidateRaw:JSON.stringify(c),gradeRaw:JSON.stringify(g),model:m,adapterSha256:adapter,helperSha256});
+  const verified=run();assert.equal(verified.independentGradePassed,true);assert.equal(verified.productEligible,false);
+  assert.throws(()=>run({...candidate,mode:'smoke',providerIdentityVerified:false}),/smoke/);
+  assert.throws(()=>run(candidate,{...grade,actualProviderIdentity:false}),/smoke/);
+  assert.throws(()=>run(candidate,{...grade,artifactSha256:h(5)}),/artifact|grade/);
+  assert.throws(()=>run(candidate,{...grade,casesPassed:11}),/grade/);
+  assert.throws(()=>run({...candidate,model:'proxy-alias'}),/provenance/);
+  assert.throws(()=>run(candidate,grade,model,h(7)),/bytes/);
+  const noRead=structuredClone(candidate);noRead.session.readCount=0;assert.throws(()=>run(noRead),/provenance/);
+  const wrongTokens=structuredClone(candidate);wrongTokens.session.totalTokens=299;assert.throws(()=>run(wrongTokens),/provenance/);
+});
