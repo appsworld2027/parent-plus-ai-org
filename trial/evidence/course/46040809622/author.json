@@ -1,0 +1,27 @@
+{
+  "schema": "course-quinn-revision/v1",
+  "role": "quinn-qa",
+  "seat": "author",
+  "source": "710082b2d8cf3c1007086df31f87b34ae8e02573",
+  "model": "qwen/qwen3.8-27b",
+  "previousTestHash": "11590e15173ec69a5982ae11b2a5217c4513c3c0cd7acf414293396a7dce46d6",
+  "critiqueHash": "36f6b5c91036e45cb072e2812394cea47c3064f2a47bd5650e9c7405d26d1221",
+  "contractHash": "6695ab62149003b833c1afa04a2f6e674db3494efe7048864357095de07176aa",
+  "supportHash": "7df5e00b52b326a321db7d298c0fe6eaf42d252fbefcdc2d50ec69ae9e872313",
+  "testHash": "9dafe022b72581e510393ea64246f860bd346d28114c7e6a7d59cabeafe9dbd5",
+  "guardHash": "f822412585e4f81ec3e2d6b9ddc6a135d3e86ee5ee5fbca61cb9ca01c9472357",
+  "contextSha256": "c599a2f0085a9afac8ff73057b7971f6b239fa30e1d5d8e959c6879ce3a0f045",
+  "artifactSha256": "40d10db401e11bacece61ea0e4abe2ce9ebfaaedb4853283d5c641abe1433f12",
+  "usage": {
+    "queue_time": 0.026895827,
+    "prompt_tokens": 5384,
+    "prompt_time": 0.488416973,
+    "completion_tokens": 2751,
+    "completion_time": 5.414941578,
+    "total_tokens": 8135,
+    "total_time": 5.903358551
+  },
+  "ms": 6071,
+  "passed": false,
+  "quality": "Unverified until independent execution and challenge"
+}
