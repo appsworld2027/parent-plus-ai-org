@@ -7,6 +7,7 @@ process.env.TRIAL_PROFILE='course-pilot';
 const { TRIAL, patchProblems, builderPrompt, reviewerPrompt, verdict, parseRaw }=await import('../scripts/safe-trial.mjs');
 const { checkBaseline }=await import('../scripts/course-pilot/baseline.mjs');
 const { extractReview }=await import('../scripts/course-pilot/review.mjs');
+const { checkEligibility }=await import('../scripts/course-pilot/eligibility.mjs');
 const M=(path,status='M')=>({status,path});
 test('course profile is pinned to exact MM revision; six locked cases and approved independent models',()=>{
   assert.equal(TRIAL.base,'7100828dcf3c1007086df31f87b34ae8e02573');
