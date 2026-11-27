@@ -1,0 +1,80 @@
+// Locked real-product Course pilot checks, authored before the candidate.
+import { expect, test, type Page } from '@playwright/test';
+import { backend, login } from '../support/backend';
+test.setTimeout(60000);
+const open = async (page: Page) => {
+  await backend(page, { academy: true });
+  await login(page);
+  const button=page.getByRole('button',{name:'Courses',exact:true});
+  await expect(button).toBeVisible({timeout:15000});
+  await button.click();
+  await expect(page.getByRole('heading',{name:'Courses',exact:true})).toBeVisible();
+};
+const create=async(page:Page,title='Junior Art')=>{
+  await page.getByRole('button',{name:'Create course',exact:true}).click();
+  await page.getByLabel('Course title',{exact:true}).fill(title);
+  await page.getByLabel('Stage 1 title',{exact:true}).fill('Beginner');
+  await page.getByLabel('Stage 1 objective 1',{exact:true}).fill('Mix primary colours');
+};
+const save=async(page:Page)=>{await page.getByRole('button',{name:'Save draft',exact:true}).click();};
+const publish=async(page:Page)=>{await page.getByRole('button',{name:'Publish version',exact:true}).click();await page.getByRole('button',{name:'Confirm publish',exact:true}).click();};
+test('CRS-01-SC-001 course entry, honest preview and empty state',async({page})=>{
+  await open(page);
+  await expect(page.getByText('Course pilot — not synced',{exact:true})).toBeVisible();
+  await expect(page.getByText('No courses yet',{exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Create course',exact:true})).toBeVisible();
+  for(const tab of ['Today','Schedule','Feedback','Students','Fees']) await expect(page.getByRole('tab',{name:tab,exact:true})).toBeVisible();
+});
+test('CRS-01-SC-002 invalid draft preserves input',async({page})=>{
+  await open(page);await create(page,' ');await save(page);
+  await expect(page.getByText('Course title is required',{exact:true})).toBeVisible();
+  await expect(page.getByLabel('Stage 1 objective 1',{exact:true})).toHaveValue('Mix primary colours');
+  await expect(page.getByLabel('Course title',{exact:true})).toBeVisible();
+});
+test('CRS-01-SC-003 multi-stage draft round-trip',async({page})=>{
+  await open(page);await create(page);
+  await page.getByRole('button',{name:'Add objective to stage 1',exact:true}).click();
+  await page.getByLabel('Stage 1 objective 2',{exact:true}).fill('Name secondary colours');
+  await page.getByRole('button',{name:'Add stage',exact:true}).click();
+  await page.getByLabel('Stage 2 title',{exact:true}).fill('Intermediate');
+  await page.getByLabel('Stage 2 objective 1',{exact:true}).fill('Create a composition');
+  await save(page);
+  await expect(page.getByText('Junior Art',{exact:true})).toBeVisible();
+  await expect(page.getByText('Draft',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Edit course',exact:true}).click();
+  await expect(page.getByLabel('Stage 1 objective 2',{exact:true})).toHaveValue('Name secondary colours');
+  await expect(page.getByLabel('Stage 2 objective 1',{exact:true})).toHaveValue('Create a composition');
+});
+test('CRS-01-SC-004 publish creates immutable local history',async({page})=>{
+  await open(page);await create(page);await save(page);await publish(page);
+  await expect(page.getByText('Version 1',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Edit course',exact:true}).click();
+  await page.getByLabel('Course title',{exact:true}).fill('Junior Art Expanded');
+  await save(page);await publish(page);
+  await expect(page.getByText('Version 2',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'View history',exact:true}).click();
+  await expect(page.getByText('Version 1',{exact:true})).toBeVisible();
+  await expect(page.getByText('Version 2',{exact:true})).toBeVisible();
+  await expect(page.getByText('Junior Art',{exact:true})).toBeVisible();
+  await expect(page.getByText('Junior Art Expanded',{exact:true})).toBeVisible();
+});
+test('CRS-01-SC-005 dirty navigation is guarded',async({page})=>{
+  await open(page);await create(page,'Unsaved course');
+  await page.getByRole('tab',{name:'Today',exact:true}).click();
+  await expect(page.getByText('Leave your unsaved changes?',{exact:true})).toBeVisible();
+  await page.getByRole('button',{name:'Keep editing',exact:true}).click();
+  await expect(page.getByLabel('Course title',{exact:true})).toHaveValue('Unsaved course');
+  await page.getByRole('tab',{name:'Today',exact:true}).click();
+  await page.getByRole('button',{name:'Discard and leave',exact:true}).click();
+  await page.getByRole('button',{name:'Courses',exact:true}).click();
+  await expect(page.getByText('No courses yet',{exact:true})).toBeVisible();
+});
+test('CRS-01-SC-006 local save survives same-session navigation and makes no live calls',async({page})=>{
+  await open(page);await create(page,'Session draft');await save(page);
+  await page.getByRole('tab',{name:'Today',exact:true}).click();
+  await page.getByRole('button',{name:'Courses',exact:true}).click();
+  await expect(page.getByText('Session draft',{exact:true})).toBeVisible();
+  await expect(page.getByText('Course pilot — not synced',{exact:true})).toBeVisible();
+  const calls=await page.evaluate(()=>window.__coachFixture.calls.filter(x=>/course|curriculum/i.test(x)));
+  expect(calls).toEqual([]);
+});
