@@ -2828,3 +2828,82 @@ jobs:
             ${{ runner.temp }}/course-chunk-author/*/resume-origin.json
             ${{ runner.temp }}/course-chunk-author/*/resume-rejected.json
           retention-days: 14
+
+  course-chunk-publish-verification:
+    needs: course-chunk-publish-author
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          path: handbook
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: course-chunk-publish-author
+          path: authored
+      - name: Verify artifact hashes and compile only actual model-authored operations
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/control"
+          cp handbook/trial/controls/course-test-control-server.mjs "$RUNNER_TEMP/control/server.mjs"
+          cp handbook/scripts/course-pilot/declarative-{coverage,compiler}.mjs "$RUNNER_TEMP/control/"
+          node --input-type=module - "$GITHUB_WORKSPACE/authored" "$RUNNER_TEMP/control" <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';import {createHash} from 'node:crypto';import {pathToFileURL} from 'node:url';
+          const [d,c]=process.argv.slice(2),sha=x=>createHash('sha256').update(x).digest('hex');
+          const a=JSON.parse(readFileSync(d+'/normalized.json')),r=JSON.parse(readFileSync(d+'/receipt.json'));
+          const {COURSE_IDS,coverageIssues}=await import(pathToFileURL(c+'/declarative-coverage.mjs'));
+          const {compileCourseOperation}=await import(pathToFileURL(c+'/declarative-compiler.mjs'));
+          const id='CRS-01-SC-004',keys=['saved-draft','publish-first','publish-second','immutable-history'];
+          if(r.schema!=='course-chunk-assembly/v1'||r.id!==id||r.source!=='710082b2d8cf3c1007086df31f87b34ae8e02573'||r.contractHash!=='6695ab62149003b833c1afa04a2f6e674db3494efe7048864357095de07176aa'||r.coveragePassed!==true||r.artifactSha256!==sha(JSON.stringify(a))||r.chunks.length!==4)throw Error('Assembly receipt mismatch');
+          const ops=[],contexts=new Set();
+          for(const k of keys){const p=JSON.parse(readFileSync(d+'/'+k+'/artifact.json')),q=JSON.parse(readFileSync(d+'/'+k+'/receipt.json')),raw=readFileSync(d+'/'+k+'/raw.txt');if(q.key!==k||q.id!==id||q.source!==r.source||q.contractHash!==r.contractHash||q.actualModel!==r.model||q.rawSha256!==sha(raw)||q.artifactSha256!==sha(JSON.stringify(p))||JSON.stringify(q)!==JSON.stringify(r.chunks.find(x=>x.key===k)))throw Error('Receipt mismatch '+k);contexts.add(q.contextSha256);ops.push(...p.operations)}
+          if(contexts.size!==4||JSON.stringify(ops)!==JSON.stringify(a.operations)||ops.length>46||coverageIssues({cases:Object.fromEntries(COURSE_IDS.map(k=>[k,k===id?ops:[]]))}).some(x=>x.id===id))throw Error('Exact author packet coverage mismatch');
+          const spec="import { test, expect } from '@playwright/test';\nimport { backend, login } from '../support/backend';\ntest('CRS-01-SC-004', async ({page})=>{\n    const networkRequests:string[]=[];\n    page.on('request',req=>{if(/course|curriculum/i.test(req.url()))networkRequests.push(req.url());});\n    await backend(page,{academy:true}); await login(page);\n    await expect(page.getByRole('button',{name:'Courses',exact:true})).toBeVisible();\n"+ops.map(compileCourseOperation).map(x=>'    '+x).join('\n')+'\n});\n';
+          writeFileSync(c+'/authored.spec.ts',spec);writeFileSync(c+'/compiled-receipt.json',JSON.stringify({source:r.source,contractHash:r.contractHash,artifactSha256:r.artifactSha256,authorModel:r.model,testHash:sha(spec),roleAdmission:false,lockApproved:false}));
+          NODE
+          bash handbook/scripts/safe-trial/prepare.sh handbook
+          cd /srv/trial/product
+          test "$(sha256sum docs/product/coach-course-management/ACCEPTANCE.md | cut -d' ' -f1)" = 6695ab62149003b833c1afa04a2f6e674db3494efe7048864357095de07176aa
+          cp "$RUNNER_TEMP/control/authored.spec.ts" e2e/acceptance/coach-course-management.spec.ts
+          npm ci --no-audit --no-fund
+          PLAYWRIGHT_BROWSERS_PATH=/srv/trial/browsers npx playwright install --with-deps chromium
+          chmod -R a+rX /srv/trial/browsers
+          bash /srv/trial/judge/scripts/safe-trial/isolate.sh
+      - name: No-key browser grade exact authored publishing case
+        run: |
+          set -euo pipefail
+          . /srv/trial/judge/scripts/safe-trial/lib.sh
+          lock_workspace grading
+          mkdir -p /srv/trial/out
+          cp "$RUNNER_TEMP/control/compiled-receipt.json" /srv/trial/out/
+          cd /srv/trial/product
+          spec=e2e/acceptance/coach-course-management.spec.ts
+          for mode in clean overwrite-history duplicate-history; do
+            MUTANT="$mode" PORT=18082 node "$RUNNER_TEMP/control/server.mjs" >/srv/trial/out/server.log 2>&1 & server=$!
+            ready=0; for i in $(seq 1 25); do if curl -sf http://127.0.0.1:18082/ >/dev/null; then ready=1; break; fi; sleep 1; done
+            [ "$ready" = 1 ] || exit 1
+            rc=0; as_agent env PLAYWRIGHT_BASE_URL=http://127.0.0.1:18082 timeout 200 npx playwright test "$spec" --reporter=json --workers=1 --timeout=22000 >/srv/trial/out/"$mode".json || rc=$?
+            kill_agent; kill "$server" 2>/dev/null || true; wait "$server" 2>/dev/null || true
+            echo "$rc" >/srv/trial/out/"$mode".exit
+          done
+          rc=0; as_agent timeout 600 npx playwright test "$spec" --reporter=json --workers=1 --timeout=30000 >/srv/trial/out/actual-red.json || rc=$?
+          kill_agent; echo "$rc" >/srv/trial/out/actual-red.exit
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';import {createHash} from 'node:crypto';
+          const dir='/srv/trial/out',sha=b=>createHash('sha256').update(b).digest('hex');
+          function load(label){const b=readFileSync(dir+'/'+label+'.json'),j=JSON.parse(b),cases=[];const walk=s=>{for(const p of s.specs||[])for(const t of p.tests||[])cases.push({title:p.title,status:t.status,error:t.results.find(x=>x.error)?.error?.message?.slice(0,600)??null});for(const x of s.suites||[])walk(x)};for(const s of j.suites||[])walk(s);return {label,sha256:sha(b),exit:Number(readFileSync(dir+'/'+label+'.exit')),cases}}
+          const clean=load('clean'),over=load('overwrite-history'),dup=load('duplicate-history'),red=load('actual-red'),pass=x=>x.cases.length===1&&x.exit===0&&x.cases[0].status==='expected',fail=x=>x.cases.length===1&&x.exit!==0&&x.cases[0].status==='unexpected'&&typeof x.cases[0].error==='string';
+          const receipt={schema:'course-single-case-grade/v1',...JSON.parse(readFileSync(dir+'/compiled-receipt.json')),caseId:'CRS-01-SC-004',clean,mutants:[over,dup],red,cleanPass:pass(clean),historyMutationRecall:[over,dup].filter(fail).length,intendedRed:fail(red)&&red.cases[0].error.includes('Courses')&&red.cases[0].error.includes('toBeVisible'),roleAdmission:false,lockApproved:false};
+          receipt.passed=receipt.cleanPass&&receipt.historyMutationRecall===2&&receipt.intendedRed;
+          writeFileSync(dir+'/single-case-grade.json',JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));if(!receipt.passed)process.exitCode=1;
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-single-case-grade
+          path: /srv/trial/out/single-case-grade.json
+          retention-days: 14
