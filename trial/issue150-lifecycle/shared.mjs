@@ -2,7 +2,7 @@ import {readFile,writeFile,mkdir} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
 import {join} from 'node:path';
 export const AUTHOR='nvidia/nemotron-3.5-lightning-30b-a3b';
-export const REVIEWER='nvidia/nemotron-3.5-super-vl-120b-a12b';
+export const REVIEWER='nvidia/nemotron-3-ultra-550b-a55b';
 export const CONTRACT=await readFile(new URL('./contract.md',import.meta.url),'utf8');
 export const TESTS=await readFile(new URL('./locked.test.txt',import.meta.url),'utf8');
 export const hash=x=>createHash('sha256').update(x).digest('hex');

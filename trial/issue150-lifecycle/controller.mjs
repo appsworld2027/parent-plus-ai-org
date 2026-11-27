@@ -4,6 +4,7 @@ import {evaluateReviewReproduction} from '../../scripts/frontier-board-evaluator
 import {gateDecision,qaChainStep,checksState} from '../../scripts/loop.mjs';
 import {inspectSamPlan} from '../../scripts/frontier-release-evaluator.mjs';
 import {AUTHOR,REVIEWER,CONTRACT,TESTS,contractHash,testHash,head,requireHead,hash,read,json,save,validReceipt,validCandidate,validGrade,validReview,releaseInputs} from './shared.mjs';
+import {verifyBuild} from './replay-build.mjs';
 const [phase,out,...dirs]=process.argv.slice(2),image=process.env.TRIAL_NODE_IMAGE||'';
 const base={schema:1,scope:'isolated-synthetic',issue:150,phase,sourceSha:head,contractHash,testHash,image,status:'blocked',qualified:false,productionReady:false,deployed:false};
 const evalCode=code=>evaluateReviewReproduction(code,TESTS,{image});
@@ -38,9 +39,7 @@ const pre=async()=>{
  assert.deepEqual(base.canonicalControl,{acceptancePending:'wait',acceptanceRed:'block',acceptancePass:'build',independentChallengeRequired:'challenge',accountableSignoffRequired:'signoff',bothApproved:'build'});
 };
 async function build(d){
- const code=await read(d,'board.mjs'),receipt=await json(d,'call.json');
- assert.ok(validReceipt(receipt,'build',AUTHOR,code)&&validCandidate(code),'build provenance/intake');
- return code;
+ return verifyBuild(d);
 }
 async function grade(){
  const code=await build(dirs[0]);base.candidateHash=hash(code);
