@@ -1010,3 +1010,95 @@ jobs:
           name: course-role-deliverables-${{ matrix.lane }}
           path: ${{ runner.temp }}/role-deliverables/
           retention-days: 14
+
+  course-clean-mutation-control:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE QA CONTROLS' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          path: handbook
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Prepare exact source, control server, and rejected author v2 test suite
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/control"
+          cp handbook/trial/controls/course-test-control-server.mjs "$RUNNER_TEMP/control/server.mjs"
+          cp handbook/trial/evidence/course/46040809622/{quinn.spec.ts,guard.spec.ts} "$RUNNER_TEMP/control/"
+          sha256sum "$RUNNER_TEMP/control/"*.ts
+          node --check "$RUNNER_TEMP/control/server.mjs"
+          bash handbook/scripts/safe-trial/prepare.sh handbook
+          cd /srv/trial/product
+          cp "$RUNNER_TEMP/control/quinn.spec.ts" e2e/acceptance/course-qa-v2.spec.ts
+          cp "$RUNNER_TEMP/control/guard.spec.ts" e2e/acceptance/course-qa-v2-guard.spec.ts
+          npm ci --no-audit --no-fund
+          PLAYWRIGHT_BROWSERS_PATH=/srv/trial/browsers npx playwright install --with-deps chromium
+          chmod -R a+rX /srv/trial/browsers
+          bash /srv/trial/judge/scripts/safe-trial/isolate.sh
+      - name: Prove clean control and exact critical defective controls without model credentials
+        run: |
+          set -euo pipefail
+          . /srv/trial/judge/scripts/safe-trial/lib.sh
+          lock_workspace grading
+          mkdir -p /srv/trial/out
+          cd /srv/trial/product
+          start_server() {
+            MUTANT="$1" PORT=18082 node "$RUNNER_TEMP/control/server.mjs" > /srv/trial/out/server.log 2>&1 &
+            SERVER=$!
+            for i in $(seq 1 25); do if curl -sf http://127.0.0.1:18082/ >/dev/null; then return 0; fi; sleep 1; done
+            return 1
+          }
+          stop_server(){ kill "$SERVER" 2>/dev/null || true; wait "$SERVER" 2>/dev/null || true; }
+          trial(){
+            local mode="$1" spec="$2" label="$3" grep="$4" rc=0
+            start_server "$mode"
+            args=(); if [ -n "$grep" ]; then args=(--grep "$grep"); fi
+            as_agent env PLAYWRIGHT_BASE_URL=http://127.0.0.1:18082 timeout 150 npx playwright test "$spec" --reporter=json --workers=1 --timeout=22000 "${args[@]}" > "/srv/trial/out/$label.json" || rc=$?
+            kill_agent
+            stop_server
+            echo "$rc" > "/srv/trial/out/$label.exit"
+          }
+          ref=e2e/acceptance/coach-course-management.spec.ts
+          v2=e2e/acceptance/course-qa-v2.spec.ts
+          guard=e2e/acceptance/course-qa-v2-guard.spec.ts
+          trial clean "$ref" ref-clean ''
+          if [ "$(cat /srv/trial/out/ref-clean.exit)" = 0 ]; then
+            trial missing-entry "$ref" mutant-001 CRS-01-SC-001
+            trial invalid-title "$ref" mutant-002 CRS-01-SC-002
+            trial drop-objective "$ref" mutant-003 CRS-01-SC-003
+            trial overwrite-history "$ref" mutant-004 CRS-01-SC-004
+            trial dirty-bypass "$ref" mutant-005 CRS-01-SC-005
+            trial network-leak "$ref" mutant-006 CRS-01-SC-006
+          fi
+          trial clean "$v2" v2-clean ''
+          trial flag-off "$guard" guard-clean ''
+          trial flag-off-leak "$guard" guard-mutant ''
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync,existsSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const d='/srv/trial/out',sha=x=>createHash('sha256').update(x).digest('hex');
+          function load(label){const p=d+'/'+label+'.json';if(!existsSync(p))return null;const b=readFileSync(p),r=JSON.parse(b),out=[];const walk=s=>{for(const spec of s.specs||[])for(const t of spec.tests||[])out.push({title:spec.title,status:t.status,error:t.results.find(x=>x.error)?.error?.message?.slice(0,600)??null});for(const q of s.suites||[])walk(q)};for(const s of r.suites||[])walk(s);return {label,sha256:sha(b),exit:Number(readFileSync(d+'/'+label+'.exit')),cases:out}}
+          const ref=load('ref-clean'),mutants=Array.from({length:6},(_,n)=>load('mutant-00'+(n+1))),v2=load('v2-clean'),guard=load('guard-clean'),guardMutant=load('guard-mutant');
+          const refPass=ref?.exit===0&&ref.cases.length===6&&ref.cases.every(x=>x.status==='expected');
+          const refMutants=refPass&&mutants.every(x=>x?.exit!==0&&x.cases.length===1&&x.cases[0].status==='unexpected'&&!!x.cases[0].error);
+          const authorClean=v2?.exit===0&&v2.cases.length===6&&v2.cases.every(x=>x.status==='expected');
+          const guardPass=guard?.exit===0&&guard.cases.length===1&&guard.cases[0].status==='expected'&&guardMutant?.exit!==0&&guardMutant.cases.length===1&&guardMutant.cases[0].status==='unexpected';
+          const receipt={schema:'course-qa-control-execution/v1',scope:'synthetic controls, not actual product acceptance',refPass,referenceMutantsKilled:refMutants?6:mutants.filter(x=>x?.cases?.[0]?.status==='unexpected').length,authorClean,guardPass,authorCriticalMutationControlsPassed:false,reference:ref,mutants,author:v2,guard,guardMutant};
+          writeFileSync(d+'/control-receipt.json',JSON.stringify(receipt,null,2));
+          console.log(JSON.stringify(receipt,null,2));
+          if(!refPass||!refMutants||!guardPass||!authorClean)process.exitCode=1;
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-qa-controls
+          path: /srv/trial/out/control-receipt.json
+          retention-days: 14
