@@ -43,6 +43,16 @@ jobs:
           git fetch --no-tags --prune origin \
             '+refs/heads/*:refs/mirror/heads/*' \
             '+refs/tags/*:refs/mirror/tags/*'
-          git push --atomic --prune gitlab \
+          # Keep GitLab's last copy of main if GitHub removes it.
+          gitlab_refs=$(git ls-remote --refs gitlab 'refs/heads/*' 'refs/tags/*')
+          deletions=()
+          while IFS=$'\t' read -r _ ref; do
+            [[ -z "$ref" || "$ref" == refs/heads/main ]] && continue
+            if ! git show-ref --verify --quiet "refs/mirror/${ref#refs/}"; then
+              deletions+=(":${ref}")
+            fi
+          done <<< "$gitlab_refs"
+          git push --atomic gitlab \
             '+refs/mirror/heads/*:refs/heads/*' \
-            '+refs/mirror/tags/*:refs/tags/*'
+            '+refs/mirror/tags/*:refs/tags/*' \
+            "${deletions[@]}"
