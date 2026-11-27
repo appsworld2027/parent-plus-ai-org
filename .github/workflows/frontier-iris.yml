@@ -33,4 +33,4 @@ jobs:
       - name: Verify sandbox with trusted reference before defect controls
         run: node --test --test-name-pattern='trusted reference' tests/frontier-iris-evaluator.test.mjs
       - name: Execute receipt and seeded-defect controls in isolated containers
-        run: node --test --test-name-pattern='strict receipt|unsafe input|reject ' tests/frontier-iris-evaluator.test.mjs
+        run: node --test --test-name-pattern='sandbox profile|strict receipt|unsafe input|reject ' tests/frontier-iris-evaluator.test.mjs
