@@ -32,7 +32,7 @@ function commit(parent, message, files = {}) {
       const blob = run(['hash-object', '-w', '--stdin'], content)
       run(['update-index', '--add', '--cacheinfo', `100644,${blob},${path}`])
     }
-    return run(['-c', 'user.name=AppsWorld Codex', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com',
+    return run(['-c', 'user.name=AppsWorld AI Org', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com',
       'commit-tree', run(['write-tree']), '-p', parent, '-m', message])
   } finally {
     rmSync(dir, { recursive: true, force: true })
