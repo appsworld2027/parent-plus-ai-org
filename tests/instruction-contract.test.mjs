@@ -40,21 +40,21 @@ test("the concise standard covers lifecycle, evidence, portable handover, direct
 });
 
 test("the scheduled GitHub path loads the canonical handbook with compact task-specific context", () => {
-  assert.match(worker, /description: Branch\\/tag of the AI Org handbook to use/);
-  assert.match(worker, /default: main/);
-  assert.match(worker, /path: \\.ai-org-handbook/);
-  assert.match(worker, /--system-prompt-file \\.ai-org-handbook\\/governance\\/FREE_AGENT_SYSTEM_PROMPT\\.md/);
-  assert.match(worker, /claude --bare -p/);
+  assert.ok(worker.includes("description: Branch/tag of the AI Org handbook to use"));
+  assert.ok(worker.includes("default: main"));
+  assert.ok(worker.includes("path: .ai-org-handbook"));
+  assert.ok(worker.includes("--system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md"));
+  assert.ok(worker.includes("claude --bare -p"));
   const prompt = buildPrompt({ agent: agentInfo("dev-coder"), number: 1, isPR: false, repo: "o/r", stage: "ai:build" });
-  assert.match(prompt, /Read the onboarding pack first/);
-  assert.match(prompt, /org\\/agents\\/dev-coder\\.md/);
-  assert.doesNotMatch(prompt, /Read \`.ai-org-handbook\\/governance\\/PERSONAL_OPERATING_STANDARD\\.md\`/);
-  assert.doesNotMatch(prompt, /Read \`.ai-org-handbook\\/governance\\/FOUNDER_DASHBOARD\\.md\`/);
+  assert.ok(prompt.includes("Read the onboarding pack first"));
+  assert.ok(prompt.includes(".ai-org-handbook/org/agents/dev-coder.md"));
+  assert.ok(!prompt.includes("Read `.ai-org-handbook/governance/PERSONAL_OPERATING_STANDARD.md`"));
+  assert.ok(!prompt.includes("Read `.ai-org-handbook/governance/FOUNDER_DASHBOARD.md`"));
   for (const action of ["CONTINUE", "COMPACT", "SWITCH", "ESCALATE"]) assert.ok(prompt.includes(action));
-  assert.match(prompt, /If a required role or policy source is absent/);
-  assert.match(prompt, /Use the Founder Dashboard standard only for substantive operating reviews/);
-  assert.match(prompt, /technical explanations or evidence-led blocker reports/);
-  assert.match(prompt, /Do not claim delivery to a founder conversation/);
+  assert.ok(prompt.includes("If a required role or policy source is absent"));
+  assert.ok(prompt.includes("Use the Founder Dashboard standard only for substantive operating reviews"));
+  assert.ok(prompt.includes("technical explanations or evidence-led blocker reports"));
+  assert.ok(prompt.includes("Do not claim delivery to a founder conversation"));
 });
 
 test("reusable agent workflows enforce free-only Groq execution", () => {
