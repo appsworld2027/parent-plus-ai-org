@@ -1,0 +1,36 @@
+name: Frontier Iris isolated browser regression
+on:
+  pull_request:
+    paths:
+      - 'scripts/frontier-iris-evaluator.mjs'
+      - 'tests/frontier-iris-evaluator.test.mjs'
+      - 'fixtures/frontier/iris-**'
+      - 'fixtures/frontier/iris-runner/**'
+      - 'governance/FRONTIER_IRIS_BROWSER.md'
+      - '.github/workflows/frontier-iris.yml'
+permissions:
+  contents: read
+jobs:
+  iris-browser:
+    # Explicit LTS runner avoids Ubuntu Noble host user-namespace restrictions.
+    # No host security policy or Chromium sandbox is disabled.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Build controller-owned immutable browser runner (no candidate)
+        run: |
+          set -euo pipefail
+          docker build --platform linux/amd64 --tag frontier-iris-ci fixtures/frontier/iris-runner
+          IMAGE="$(docker image inspect --format '{{.Id}}' frontier-iris-ci)"
+          [[ "$IMAGE" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "FRONTIER_IRIS_IMAGE=$IMAGE" >> "$GITHUB_ENV"
+      - name: Verify sandbox with trusted reference before defect controls
+        run: node --test --test-name-pattern='trusted reference' tests/frontier-iris-evaluator.test.mjs
+      - name: Execute receipt and seeded-defect controls in isolated containers
+        run: node --test --test-name-pattern='strict receipt|unsafe input|reject ' tests/frontier-iris-evaluator.test.mjs

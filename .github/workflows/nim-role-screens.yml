@@ -1,0 +1,60 @@
+name: Immutable structured-output trial replay (NEVER MERGE)
+on:
+  pull_request:
+    paths:
+      - 'trial/nim-role-screens/**'
+      - '.github/workflows/nim-role-screens.yml'
+permissions:
+  contents: read
+concurrency:
+  group: nim-role-screens-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  preflight:
+    if: github.repository == 'appsworld2027/parent-plus-ai-org' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'review/nim-role-screens-20261128' && github.actor == 'appsworld2027'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - run: |
+          git diff --exit-code cf041948862dd5523d55c527109a02c20169cdff -- org/agents scripts/frontier-admission.mjs scripts/frontier-casebook.mjs scripts/frontier-concept-evaluator.mjs scripts/frontier-planning-evaluator.mjs governance/FRONTIER_ARTIFACT_RUBRIC.json governance/FRONTIER_CONCEPT_BEHAVIOR.md governance/FRONTIER_PLANNING_BEHAVIOR.md
+          node --test tests/frontier-casebook.test.mjs tests/frontier-concept-evaluator.test.mjs tests/frontier-planning-evaluator.test.mjs
+          node trial/nim-role-screens/run.mjs preflight /tmp/role-preflight
+  replay:
+    needs: preflight
+    permissions:
+      contents: read
+      actions: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          github-token: ${{ github.token }}
+          run-id: 46068749097
+          name: role-screen-author
+          path: role-out
+      - name: Inspect exact retry response formatting (no model key)
+        run: node trial/nim-role-screens/run.mjs diagnose diagnosis role-out
+      - name: Replay unchanged locked evaluator
+        run: node trial/nim-role-screens/run.mjs grade grades role-out
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: role-screen-diagnosis
+          path: |
+            diagnosis
+            grades
