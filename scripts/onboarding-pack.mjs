@@ -35,12 +35,15 @@ export function buildPack({ role, stage, slug, seat = "", handbook = ".ai-org-ha
   const manifest = (() => { try { return JSON.parse(read(join(product, ".ai-org/manifest.json"))); } catch { return {}; } })();
   const docs = manifest?.product?.docsFolder || "docs/product";
   const memDir = join(product, manifest?.memory?.folder || "docs/ai-memory");
-  const memory = existsSync(memDir) ? readdirSync(memDir).filter((f) => f.endsWith(".md")).sort()
-    .map((f) => `### ${f}\n${read(join(memDir, f)).trim()}`).join("\n\n") : "";
+  // Product memory is an index, not a bulk prompt. Open only the relevant file when the task requires it.
+  const memoryFiles = existsSync(memDir) ? readdirSync(memDir).filter((f) => f.endsWith(".md")).sort().slice(0, 6) : [];
+  const memory = memoryFiles.length
+    ? memoryFiles.map((f) => `- ${f}`).join("\n") + "\nOpen only the relevant file when the task requires it."
+    : "none yet";
   const featureDir = feature || (slug ? join(product, docs, slug) : "");
   const handoffDir = featureDir ? join(featureDir, "handoffs") : "";
   const handoffs = handoffDir && existsSync(handoffDir)
-    ? packetsIn(handoffDir).slice(-2).map((p) => `### ${p.split("/").pop()}\n${read(p).trim()}`).join("\n\n")
+    ? packetsIn(handoffDir).slice(-2).map((p) => `### ${p.split("/").pop()}\n${cap(read(p).trim(), 450)}`).join("\n\n")
     : "";
   const handoverContext = slug
     ? (handoffs || "No handovers yet — you are the first role on this feature.")
