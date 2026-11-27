@@ -42,7 +42,7 @@ test("the canonical background worker is Groq free-tier only with bounded output
   assert.ok(worker.includes("readonly)"));
   assert.ok(worker.includes('TOOLS="Bash,Read"'));
   assert.ok(worker.includes('--tools "$TOOLS"'));
-  assert.ok(worker.includes('--allowedTools "$TOOLS"'));
+  assert.ok(worker.includes('--allowedTools "$ALLOWED_TOOLS"'));
   assert.ok(worker.includes("CLAUDE_CODE_MAX_OUTPUT_TOKENS=512"));
   assert.ok(worker.includes("--max-turns 60"));
   assert.ok(worker.includes("--max 5000"));
