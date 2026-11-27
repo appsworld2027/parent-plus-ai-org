@@ -42,6 +42,9 @@ on:
 
 jobs:
   agent:
+    if: >-
+      github.event.repository.private == true &&
+      (vars.UNATTENDED_AGENTS == 'on' || inputs.tool_mode == 'readonly')
     runs-on: ubuntu-latest
     timeout-minutes: 95
     concurrency:
@@ -56,6 +59,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Check handbook access
+        if: github.repository != 'appsworld2027/parent-plus-ai-org'
+        env:
+          HANDBOOK_ACCESS: ${{ secrets.AI_ORG_HANDBOOK_SSH_KEY != '' }}
+        run: |
+          if [ "$HANDBOOK_ACCESS" != true ]; then
+            echo "::error::Private AI Org handbook access requires AI_ORG_HANDBOOK_SSH_KEY (read-only deploy key for the AI Org repository)."
+            exit 1
+          fi
+
       - name: Load AI Org handbook
         uses: actions/checkout@v5
         with:
@@ -63,6 +76,7 @@ jobs:
           ref: ${{ inputs.handbook_ref }}
           path: .ai-org-handbook
           token: ${{ github.token }}
+          ssh-key: ${{ github.repository == 'appsworld2027/parent-plus-ai-org' && '' || secrets.AI_ORG_HANDBOOK_SSH_KEY }}
           persist-credentials: false
 
       - uses: actions/setup-node@v5
@@ -270,7 +284,9 @@ jobs:
           esac
           start=$(date +%s)
           CLAUDE_CODE_MAX_OUTPUT_TOKENS=1024 ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
-            timeout 3600 claude -p "$PROMPT" --allowedTools "$ALLOWED_TOOLS" --max-turns 80 \
+            timeout 3600 claude --bare -p "$PROMPT" \
+            --system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md \
+            --tools "$TOOLS" --allowedTools "$ALLOWED_TOOLS" --max-turns 80 \
             --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr
           rc=$?
           secs=$(( $(date +%s) - start ))
