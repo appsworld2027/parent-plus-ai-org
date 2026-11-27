@@ -427,7 +427,7 @@ jobs:
             gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -e --arg marker "$MARKER" --arg receipt "$RECEIPT" --argjson started "$STARTED_EPOCH" 'def epoch: sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601; any(.[]; .user.login == "github-actions[bot]" and (.body | startswith($marker) and contains($receipt)) and ((.created_at | epoch) >= $started))' >/dev/null
           }
           if ! has_report; then
-            REPORT=$(jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="text") | .text' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -c 5000)
+            REPORT=$(node .ai-org-handbook/scripts/extract-readonly-report.mjs /tmp/agent-logs/agent.jsonl) || { echo "::error::Read-only report extraction failed."; exit 1; }
             [ -n "$REPORT" ] || { echo "::error::No final assistant report was available to publish."; exit 1; }
             REPORT=$(printf '%s\n\n%s\n\n%s' "$MARKER" "$REPORT" "$RECEIPT")
             gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "$REPORT"
@@ -437,6 +437,7 @@ jobs:
             REVIEW=$(gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -er --arg marker "$MARKER" --arg receipt "$RECEIPT" '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith($marker) and contains($receipt)))][-1].body')
             # Synthetic fixture: a correct rejection must address the actual registration rule.
             printf '%s' "$REVIEW" | grep -Eiq '^[[:space:]*-]*Verdict:[[:space:]*]*REJECT([[:space:]*.!]|$)' || { echo "::error::Synthetic reviewer did not reject the flawed rule."; exit 1; }
+            if printf '%s' "$REVIEW" | grep -Eiq '^[[:space:]*-]*Verdict:[[:space:]*]*APPROVE([[:space:]*.!]|$)'; then echo "::error::Synthetic reviewer produced contradictory verdicts."; exit 1; fi
             for term in registration email password duplicate; do
               printf '%s' "$REVIEW" | grep -iq "$term" || { echo "::error::Synthetic reviewer omitted fixture term: $term"; exit 1; }
             done
