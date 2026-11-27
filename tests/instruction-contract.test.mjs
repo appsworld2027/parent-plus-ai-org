@@ -49,7 +49,7 @@ test("the scheduled GitHub path loads the canonical handbook with compact task-s
   assert.ok(worker.includes("The workflow publishes it as the issue comment"));
   assert.ok(worker.includes("## Compact onboarding pack"));
   assert.ok(worker.includes("cat .ai-org-runtime/onboarding.md"));
-  assert.ok(worker.includes("single-quoted plain-text body"));
+  assert.ok(worker.includes("Read-only mode: never write or post comments."));
   const prompt = buildPrompt({ agent: agentInfo("dev-coder"), number: 1, isPR: false, repo: "o/r", stage: "ai:build" });
   assert.ok(prompt.includes("compact onboarding pack is embedded below in this initial prompt"));
   assert.ok(prompt.toLowerCase().includes("do not attempt to access `/tmp/onboarding.md`"));
