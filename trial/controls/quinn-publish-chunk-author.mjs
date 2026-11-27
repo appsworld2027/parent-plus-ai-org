@@ -4,6 +4,7 @@ import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {join} from 'node:path';
+import {selectExecutionStrategy} from '../../scripts/execution-strategy.mjs';
 import {COURSE_IDS,coverageIssues} from '../../scripts/course-pilot/declarative-coverage.mjs';
 import {compileCourseOperation,buttons,tabs,labels} from '../../scripts/course-pilot/declarative-compiler.mjs';
 const sha=x=>createHash('sha256').update(x).digest('hex');
@@ -14,6 +15,7 @@ if(contractHash!=='6695ab62149003b833c1afa04a2f6e674db3494efe7048864357095de0717
 const provider=process.env.ROUTE_PROVIDER,model=process.env.ROUTE_MODEL;
 const allowed={groq:['openai/gpt-oss-120b','qwen/qwen3.8-27b'],opencode:['opencode/deepseek-v4.1-flash-free']};
 if(!allowed[provider]?.includes(model))throw Error('Unapproved exact model');
+const strategy=selectExecutionStrategy({engine:'free',stage:'ai:tests',model:provider==='groq'?'groq/'+model:model});
 const root=join(process.env.RUNNER_TEMP,'course-chunk-author');mkdirSync(root,{recursive:true});
 const chunks=[
  {key:'saved-draft',start:'Authenticated Today; Courses available; empty list.',goal:'Start on Today and enter Courses. Create one complete draft with fixture title Course Alpha, valid stage and objective, save and visibly prove the draft exists. Finish on course list.',allowed:['Courses','Create course','Save draft']},
@@ -45,9 +47,9 @@ function validatePacket(chunk,a){
 
 async function groq(context,dir,attempt=1){
  const key=process.env.GROQ_API_KEY;if(!key)throw Error('Missing configured approved free credential');
- let r;try{r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({model,temperature:0,max_completion_tokens:model==='qwen/qwen3.8-27b'?1800:1400,...(model==='openai/gpt-oss-120b'?{reasoning_effort:'low'}:{}),messages:[{role:'system',content:prompt},{role:'user',content:context}]}),redirect:'error',signal:AbortSignal.timeout(75000)})}catch(e){writeFileSync(join(dir,'provider-status.json'),JSON.stringify({provider,model,transportError:e.name,retried:false}));throw e}
+ let r;try{r=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({model,temperature:0,max_completion_tokens:strategy.packet.completionTokenLimit,...(model==='openai/gpt-oss-120b'?{reasoning_effort:strategy.packet.reasoningEffort}:{}),messages:[{role:'system',content:prompt},{role:'user',content:context}]}),redirect:'error',signal:AbortSignal.timeout(75000)})}catch(e){writeFileSync(join(dir,'provider-status.json'),JSON.stringify({provider,model,transportError:e.name,retried:false}));throw e}
  const limits=Object.fromEntries(['retry-after','x-ratelimit-reset-requests','x-ratelimit-reset-tokens','x-ratelimit-remaining-requests','x-ratelimit-remaining-tokens'].map(k=>[k,r.headers.get(k)]));
- if(!r.ok){writeFileSync(join(dir,'provider-status.json'),JSON.stringify({provider,model,status:r.status,limits,attempt,retried:attempt>1})); const retry=Number(limits['retry-after']); if(r.status===429&&attempt===1&&Number.isFinite(retry)&&retry>0&&retry<=60){console.log(JSON.stringify({provider,model,status:429,retryAfterSeconds:retry,action:'wait-once'}));await new Promise(r=>setTimeout(r,(retry+2)*1000));return groq(context,dir,2)} throw Error('Approved free route HTTP '+r.status+'; checkpoint preserved; no paid fallback')}
+ if(!r.ok){writeFileSync(join(dir,'provider-status.json'),JSON.stringify({provider,model,status:r.status,limits,attempt,retried:attempt>1})); const retry=Number(limits['retry-after']); if(r.status===429&&attempt<=strategy.quota.maxTransientRetries&&Number.isFinite(retry)&&retry>0&&retry<=strategy.quota.maxInlineRetrySeconds){console.log(JSON.stringify({provider,model,status:429,retryAfterSeconds:retry,action:'wait-once'}));await new Promise(r=>setTimeout(r,(retry+2)*1000));return groq(context,dir,attempt+1)} throw Error('Approved free route HTTP '+r.status+'; checkpoint preserved; no paid fallback')}
  const j=await r.json(),c=j.choices?.[0];
  if(j.model!==model||c.finish_reason!=='stop'||typeof c.message?.content!=='string'||!Number.isSafeInteger(j.usage?.total_tokens))throw Error('Incomplete or wrong model response');
  return {raw:c.message.content,actualModel:j.model,usage:j.usage,limits};
@@ -87,34 +89,35 @@ if(dry&&!replay)throw Error('Dry run requires exact saved checkpoint');
 let bundle=null;
 if(replay){
  if(provider!=='groq'||model!=='qwen/qwen3.8-27b')throw Error('Resume only exact original reviewed model');
- bundle=JSON.parse(readFileSync(new URL('../evidence/course/46055915920/chunk-partial-bundle.json',import.meta.url),'utf8'));
- if(bundle.runId!==46055915920||!Array.isArray(bundle.files)||bundle.files.some(f=>sha(f.utf8)!==f.sha256))throw Error('Pinned checkpoint changed');
+ const bytes=readFileSync(new URL('../evidence/course/46056694194/chunk-partial-bundle.json',import.meta.url));
+ const blob=createHash('sha1').update('blob '+bytes.length+'\0').update(bytes).digest('hex');if(blob!=='5a4fe88f6139adbd1a4b114965e2dce954e62373')throw Error('Pinned Git blob changed');
+ bundle=JSON.parse(bytes.toString('utf8'));
+ if(bundle.runId!==46056694194||!Array.isArray(bundle.files)||bundle.files.some(f=>sha(f.utf8)!==f.sha256))throw Error('Pinned checkpoint changed');
 }
 function resumePacket(chunk,context,dir){
  if(!bundle||chunk.key!=='saved-draft')return null;
  const read=n=>{const f=bundle.files.find(x=>x.file===chunk.key+'/'+n);if(!f)throw Error('Missing checkpoint file '+n);return f.utf8};
  const raw=read('raw.txt'),artifact=JSON.parse(read('artifact.json')),receipt=JSON.parse(read('receipt.json'));
- if(receipt.schema!=='course-author-chunk/v1'||receipt.key!==chunk.key||receipt.id!==id||receipt.source!==source||receipt.contractHash!==contractHash||receipt.provider!==provider||receipt.actualModel!==model||receipt.contextSha256!=='e1d27efc7dcc8833590ee6f90d5fd94313716dfc5570b5c4de9f89028079d782'||receipt.artifactSha256!==sha(JSON.stringify(artifact))||receipt.rawSha256!==sha(raw)||JSON.stringify(parse(raw))!==JSON.stringify(artifact)||!Number.isSafeInteger(receipt.usage?.total_tokens))throw Error('Resume artifact identity or context mismatch');
- try{validatePacket(chunk,artifact)}catch(e){if(!artifact.operations.some(x=>x[0]==='H'&&x[1]==='Today'))throw e;writeFileSync(join(dir,'resume-rejected.json'),JSON.stringify({priorRun:46055915920,artifactSha256:receipt.artifactSha256,reason:'Actual pinned App.tsx line 165 renders coachGreeting, not a Today heading; new author repair required.'}));console.log('Prior packet integrity verified but source assertion rejected; repair only, not accepted resume');if(dry)throw Error('Prior packet is not executable-source sound');return null;}
- if(receipt.contextSha256!==sha(prompt+'\n'+context))throw Error('Context changed; no silent resume');
+ if(receipt.schema!=='course-author-chunk/v1'||receipt.key!==chunk.key||receipt.id!==id||receipt.source!==source||receipt.contractHash!==contractHash||receipt.provider!==provider||receipt.actualModel!==model||receipt.contextSha256!==sha(prompt+'\n'+context)||receipt.artifactSha256!==sha(JSON.stringify(artifact))||receipt.rawSha256!==sha(raw)||JSON.stringify(parse(raw))!==JSON.stringify(artifact)||!Number.isSafeInteger(receipt.usage?.total_tokens))throw Error('Resume artifact identity or context mismatch');
+ validatePacket(chunk,artifact);
  for(const n of ['raw.txt','artifact.json','receipt.json'])writeFileSync(join(dir,n),read(n));
- writeFileSync(join(dir,'resume-origin.json'),JSON.stringify({runId:46055915920,commit:'f166a54afe30c39251f846768cee3689c3ec65b4',file:'trial/evidence/course/46055915920/chunk-partial-bundle.json',receiptSha256:sha(read('receipt.json'))}));
+ writeFileSync(join(dir,'resume-origin.json'),JSON.stringify({runId:46056694194,blob:'5a4fe88f6139adbd1a4b114965e2dce954e62373',file:'trial/evidence/course/46056694194/chunk-partial-bundle.json',receiptSha256:sha(read('receipt.json'))}));
  return {artifact,receipt};
 }
 for(const chunk of chunks){
  const dir=join(root,chunk.key);mkdirSync(dir,{recursive:true});
  const context=JSON.stringify({source,contractHash,scenario:id,fixture:chunk,buttons:chunk.allowed,labels:labels.slice(0,3),ui:'Pinned App.tsx lines 164–166: Today displays a dynamic greeting, NOT a heading named Today. Do not assert a Today heading; no start-screen assertion is required. The only allowed exact heading assertion is Courses. Save draft returns to list; local publishing requires confirmation; View history shows immutable versions.',repairFeedback:replay&&chunk.key==='saved-draft'?'Prior authored packet actually failed source inspection by asserting Today as a heading; correct the scenario as a fresh author.':null});
- const restored=resumePacket(chunk,context,dir);if(restored){parts.push(restored);console.log(JSON.stringify({key:chunk.key,checkpointRestored:true,inference:false,priorRun:46055915920}));if(dry){console.log('PASS: exact checkpoint verified; no model credential or inference needed');process.exit(0)}continue;}
+ const restored=resumePacket(chunk,context,dir);if(restored){parts.push(restored);console.log(JSON.stringify({key:chunk.key,checkpointRestored:true,inference:false,priorRun:46056694194}));if(dry){console.log('PASS: exact checkpoint verified; no model credential or inference needed');process.exit(0)}continue;}
  const start=Date.now(),response=provider==='opencode'?await oc(context,dir):await groq(context,dir);
  const {raw,...observed}=response;writeFileSync(join(dir,'raw.txt'),raw+'\n');
  const artifact=parse(raw);try{validatePacket(chunk,artifact)}catch(e){writeFileSync(join(dir,'packet-rejected.json'),JSON.stringify({key:chunk.key,reason:e.message,artifact}));throw e}const receipt={schema:'course-author-chunk/v1',key:chunk.key,id,source,contractHash,contextSha256:sha(prompt+'\n'+context),artifactSha256:sha(JSON.stringify(artifact)),rawSha256:sha(raw+'\n'),provider,...observed,ms:Date.now()-start};
  writeFileSync(join(dir,'artifact.json'),JSON.stringify(artifact,null,2));writeFileSync(join(dir,'receipt.json'),JSON.stringify(receipt,null,2));
  parts.push({artifact,receipt});console.log(JSON.stringify({key:chunk.key,actualModel:receipt.actualModel,usage:receipt.usage,ms:receipt.ms,packetPassed:true}));
- if(provider==='groq'&&chunk!==chunks.at(-1))await new Promise(r=>setTimeout(r,12000));
+ if(provider==='groq'&&chunk!==chunks.at(-1))await new Promise(r=>setTimeout(r,strategy.quota.interPacketDelaySeconds*1000));
 }
 const normalized={operations:parts.flatMap(p=>p.artifact.operations),limitations:parts.map(p=>p.artifact.limitations).join(' | ')};
 if(normalized.operations.length>46)throw Error('Combined operation count exceeds frozen compiler limit');
 const coverage=coverageIssues({cases:Object.fromEntries(COURSE_IDS.map(k=>[k,k===id?normalized.operations:[]]))}).filter(x=>x.id===id);
-const receipt={schema:'course-chunk-assembly/v1',source,contractHash,id,model,provider,chunks:parts.map(p=>p.receipt),artifactSha256:sha(JSON.stringify(normalized)),coveragePassed:coverage.length===0,coverageIssues:coverage,executableGradePassed:false,roleAdmission:false,lockApproved:false};
+const receipt={schema:'course-chunk-assembly/v1',executionStrategy:strategy.id,source,contractHash,id,model,provider,chunks:parts.map(p=>p.receipt),artifactSha256:sha(JSON.stringify(normalized)),coveragePassed:coverage.length===0,coverageIssues:coverage,executableGradePassed:false,roleAdmission:false,lockApproved:false};
 writeFileSync(join(root,'normalized.json'),JSON.stringify(normalized,null,2));writeFileSync(join(root,'receipt.json'),JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));
 if(coverage.length)throw Error('Combined artifact missing locked acceptance evidence; reject');
