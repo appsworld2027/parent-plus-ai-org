@@ -50,6 +50,9 @@ jobs:
           retention-days: 30
   plan:
     needs: [preflight]
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-22.04
     timeout-minutes: 5
     steps:
@@ -60,10 +63,14 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22'
-      - name: Bounded official NVIDIA developer-trial plan (synthetic-only)
-        env:
-          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
-        run: node trial/issue150-lifecycle/model.mjs plan "$RUNNER_TEMP/plan"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: issue150-plan
+          run-id: 46062252932
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/prior-plan/
+      - name: Hash-verified replay of actual prior model plan (zero inference)
+        run: node trial/issue150-lifecycle/replay-plan.mjs "$RUNNER_TEMP/plan" "$RUNNER_TEMP/prior-plan"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

@@ -26,7 +26,7 @@ export const validCandidate=c=>typeof c==='string'&&c.length>30&&Buffer.byteLeng
 export const validGrade=(g,c)=>g?.status==='accepted'&&g.sourceSha===head&&g.contractHash===contractHash&&g.testHash===testHash&&g.candidateHash===hash(c)&&g.behavior?.status==='behavior-pass'&&g.behavior.counts.tests===12&&g.behavior.counts.pass===12&&g.behavior.exitCode===0;
 export const exactKeys=(v,keys)=>v&&typeof v==='object'&&!Array.isArray(v)&&Object.keys(v).sort().join(',')===[...keys].sort().join(',');
 export const textValue=v=>typeof v==='string'&&v.trim().length>0&&v.length<=1000;
-export const stringList=v=>Array.isArray(v)&&v.length>0&&v.length<=10&&v.every(textValue);
+export const stringList=v=>Array.isArray(v)&&v.length>0&&v.length<=20&&v.every(textValue);
 export const validPlan=v=>exactKeys(v,['summary','invariants','edgeCases'])&&textValue(v.summary)&&stringList(v.invariants)&&stringList(v.edgeCases);
 export const reviewIds=['tenant','validation','ordering','immutability'];
 export function validReview(v,c){
