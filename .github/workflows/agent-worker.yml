@@ -283,12 +283,19 @@ jobs:
               ;;
           esac
           start=$(date +%s)
-          CLAUDE_CODE_MAX_OUTPUT_TOKENS=1024 ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
+          CLAUDE_CODE_MAX_OUTPUT_TOKENS=512 CLAUDE_CODE_MAX_RETRIES=2 \
+            ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
             timeout 3600 claude --bare -p "$PROMPT" \
             --system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md \
-            --tools "$TOOLS" --allowedTools "$ALLOWED_TOOLS" --max-turns 80 \
+            --tools "$TOOLS" --allowedTools "$ALLOWED_TOOLS" --max-turns 60 \
             --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr
           rc=$?
+          # Groq may map free-tier TPM exhaustion to HTTP 413/400 instead of HTTP 429.
+          # Treat explicit rate/TPM errors as resumable pauses, never as a reason to use paid fallback.
+          if [ "$rc" -ne 0 ] && grep -Eiq 'rate_limit_exceeded|tokens per minute|HTTP 413|HTTP 429|TPM' /tmp/agent-logs/agent.stderr /tmp/agent-logs/agent.jsonl 2>/dev/null; then
+            touch /tmp/agent-logs/groq-probe-retryable
+            echo "Detected Groq free-tier rate/TPM limit; recording a resumable pause." | tee -a "$GITHUB_STEP_SUMMARY"
+          fi
           secs=$(( $(date +%s) - start ))
           stats=$(jq -r 'select(.type=="result") | "turns=\(.num_turns) subtype=\(.subtype) is_error=\(.is_error)"' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -1)
           final=$(jq -r 'select(.type=="result") | .result // ""' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -c 3000)

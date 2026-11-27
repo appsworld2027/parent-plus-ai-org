@@ -57,6 +57,14 @@ test("feature onboarding includes only the latest two handovers for that feature
   assert.ok(!pack.includes("UNRELATED_NONE_HANDOVER_SENTINEL"));
 });
 
+test("product memory is indexed without loading full memory contents", (t) => {
+  const f = fixture(t);
+  writeFileSync(join(f.product, "docs", "ai-memory", "fees-overdue.md"), "PRIVATE-MEMORY-CONTENT-SENTINEL ".repeat(500));
+  const pack = buildPack({ role: "maya-ai-pm", stage: "ai:discovery", slug: "fees-overdue", product: f.product, handbook: f.handbook, task: f.task, max: 5000 });
+  assert.ok(pack.includes("fees-overdue.md"));
+  assert.match(pack, /Open only the relevant file/);
+  assert.doesNotMatch(pack, /PRIVATE-MEMORY-CONTENT-SENTINEL/);
+});
 test("bounded onboarding puts the current task first and stays within the 5000-character budget", (t) => {
   const f = fixture(t);
   writeFileSync(join(f.handbook, "org", "agents", "maya-ai-pm.md"), "R".repeat(10000));
