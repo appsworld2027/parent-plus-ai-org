@@ -2826,4 +2826,5 @@ jobs:
             ${{ runner.temp }}/course-chunk-author/*/provider-status.json
             ${{ runner.temp }}/course-chunk-author/*/packet-rejected.json
             ${{ runner.temp }}/course-chunk-author/*/resume-origin.json
+            ${{ runner.temp }}/course-chunk-author/*/resume-rejected.json
           retention-days: 14
