@@ -1,0 +1,36 @@
+{
+  "runId": 46056694194,
+  "purpose": "Source-aware passed draft packet, prior rejection and quota stop",
+  "files": [
+    {
+      "file": "publish-first/provider-status.json",
+      "sha256": "4fb68c8fbfdd470898cbfdee2ba6ae4f22845318e7660e177e8b33b7b9ee962a",
+      "utf8": "{\"provider\":\"groq\",\"model\":\"qwen/qwen3.8-27b\",\"status\":429,\"limits\":{\"retry-after\":\"62\",\"x-ratelimit-reset-requests\":\"1m26.4s\",\"x-ratelimit-reset-tokens\":\"1.74s\",\"x-ratelimit-remaining-requests\":\"999\",\"x-ratelimit-remaining-tokens\":\"7971\"},\"attempt\":1,\"retried\":false}"
+    },
+    {
+      "file": "saved-draft/artifact.json",
+      "sha256": "c026e5ab3c105369956643228918e1986d953ab2b50651ddabc30a50090dbd86",
+      "utf8": "{\n  \"operations\": [\n    [\n      \"B\",\n      \"Courses\"\n    ],\n    [\n      \"H\",\n      \"Courses\"\n    ],\n    [\n      \"B\",\n      \"Create course\"\n    ],\n    [\n      \"F\",\n      \"Course title\",\n      \"Course Alpha\"\n    ],\n    [\n      \"F\",\n      \"Stage 1 title\",\n      \"Stage One\"\n    ],\n    [\n      \"F\",\n      \"Stage 1 objective 1\",\n      \"Learn basics\"\n    ],\n    [\n      \"B\",\n      \"Save draft\"\n    ],\n    [\n      \"H\",\n      \"Courses\"\n    ],\n    [\n      \"X\",\n      \"Course Alpha\"\n    ]\n  ],\n  \"limitations\": \"Assumes 'Create course' and 'Save draft' buttons are visible and enabled in the respective views. Assumes 'Course Alpha' text is rendered in the course list after saving.\"\n}"
+    },
+    {
+      "file": "saved-draft/provider-status.json",
+      "sha256": "b37664777b5bc480718205cf3115db896b95b74134f510a86a96285550d1c738",
+      "utf8": "{\"provider\":\"groq\",\"model\":\"qwen/qwen3.8-27b\",\"status\":429,\"limits\":{\"retry-after\":\"14\",\"x-ratelimit-reset-requests\":\"1ms\",\"x-ratelimit-reset-tokens\":\"1ms\",\"x-ratelimit-remaining-requests\":\"1000\",\"x-ratelimit-remaining-tokens\":\"8000\"},\"attempt\":1,\"retried\":false}"
+    },
+    {
+      "file": "saved-draft/raw.txt",
+      "sha256": "1a26da5669845e386e22af841d0b67649ea828c31cc9ec5cd770bbac45016b6e",
+      "utf8": "{\n  \"operations\": [\n    [\n      \"clickButton\",\n      \"Courses\"\n    ],\n    [\n      \"assertHeading\",\n      \"Courses\"\n    ],\n    [\n      \"clickButton\",\n      \"Create course\"\n    ],\n    [\n      \"fillInput\",\n      \"Course title\",\n      \"Course Alpha\"\n    ],\n    [\n      \"fillInput\",\n      \"Stage 1 title\",\n      \"Stage One\"\n    ],\n    [\n      \"fillInput\",\n      \"Stage 1 objective 1\",\n      \"Learn basics\"\n    ],\n    [\n      \"clickButton\",\n      \"Save draft\"\n    ],\n    [\n      \"assertHeading\",\n      \"Courses\"\n    ],\n    [\n      \"assertText\",\n      \"Course Alpha\"\n    ]\n  ],\n  \"limitations\": \"Assumes 'Create course' and 'Save draft' buttons are visible and enabled in the respective views. Assumes 'Course Alpha' text is rendered in the course list after saving.\"\n}\n"
+    },
+    {
+      "file": "saved-draft/receipt.json",
+      "sha256": "3891b5c38f7b60c2d501302b9796d5a004e11980f5f74bff1075a958bf6f1e01",
+      "utf8": "{\n  \"schema\": \"course-author-chunk/v1\",\n  \"key\": \"saved-draft\",\n  \"id\": \"CRS-01-SC-004\",\n  \"source\": \"710082b2d8cf3c1007086df31f87b34ae8e02573\",\n  \"contractHash\": \"6695ab62149003b833c1afa04a2f6e674db3494efe7048864357095de07176aa\",\n  \"contextSha256\": \"2e5bd3a99cec2aa5912b29904cfcb896f5fb367522fbfdc26b9c7c011b6f6591\",\n  \"artifactSha256\": \"7d1c9d4e0f7b9a17bf4cd6c53db7bd4380986572ec265446b6f58448043eb758\",\n  \"rawSha256\": \"1a26da5669845e386e22af841d0b67649ea828c31cc9ec5cd770bbac45016b6e\",\n  \"provider\": \"groq\",\n  \"actualModel\": \"qwen/qwen3.8-27b\",\n  \"usage\": {\n    \"queue_time\": 0.02168748,\n    \"prompt_tokens\": 509,\n    \"prompt_time\": 0.036273449,\n    \"completion_tokens\": 238,\n    \"completion_time\": 0.453451583,\n    \"total_tokens\": 747,\n    \"total_time\": 0.489725032\n  },\n  \"limits\": {\n    \"retry-after\": null,\n    \"x-ratelimit-reset-requests\": \"1m26.4s\",\n    \"x-ratelimit-reset-tokens\": \"9.765s\",\n    \"x-ratelimit-remaining-requests\": \"999\",\n    \"x-ratelimit-remaining-tokens\": \"6698\"\n  },\n  \"ms\": 16727\n}"
+    },
+    {
+      "file": "saved-draft/resume-rejected.json",
+      "sha256": "796e0dd5f0bc98fe78cab6271ff2b325ab6fe9d49133ea14b339ae430441b7f4",
+      "utf8": "{\"priorRun\":46055915920,\"artifactSha256\":\"24da6bef3033b1cb35e1660fcf2682aed8000bb5fe2e93b7af996b95dd41ac12\",\"reason\":\"Actual pinned App.tsx line 165 renders coachGreeting, not a Today heading; new author repair required.\"}"
+    }
+  ]
+}
