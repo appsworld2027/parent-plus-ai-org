@@ -63,7 +63,7 @@ jobs:
           const save=()=>writeFileSync(join(dir,'attempt.json'),JSON.stringify(attempt,null,2));
           save();
           if(!key)throw Error('Approved free-route key missing; no fallback');
-          const body={model,temperature:0,max_completion_tokens:3900,messages:[{role:'system',content:'You are an independent QA test author. Produce actual runnable Node test source and concise coverage JSON; do not produce implementation or reference answers. Use node:test and node:assert/strict, import createBoard from ./board.mjs. Include at least five meaningful test cases; target all contract behavior, including cross-tenant and conflicting idempotency keys. Limit locked.test.mjs to 4200 characters and coverage.json to 1800 characters. Never claim execution or external access.'},{role:'user',content:c.prompt}]};
+          const body={model,temperature:0,max_completion_tokens:5500,messages:[{role:'system',content:'You are an independent QA test author. Produce actual runnable Node test source and concise coverage JSON; do not produce implementation or reference answers. Use node:test and node:assert/strict, import createBoard from ./board.mjs. Include at least five meaningful test cases; target all contract behavior, including cross-tenant and conflicting idempotency keys. Keep tests compact and focused: locked.test.mjs maximum 2800 characters, coverage.json maximum 900 characters, 6-10 concise meaningful tests. No lengthy descriptions, no examples or explanation outside the required deliverable JSON. Never claim execution or external access.'},{role:'user',content:c.prompt}]};
           attempt.requestHash=canonicalHash(body);
           const t=Date.now();
           try{
