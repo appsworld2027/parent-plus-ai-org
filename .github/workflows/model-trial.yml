@@ -6,7 +6,7 @@ on:
       confirm:
         type: string
         required: true
-        description: Enter COURSE BASELINE ONLY, GROQ METADATA ONLY, or ROUTE QUALIFICATION
+        description: Enter COURSE BASELINE ONLY, GROQ METADATA ONLY, ROUTE QUALIFICATION or FOLLOWUP QUALIFICATION
 permissions:
   contents: read
 concurrency:
@@ -98,17 +98,12 @@ jobs:
 
   qualify-groq:
     if: >-
-      github.event_name == 'workflow_dispatch' && inputs.confirm == 'ROUTE QUALIFICATION' && github.repository == 'appsworld2027/parent-plus-ai-org' && github.ref == 'refs/heads/review/course-pilot-harness-20261127' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+      github.event_name == 'workflow_dispatch' && (inputs.confirm == 'ROUTE QUALIFICATION' || inputs.confirm == 'FOLLOWUP QUALIFICATION') && github.repository == 'appsworld2027/parent-plus-ai-org' && github.ref == 'refs/heads/review/course-pilot-harness-20261127' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
     runs-on: ubuntu-latest
     timeout-minutes: 8
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - model: openai/gpt-oss-120b
-            label: gpt-oss
-          - model: qwen/qwen3.8-27b
-            label: qwen
+      matrix: ${{ fromJSON(inputs.confirm == 'FOLLOWUP QUALIFICATION' && '{"include":[{"model":"openai/gpt-oss-120b","label":"gpt-oss"}]}' || '{"include":[{"model":"openai/gpt-oss-120b","label":"gpt-oss"},{"model":"qwen/qwen3.8-27b","label":"qwen"}]}') }}
     steps:
       - uses: actions/setup-node@v5
         with:
@@ -118,6 +113,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           ROUTE_MODEL: ${{ matrix.model }}
           ROUTE_LABEL: ${{ matrix.label }}
+          GROQ_REASONING_VARIANT: ${{ inputs.confirm == 'FOLLOWUP QUALIFICATION' && 'medium' || 'low' }}
         run: |
           node --input-type=module <<'NODE'
           import { createHash } from 'node:crypto';
@@ -132,7 +128,7 @@ jobs:
           const receipt=[];const sha=v=>createHash('sha256').update(v).digest('hex');
           async function call(messages, extra) {
             const body={model,messages,temperature:0,max_completion_tokens:1800,tools,...extra};
-            if(model==='openai/gpt-oss-120b')body.reasoning_effort='low';
+            if(model==='openai/gpt-oss-120b')body.reasoning_effort=process.env.GROQ_REASONING_VARIANT==='medium'?'medium':'low';
             const t=Date.now();
             const r=await fetch(endpoint,{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(90000)});
             if(!r.ok)throw Error('Provider refused exact route, HTTP '+r.status+'; no retry or fallback');
@@ -160,11 +156,11 @@ jobs:
             const x=c.input;
             if(!x||Object.keys(x).sort().join()!=='actorOwner,courseOwner,currentRevision,expectedRevision,requestKnown,role,title'||!['A','B'].includes(x.actorOwner)||!['A','B'].includes(x.courseOwner)||!['coach','parent'].includes(x.role)||typeof x.title!=='string'||x.title.length>20||!/^[A-Za-z0-9 ]*$/.test(x.title)||![1,2,3].includes(x.expectedRevision)||![1,2,3].includes(x.currentRevision)||typeof x.requestKnown!=='boolean')throw Error('Invalid fictional test input');
             const expected=x.role!=='coach'||x.actorOwner!==x.courseOwner?'DENIED':!x.title.trim()?'INVALID':x.requestKnown?'REPLAY':x.expectedRevision!==x.currentRevision?'STALE':'CREATED';
-            if(c.expect!==expected||c.writes!==(expected==='CREATED'?1:0))throw Error('Deterministic evaluator rejected case '+c.id);
+            if(c.expect!==expected||c.writes!==(expected==='CREATED'?1:0))throw Error('Deterministic evaluator rejected synthetic case '+JSON.stringify({id:c.id,input:x,actual:c.expect,writes:c.writes,expected,expectedWrites:expected==='CREATED'?1:0}));
             ids.add(c.id);outcomes.add(expected);
           }
           if(outcomes.size!==5||!artifact.cases.some(c=>c.expect==='DENIED'&&c.input.actorOwner!==c.input.courseOwner))throw Error('Missing required negative or ownership coverage');
-          const result={schema:'native-route-tool-artifact/v1',model,provider:'groq',syntheticOnly:true,fixtureSha256:sha(JSON.stringify(fixture)),promptSha256:sha(prompt),receipt,actualToolCalls:1,artifactSha256:sha(JSON.stringify(artifact)),artifact,passed:true,roleAdmission:false,adapterQualification:false,observedAt:new Date().toISOString()};
+          const result={schema:'native-route-tool-artifact/v1',model,provider:'groq',reasoningVariant:process.env.GROQ_REASONING_VARIANT,syntheticOnly:true,fixtureSha256:sha(JSON.stringify(fixture)),promptSha256:sha(prompt),receipt,actualToolCalls:1,artifactSha256:sha(JSON.stringify(artifact)),artifact,passed:true,roleAdmission:false,adapterQualification:false,observedAt:new Date().toISOString()};
           const dir=join(process.env.RUNNER_TEMP,'route-evidence');mkdirSync(dir,{recursive:true});writeFileSync(join(dir,'receipt.json'),JSON.stringify(result,null,2));
           console.log(JSON.stringify({model,actualToolCalls:1,caseCount:artifact.cases.length,passed:true,receipt,artifactSha256:result.artifactSha256,roleAdmission:false,adapterQualification:false},null,2));
           NODE
@@ -211,3 +207,98 @@ jobs:
           cd "$RUNNER_TEMP/oc-home"
           HOME="$RUNNER_TEMP/oc-home" XDG_CONFIG_HOME="$RUNNER_TEMP/oc-config" XDG_DATA_HOME="$RUNNER_TEMP/oc-home/data" timeout 45 "$RUNNER_TEMP/oc/node_modules/.bin/opencode" models > "$RUNNER_TEMP/model-list.txt"
           if grep -Fxq 'opencode/deepseek-v4.1-flash-free' "$RUNNER_TEMP/model-list.txt"; then echo 'Exact free alias visible through clean CLI. No inference performed.'; else echo 'BLOCKED: exact alias unavailable in signed-out CLI; no paid route attempted.'; exit 1; fi
+
+  actual-deepseek-opencode:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'FOLLOWUP QUALIFICATION' && github.repository == 'appsworld2027/parent-plus-ai-org' && github.ref == 'refs/heads/review/course-pilot-harness-20261127' && github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      OPENCODE_DISABLE_AUTOUPDATE: "1"
+      OPENCODE_DISABLE_TELEMETRY: "1"
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Reconfirm exact free price and install pinned OpenCode on ephemeral runner
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const r=await fetch('https://opencode.ai/inference/v1/models',{redirect:'error',signal:AbortSignal.timeout(25000)});
+          if(!r.ok)throw Error('OpenCode catalogue HTTP '+r.status);
+          const j=await r.json(),m=j.data?.find(x=>x.id==='deepseek-v4.1-flash-free'),c=m?.cost?.text;
+          if(c?.input?.price!==0||c?.output?.price!==0||(c.input.cache&&[c.input.cache.read,c.input.cache.write].some(x=>x!==undefined&&x!==0))||m.capabilities?.tools?.supported!==true)throw Error('Exact free prices or tool capability no longer verified');
+          console.log('Exact zero-priced DeepSeek route confirmed live; no paid credentials.');
+          NODE
+          npm install --prefix "$RUNNER_TEMP/oc" --no-audit --no-fund opencode-ai@1.19.6 >/dev/null
+      - name: Run DeepSeek using read/write tools on synthetic-only local fixture
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/deepseek-sandbox"
+          mkdir -p "$dir/home" "$dir/config" "$dir/data" "$dir/fixture" "$RUNNER_TEMP/deepseek-receipt"
+          cd "$dir/fixture"
+          cat > contract.json <<'JSON'
+          {"id":"course-scope-v1","fields":{"actorOwner":["A","B"],"courseOwner":["A","B"],"role":["coach","parent"],"title":"string 0..20 characters","expectedRevision":[1,2,3],"currentRevision":[1,2,3],"requestKnown":"boolean"},"rules":["Check actorOwner equals courseOwner and role coach first; otherwise DENIED, writes 0.","Blank or whitespace title is INVALID, writes 0.","A known request is REPLAY, writes 0.","Expected revision not equal current revision is STALE, writes 0.","Else CREATED, writes 1."]}
+          JSON
+          cat > opencode.json <<'JSON'
+          {"model":"opencode/deepseek-v4.1-flash-free","small_model":"opencode/deepseek-v4.1-flash-free","enabled_providers":["opencode"],"provider":{"opencode":{"whitelist":["deepseek-v4.1-flash-free"]}},"permission":{"*":"deny","read":"allow","glob":"allow","grep":"allow","write":"allow","edit":"allow","external_directory":"deny","bash":"deny","webfetch":"deny","websearch":"deny","task":"deny"},"autoupdate":false}
+          JSON
+          export HOME="$dir/home" XDG_CONFIG_HOME="$dir/config" XDG_DATA_HOME="$dir/data" OPENCODE_CONFIG="$dir/fixture/opencode.json"
+          BIN="$RUNNER_TEMP/oc/node_modules/.bin/opencode"
+          env | cut -d= -f1 | grep -Ei '^(GROQ|OPENAI|ANTHROPIC|OPENCODE_API_KEY|OPENROUTER|NVIDIA)' && { echo 'Unexpected model credential environment'; exit 1; } || true
+          "$BIN" models | grep -Fx 'opencode/deepseek-v4.1-flash-free' >/dev/null
+          DATE_START=$(date +%s)
+          timeout 180 "$BIN" run --model opencode/deepseek-v4.1-flash-free --format json 'Read contract.json with the read tool first. You are an independent QA test author. Use write tool to write cases.json as JSON {"cases":[{"id":"normal","input":{"actorOwner":"A","courseOwner":"A","role":"coach","title":"Demo","expectedRevision":1,"currentRevision":1,"requestKnown":false},"expect":"CREATED","writes":1}]} with five cases exactly, one for each contract outcome. Use only the contract types. Cover cross-owner denial regardless of duplicate/stale, invalid title, stale, replay and valid create. Do not use shell, external tools, network, other files, or credentials. No extra JSON keys. End after writing the artifact.' > "$dir/events.jsonl" 2> "$dir/stderr.txt"
+          export ROUTE_SECONDS=$(( $(date +%s)-DATE_START ))
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync, lstatSync } from 'node:fs';
+          import { createHash } from 'node:crypto';
+          import { join } from 'node:path';
+          const root=process.env.RUNNER_TEMP,dir=join(root,'deepseek-sandbox'),work=join(dir,'fixture');
+          const events=readFileSync(join(dir,'events.jsonl'),'utf8').split(/\r?\n/).filter(Boolean).map(x=>JSON.parse(x));
+          const tools=events.filter(x=>x.type==='tool_use').map(x=>x.part||x);
+          if(!tools.some(x=>x.tool==='read'&&JSON.stringify(x.state?.input??x.input??{}).includes('contract.json'))||!tools.some(x=>['write','edit'].includes(x.tool)&&JSON.stringify(x.state?.input??x.input??{}).includes('cases.json')))throw Error('Missing real read/write tool evidence');
+          if(tools.some(x=>!['read','glob','grep','write','edit'].includes(x.tool)))throw Error('Unapproved tool invocation');
+          const file=join(work,'cases.json');if(!lstatSync(file).isFile()||lstatSync(file).isSymbolicLink())throw Error('Invalid artifact path');
+          const artifact=JSON.parse(readFileSync(file,'utf8'));
+          if(!artifact||Object.keys(artifact).join()!=='cases'||!Array.isArray(artifact.cases)||artifact.cases.length!==5)throw Error('Wrong case artifact shape');
+          const outcomes=new Set(),ids=new Set();
+          for(const c of artifact.cases){
+            if(!c||Object.keys(c).sort().join()!=='expect,id,input,writes'||!/^[A-Za-z0-9_-]{1,24}$/.test(c.id)||ids.has(c.id))throw Error('Malformed or duplicate case');
+            const x=c.input;
+            if(!x||Object.keys(x).sort().join()!=='actorOwner,courseOwner,currentRevision,expectedRevision,requestKnown,role,title'||!['A','B'].includes(x.actorOwner)||!['A','B'].includes(x.courseOwner)||!['coach','parent'].includes(x.role)||typeof x.title!=='string'||x.title.length>20||!/^[A-Za-z0-9 ]*$/.test(x.title)||![1,2,3].includes(x.expectedRevision)||![1,2,3].includes(x.currentRevision)||typeof x.requestKnown!=='boolean')throw Error('Invalid fictional test input');
+            const expected=x.role!=='coach'||x.actorOwner!==x.courseOwner?'DENIED':!x.title.trim()?'INVALID':x.requestKnown?'REPLAY':x.expectedRevision!==x.currentRevision?'STALE':'CREATED';
+            if(c.expect!==expected||c.writes!==(expected==='CREATED'?1:0))throw Error('Deterministic evaluator rejected synthetic case '+JSON.stringify({id:c.id,input:x,actual:c.expect,writes:c.writes,expected}));
+            ids.add(c.id);outcomes.add(expected);
+          }
+          if(outcomes.size!==5||!artifact.cases.some(c=>c.expect==='DENIED'&&c.input.actorOwner!==c.input.courseOwner))throw Error('Missing required negative or ownership coverage');
+          const finishes=events.filter(x=>x.type==='step_finish').map(x=>x.part||x);
+          if(!finishes.length||finishes.some(x=>typeof x.cost==='number'&&x.cost!==0))throw Error('Missing execution receipt or non-zero reported cost');
+          const sha=v=>createHash('sha256').update(v).digest('hex');
+          const observedCost=finishes.every(x=>typeof x.cost==='number')?finishes.reduce((n,x)=>n+x.cost,0):null;
+          const result={schema:'opencode-tool-artifact/v1',configuredRoute:'opencode/deepseek-v4.1-flash-free',clientVersion:'1.19.6',syntheticOnly:true,modelIdentity:'session export pending',fixtureSha256:sha(readFileSync(join(work,'contract.json'))),artifactSha256:sha(JSON.stringify(artifact)),artifact,toolCalls:tools.map(x=>x.tool),steps:finishes.map(x=>({cost:x.cost??null,tokens:x.tokens??null,reason:x.reason??null})),observedCost,seconds:Number(process.env.ROUTE_SECONDS),passed:true,roleAdmission:false,sessionID:events.find(x=>x.sessionID)?.sessionID??events.find(x=>x.part?.sessionID)?.part?.sessionID??null};
+          writeFileSync(join(root,'deepseek-receipt','receipt.json'),JSON.stringify(result,null,2));
+          if(!result.sessionID)throw Error('Missing session ID');
+          writeFileSync(join(dir,'session-id'),result.sessionID);
+          console.log(JSON.stringify({route:result.configuredRoute,tools:result.toolCalls,caseCount:5,observedCost,seconds:result.seconds,artifactSha256:result.artifactSha256,steps:result.steps},null,2));
+          NODE
+          session=$(cat "$dir/session-id")
+          [[ "$session" =~ ^ses_[A-Za-z0-9]+$ ]]
+          if "$BIN" export "$session" >"$dir/export.json" 2>/dev/null; then :; else "$BIN" session export "$session" >"$dir/export.json" 2>/dev/null; fi
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {join} from 'node:path';
+          const root=process.env.RUNNER_TEMP,p=join(root,'deepseek-receipt','receipt.json'),r=JSON.parse(readFileSync(p,'utf8')),e=JSON.parse(readFileSync(join(root,'deepseek-sandbox','export.json'),'utf8'));
+          const ids=[];
+          (function walk(o){if(!o||typeof o!=='object')return;if(o.role==='assistant'&&typeof o.modelID==='string'&&typeof o.providerID==='string')ids.push(o.providerID+'/'+o.modelID);for(const v of Object.values(o))walk(v)})(e);
+          if(!ids.length||ids.some(i=>i!=='opencode/deepseek-v4.1-flash-free'))throw Error('Exact observed session model identity missing or different; route not admitted');
+          r.modelIdentity=ids[0];r.actualModelReceipts=ids.length;
+          writeFileSync(p,JSON.stringify(r,null,2));console.log('Observed exact OpenCode session model: '+ids[0]+'; receipts '+ids.length);
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deepseek-tool-receipt
+          path: ${{ runner.temp }}/deepseek-receipt/receipt.json
+          retention-days: 14
