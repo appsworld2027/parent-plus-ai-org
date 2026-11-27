@@ -53,6 +53,15 @@
         "CRS-01-SC-006/session-local"
       ],
       "revalidate": []
+    },
+    {
+      "runId": 46067075908,
+      "path": "trial/evidence/course/46067075908/suite-author-bundle.json",
+      "blob": "a976eb7e3e140e5d8652b74271db61440f770907",
+      "packets": [
+        "GUARD-CRS-FLAG-OFF/flag-off"
+      ],
+      "revalidate": []
     }
   ]
 }
