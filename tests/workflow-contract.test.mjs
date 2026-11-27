@@ -32,8 +32,9 @@ test("agent onboarding pack stays inside the workspace and is ignored by Git", (
   assert.ok(worker.includes('--out "$ONBOARDING_FILE"'));
   assert.ok(!worker.includes("--out /tmp/onboarding.md"));
   const router = read("../scripts/agent-router.mjs");
-  assert.ok(router.includes("FIRST read `.ai-org-runtime/onboarding.md` completely"));
-  assert.ok(!router.includes("/tmp/onboarding.md"));
+  assert.ok(router.includes("compact onboarding pack is embedded below in this initial prompt"));
+  assert.ok(router.includes("Do not attempt to access `/tmp/onboarding.md`"));
+  assert.ok(!router.includes("FIRST read `/tmp/onboarding.md`"));
 });
 
 test("the canonical background worker is Groq free-tier only with bounded output and stage-aware tools", () => {
