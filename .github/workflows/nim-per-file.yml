@@ -1,0 +1,42 @@
+name: Bounded synthetic per-file NVIDIA trial (NEVER MERGE)
+on:
+  pull_request:
+    types: [opened]
+    paths:
+      - 'trial/nim-per-file/**'
+      - '.github/workflows/nim-per-file.yml'
+permissions:
+  contents: read
+concurrency:
+  group: nim-role-screens-${{ github.repository }}
+  cancel-in-progress: false
+jobs:
+  trial:
+    if: github.repository == 'appsworld2027/parent-plus-ai-org' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'review/nim-per-file-20261128' && github.event.pull_request.base.ref == 'review/nim-role-screens-20261128' && github.actor == 'appsworld2027' && github.run_attempt == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Exact locked preflight, zero inference
+        run: |
+          git diff --exit-code cf041948862dd5523d55c527109a02c20169cdff -- org/agents scripts/frontier-admission.mjs scripts/frontier-casebook.mjs scripts/frontier-planning-evaluator.mjs governance/FRONTIER_ARTIFACT_RUBRIC.json governance/FRONTIER_PLANNING_BEHAVIOR.md
+          node --test tests/frontier-casebook.test.mjs tests/frontier-planning-evaluator.test.mjs trial/nim-per-file/transport.test.mjs
+          node trial/nim-per-file/run.mjs preflight "$RUNNER_TEMP/per-file-preflight"
+      - name: One bounded synthetic case; paid fallback forbidden
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: node trial/nim-per-file/run.mjs trial "$RUNNER_TEMP/per-file-trial"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: bounded-per-file-receipts
+          path: |
+            ${{ runner.temp }}/per-file-preflight
+            ${{ runner.temp }}/per-file-trial
