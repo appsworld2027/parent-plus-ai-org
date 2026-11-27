@@ -102,7 +102,7 @@ test("the synthetic free-model smoke is manual and read-only; public access is l
   assert.ok(smoke.includes("github.repository == 'appsworld2027/parent-plus-ai-org'"));
   assert.ok(smoke.includes("github.event.repository.private == true"));
   assert.ok(smoke.includes("tool_mode: readonly"));
-  assert.ok(smoke.includes("stage_override: ai:discovery"));
+  assert.equal(parseDocument(smoke).toJS().on.workflow_dispatch.inputs.stage.default, "ai:discovery");
 });
 
 test("resume covers every routed role; only AI Org self-work may run in a public repository", () => {
@@ -162,4 +162,13 @@ test("read-only completion normalizes the role prefix and verifies the exact run
   assert.ok(worker.includes('startswith($marker) and contains($receipt)'));
   assert.ok(worker.includes('REPORT=$(printf'));
   assert.ok(worker.includes('"$MARKER" "$REPORT" "$RECEIPT"'));
+});
+
+test("free smoke can exercise only synthetic discovery and reviewer seats", () => {
+  const workflow = parseDocument(read("../.github/workflows/free-agent-smoke.yml")).toJS();
+  assert.deepEqual(workflow.on.workflow_dispatch.inputs.stage.options, ["ai:discovery", "ai:review"]);
+  assert.equal(workflow.jobs.smoke.with.tool_mode, "readonly");
+  assert.equal(workflow.jobs.smoke.with.stage_override, "${{ inputs.stage }}");
+  const worker = read("../.github/workflows/agent-worker.yml");
+  assert.ok(worker.includes('Reviewer smoke requires a dedicated Reviewer smoke issue.'));
 });
