@@ -78,6 +78,7 @@ test("routine agent prompts do not reload full governance handbooks", () => {
   });
 
   assert.ok(prompt.includes("Read the onboarding pack first"));
+  assert.ok(!prompt.includes("--comments"));
   assert.ok(!prompt.includes("then `.ai-org-handbook/org/agents/"));
   assert.ok(!prompt.includes("Read `.ai-org-handbook/governance/FOUNDER_DASHBOARD.md`"));
   assert.ok(!prompt.includes("Read `.ai-org-handbook/governance/PERSONAL_OPERATING_STANDARD.md`"));
