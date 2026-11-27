@@ -69,19 +69,19 @@ test("reusable agent workflows enforce free-only multi-provider execution", () =
   assert.ok(!caller.includes("secrets: inherit"));
   assert.doesNotMatch(caller, /(?:CLAUDE_CODE_OAUTH_TOKEN|CODEX_AUTH_JSON):/);
   assert.ok(caller.includes("GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}"));
-  assert.ok(caller.includes("NVIDIA_NIM_API_KEY: \${{ secrets.NVIDIA_NIM_API_KEY }}"));
+  assert.ok(caller.includes("NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}"));
   assert.ok(!caller.includes("id-token: write"));
 
   const routeStart = worker.indexOf("      - name: Route");
   const prepareStart = worker.indexOf("      - name: Prepare the product workspace", routeStart);
   assert.ok(routeStart >= 0 && prepareStart > routeStart);
   const route = worker.slice(routeStart, prepareStart);
-  assert.ok(route.includes("ENGINE_FREE: \${{ secrets.GROQ_API_KEY != '' || secrets.NVIDIA_NIM_API_KEY != '' }}"));
-  assert.ok(route.includes("ENGINE_GROQ: \${{ secrets.GROQ_API_KEY != '' }}"));
-  assert.ok(route.includes("ENGINE_NVIDIA: \${{ secrets.NVIDIA_NIM_API_KEY != '' }}"));
+  assert.ok(route.includes("ENGINE_FREE: ${{ secrets.GROQ_API_KEY != '' || secrets.NVIDIA_NIM_API_KEY != '' }}"));
+  assert.ok(route.includes("ENGINE_GROQ: ${{ secrets.GROQ_API_KEY != '' }}"));
+  assert.ok(route.includes("ENGINE_NVIDIA: ${{ secrets.NVIDIA_NIM_API_KEY != '' }}"));
   assert.doesNotMatch(route, /ENGINE_(?:CLAUDE|CODEX)|CLAUDE_CODE_OAUTH_TOKEN|CODEX_AUTH_JSON/);
   assert.ok(worker.includes('GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}'));
-  assert.ok(worker.includes('NVIDIA_NIM_API_KEY: \${{ secrets.NVIDIA_NIM_API_KEY }}'));
+  assert.ok(worker.includes('NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}'));
   assert.ok(worker.includes('uv tool install "free-claude-code==6.19.56"'));
   assert.ok(worker.includes("MODEL=%s"));
   assert.ok(worker.includes("Free provider tool-call preflight: PASS"));
@@ -146,7 +146,7 @@ test("cross-repository private handbook checkout uses a read-only deploy key wit
   }
   const smoke = read(".github/workflows/handbook-connectivity.yml");
   assert.match(smoke, /contents: read/);
-  assert.ok(smoke.includes("NVIDIA_NIM_API_KEY: \${{ secrets.NVIDIA_NIM_API_KEY }}"));
+  assert.ok(smoke.includes("NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}"));
   assert.doesNotMatch(smoke, /CODEX_AUTH_JSON|CLAUDE_CODE_OAUTH_TOKEN/);
   assert.match(smoke, /git rev-parse HEAD/);
 });
