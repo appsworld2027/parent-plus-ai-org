@@ -2571,3 +2571,97 @@ jobs:
           name: course-declarative-challenge
           path: ${{ runner.temp }}/decl-challenge/
           retention-days: 14
+
+  canonical-native-adapter:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      (inputs.confirm == 'COURSE NATIVE ADAPTER SMOKE' || inputs.confirm == 'COURSE NATIVE ADAPTER QUALIFICATION') &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - model: openai/gpt-oss-120b
+            label: gpt
+          - model: qwen/qwen3.8-27b
+            label: qwen
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Isolated tool UID and root-owned immutable helper
+        run: |
+          set -euo pipefail
+          sudo useradd -m -s /usr/sbin/nologin trialagent
+          sudo mkdir -p /opt/course-native-qualification
+          sudo install -o root -g root -m 0444 scripts/course-pilot/bounded-tool.mjs /opt/course-native-qualification/bounded-tool.mjs
+          sudo chmod 755 /opt/course-native-qualification
+          sudo -n -u trialagent test ! -w /opt/course-native-qualification
+          sudo -n -u trialagent test ! -w /opt/course-native-qualification/bounded-tool.mjs
+          sudo iptables -I OUTPUT -m owner --uid-owner "$(id -u trialagent)" -j REJECT
+      - name: Exact canonical adapter with explicit smoke or actual provider mode
+        env:
+          QUAL_MODE: ${{ inputs.confirm == 'COURSE NATIVE ADAPTER QUALIFICATION' && 'actual' || 'smoke' }}
+          ROUTE_MODEL: ${{ matrix.model }}
+          GROQ_API_KEY: ${{ inputs.confirm == 'COURSE NATIVE ADAPTER QUALIFICATION' && secrets.GROQ_API_KEY || '' }}
+        run: node trial/controls/native-adapter-qualification.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: canonical-native-${{ matrix.label }}
+          path: ${{ runner.temp }}/native-qualified/
+          if-no-files-found: warn
+          retention-days: 14
+
+  canonical-native-independent-grade:
+    needs: canonical-native-adapter
+    if: always() && needs.canonical-native-adapter.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    strategy:
+      fail-fast: false
+      matrix:
+        label: [gpt, qwen]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: canonical-native-${{ matrix.label }}
+          path: untrusted
+      - name: Fresh no-key grading of exact candidate and adapter bytes
+        env:
+          EXPECT_MODE: ${{ inputs.confirm == 'COURSE NATIVE ADAPTER QUALIFICATION' && 'actual' || 'smoke' }}
+        run: |
+          set -euo pipefail
+          d=$(mktemp -d /tmp/canonical-grade-XXXXXX)
+          chmod 755 "$d"
+          cp untrusted/{candidate.mjs,receipt.json} "$d/"
+          cp trial/controls/native-adapter-qualification-judge.mjs "$d/judge.mjs"
+          chmod 444 "$d/"*
+          mkdir -p "$RUNNER_TEMP/native-graded"
+          sha=$(sha256sum "$d/candidate.mjs" | cut -d ' ' -f 1)
+          adapter=$(sha256sum scripts/course-pilot/native-adapter.mjs | cut -d ' ' -f 1)
+          helper=$(sha256sum scripts/course-pilot/bounded-tool.mjs | cut -d ' ' -f 1)
+          jq -e --arg sha "$sha" --arg adapter "$adapter" --arg helper "$helper" --arg mode "$EXPECT_MODE" '.candidateSha256==$sha and .adapterSha256==$adapter and .helperSha256==$helper and .mode==$mode' "$d/receipt.json"
+          node_bin=$(command -v node)
+          sudo -n unshare --net --setuid="$(id -u nobody)" --setgid="$(id -g nobody)" /usr/bin/env -i PATH=/usr/bin:/bin /usr/bin/timeout 15 "$node_bin" --permission --allow-fs-read="$d" "$d/judge.mjs" "$d" | tee "$RUNNER_TEMP/native-graded/grade.json"
+          jq -e --arg sha "$sha" --arg mode "$EXPECT_MODE" '.passed==true and .artifactSha256==$sha and .mode==$mode and .actualProviderIdentity==($mode=="actual") and .casesPassed==12 and .casesTotal==12 and .negativeControlCount==5 and .roleAdmission==false and .adapterQualification==false' "$RUNNER_TEMP/native-graded/grade.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: canonical-native-grade-${{ matrix.label }}
+          path: ${{ runner.temp }}/native-graded/grade.json
+          retention-days: 14
