@@ -62,7 +62,7 @@ export function agentInfo(slug, dir = AGENTS_DIR) {
   return { slug, name: meta.name, role: meta.role, model: meta.model };
 }
 
-export function route({ labels = [], body = "", isPR = false, engines = { free: false }, freeModel = "", allowed = ALLOWED_ENGINES, supervisedTrial = false, freeProviders = { groq: true, nvidia: false } }) {
+export function route({ labels = [], body = "", isPR = false, engines = { free: false }, freeModel = "", allowed = ALLOWED_ENGINES, supervisedTrial = false, syntheticSmoke = false, freeProviders = { groq: true, nvidia: false } }) {
   const policyAllowed = new Set(ALLOWED_ENGINES);
   engines = Object.fromEntries(ENGINES.map((e) => [e, policyAllowed.has(e) && allowed.includes(e) && !!engines[e]]));
   freeProviders = { groq: freeProviders?.groq === true, nvidia: freeProviders?.nvidia === true };
@@ -96,9 +96,11 @@ export function route({ labels = [], body = "", isPR = false, engines = { free: 
   if (engine === "free") {
     const reviewerSeat = REVIEW_ROLES.includes(role) && stage !== "ai:tests";
     const available = (model) => freeProviders[model.split("/")[0]] === true;
+    // NVIDIA developer endpoints are evaluation-only under the founder-approved policy.
+    const evaluation = supervisedTrial === true || (syntheticSmoke === true && stage === "ai:discovery");
     const candidates = reviewerSeat
       ? [FREE_MODELS.reviewer]
-      : [FREE_MODELS.nvidiaBuilder, FREE_MODELS.builder];
+      : evaluation ? [FREE_MODELS.nvidiaBuilder, FREE_MODELS.builder] : [FREE_MODELS.builder];
     // "Free" is necessary but not sufficient: an override cannot exchange author and
     // reviewer families. Reasoning-effort variants keep their underlying model identity.
     const requestedModel = typeof freeModel === "string" ? freeModel : "";
@@ -261,6 +263,10 @@ if (isMain(import.meta.url)) {
   const r = route({
     labels, isPR, body: bodyFile && existsSync(bodyFile) ? readFileSync(bodyFile, "utf8") : "",
     freeModel: process.env.FREE_MODEL_OVERRIDE || "", supervisedTrial: process.env.SUPERVISED_SYNTHETIC_TRIAL === "1",
+    // The dedicated manual smoke workflow validates the issue title and read-only stage before routing.
+    // An ordinary labelled issue, even read-only, is not a supervised NVIDIA evaluation.
+    syntheticSmoke: toolMode === "readonly" && arg("repo") === "appsworld2027/parent-plus-ai-org" &&
+      process.env.GITHUB_WORKFLOW === "Free-provider agent smoke test" && process.env.GITHUB_EVENT_NAME === "workflow_dispatch",
     engines: { free: process.env.ENGINE_FREE === "true" },
     freeProviders: { groq: process.env.ENGINE_GROQ === "true", nvidia: process.env.ENGINE_NVIDIA === "true" },
   });
