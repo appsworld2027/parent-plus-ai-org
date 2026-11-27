@@ -1,0 +1,14 @@
+export function selectDue(rows, tenant, now, limit) {
+ const ident = v => typeof v==='string' && /^[A-Za-z0-9_-]{1,40}$/.test(v);
+ const nat = v => Number.isSafeInteger(v)&&v>=0;
+ if(!Array.isArray(rows)||rows.length>1000||!ident(tenant)||!nat(now)||!nat(limit)||limit>100)throw new Error('invalid input');
+ const seen=new Set(), eligible=[];
+ for(const row of rows){
+  if(!row||typeof row!=='object'||Array.isArray(row)||Object.keys(row).sort().join(',')!=='dueAt,id,state,tenant'||!ident(row.id)||!ident(row.tenant)||!nat(row.dueAt)||!['pending','completed'].includes(row.state))throw new Error('invalid row');
+  if(row.tenant!==tenant)continue;
+  if(seen.has(row.id))throw new Error('duplicate id');
+  seen.add(row.id);
+  if(row.state==='pending'&&row.dueAt<=now)eligible.push(row);
+ }
+ return eligible.sort((a,b)=>a.dueAt-b.dueAt||(a.id<b.id?-1:a.id>b.id?1:0)).slice(0,limit).map(r=>r.id);
+}
