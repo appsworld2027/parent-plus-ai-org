@@ -106,7 +106,7 @@ export function testsBrief(number) {
     "   Read test output through the gate, not the raw log: long Playwright output is cut off in your tool results, so errors at the end (often the crashes) are invisible to you.",
     "   Start the file with `// NEW-HOOKS: a | b | /regex/` listing every new text, accessible name or testID the feature adds (the things your tests wait for). Put `// GUARD: <why>` above a test that already passes today on purpose, and `// RED-BECAUSE: <why>` above a test that fails on existing UI for a stated reason. Use stable testIDs or accessible names for new UI, and say which ones in the PR so Dev builds them.",
     "d. Run the spec with the gate, not by eye: `npx playwright test <spec> --reporter=json --timeout=20000 > /tmp/acc.json; node .ai-org-handbook/scripts/grade-acceptance.mjs --spec <spec> --report /tmp/acc.json --contract docs/product/<slug>/ACCEPTANCE.md --src src --md /tmp/gate.md`. It must print `Acceptance-test gate: PASS`. If it fails, fix the tests it names (crash, setup mistake, vacuous pass) and run it again. Never claim a result the gate did not print.",
-    `e. Open the contract PR from the contract branch to \`main\` (or update it if it exists): label \`ai:contract\`, body starting \`Closes #${number}\`, then the full contents of /tmp/gate.md, then any fixture gaps for Dev. Then remove \`ai:tests\` from #${number}.`,
+    `e. Open the contract PR from the contract branch to \`main\` (or update it if it exists): apply PR label \`ai:contract\`, body starting \`Closes #${number}\`, then the full contents of /tmp/gate.md and fixture gaps for Dev. Do not change the issue stage label; the workflow owns that transition.`,
     "f. If the onboarding pack shows a challenger or CPTO verdict of CHANGES, fix every must-fix finding, answer each should-fix finding on the PR (fixed / disagree + why), re-run the gate and record it all in your handover.",
   ].join("\n");
 }
@@ -148,7 +148,7 @@ export function challengeBrief(number) {
     "a. Read the contract, the spec on the contract branch, the gate report on the contract PR and the author's handover.",
     "b. Attack the tests with this checklist, citing test titles and lines: (1) every AC fully checked, including every number, text, order and state the AC names; (2) fixture defaults or setup traps that make a test fail or pass for the wrong reason; (3) tests that would still pass if the feature were built wrong (hard-coded counts, totals not checked, exclusions without a counted control); (4) loading / error / offline / large-data ACs really exercise reads; (5) new hooks declared in NEW-HOOKS match what the tests wait for; (6) anything the contract says that no test checks.",
     "c. Run the spec once with the gate (same command as the author) to confirm the report.",
-    `d. Comment on the contract PR, starting \`[Quinn — QA Specialist, challenger]\`, with \`Verdict: APPROVE\` or \`Verdict: CHANGES\`, then a table: finding · test · severity (must-fix / should-fix) · evidence. Do NOT edit the spec. Then remove \`ai:tests-review\` from #${number}.`,
+    `d. Comment on the contract PR, starting \`[Quinn — QA Specialist, challenger]\`, with \`Verdict: APPROVE\` or \`Verdict: CHANGES\`, then a table: finding · test · severity (must-fix / should-fix) · evidence. Do NOT edit the spec or change issue stage labels; the workflow owns transitions.`,
   ].join("\n");
 }
 // Arjun (AI CPTO) signs off — this is the accountable seat, so no step depends on any outside chat.
@@ -158,7 +158,7 @@ export function signoffBrief(number) {
     "a. Read the contract, the gate report, the challenger's verdict and the author's answers/handover.",
     "b. Decide each open disagreement on the evidence (run the spec if needed). You may not approve if the gate is not PASS on the head commit or any must-fix finding is unresolved.",
     "c. Review `## Memory proposals` in all handovers: copy the ones that are true, general and evidenced into `docs/ai-memory/` (or `org/lessons/<role>.md` in the AI Org if product-agnostic, as an issue there), with the evidence link; reject the rest with a reason.",
-    `d. Comment on the contract PR starting \`[Arjun — AI CPTO]\` with \`Verdict: APPROVE\` (the loop then opens the build) or \`Verdict: CHANGES\` (back to the author with exact instructions), or label #${number} \`ai:founder-decision\` with options and one Recommended choice if it changes what users see or costs money. Then remove \`ai:tests-signoff\` from #${number}.`,
+    `d. Comment on the contract PR starting \`[Arjun — AI CPTO]\` with \`Verdict: APPROVE\` or \`Verdict: CHANGES\`. If a founder decision is required, include \`Next stage: ai:founder-decision\`, options and one Recommended choice in the comment. Do not change issue stage labels; the workflow owns transitions.`,
   ].join("\n");
 }
 
