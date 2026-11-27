@@ -6,6 +6,7 @@
 import { readFileSync, appendFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { realpathSync } from "node:fs";
+import { selectExecutionStrategy, strategyPrompt } from "./execution-strategy.mjs";
 
 const AUTONOMY_POLICY = JSON.parse(readFileSync(fileURLToPath(new URL("../governance/AUTONOMY_POLICY.json", import.meta.url)), "utf8"));
 
@@ -122,6 +123,10 @@ export function route({ labels = [], body = "", isPR = false, engines = { free: 
     out.free_provider = selected.split("/")[0];
     out.free_model_role = reviewerSeat ? "independent-reviewer" : "builder";
   }
+  const strategy = selectExecutionStrategy({engine:out.engine,stage:out.stage,model:out.free_model});
+  Object.assign(out,{execution_strategy:strategy.id,strategy_context_mode:strategy.contextMode,strategy_task_class:strategy.taskClass,
+    strategy_worker_max_turns:strategy.worker.maxTurns,strategy_worker_wall_seconds:strategy.worker.wallSeconds,
+    strategy_worker_output_cap:strategy.worker.outputTokenCap,strategy_worker_review_output_cap:strategy.worker.embeddedReviewOutputTokenCap});
   return out;
 }
 
@@ -218,7 +223,7 @@ const ROLE_QUALITY_METHOD = Object.freeze({
   "sam-release": "Check exact revision, required CI and independent verdict; verify authorized rollout, smoke, health and rollback/disable evidence; distinguish merged, deployed, founder-ready and released; stop if any release gate lacks proof.",
 });
 
-export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = "standard", featureSlug = "" }) {
+export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = "standard", featureSlug = "", executionStrategy = null }) {
   const kind = isPR ? "pull request" : "issue";
   const cli = isPR ? "gh pr" : "gh issue";
   const extra = agent.slug === "maya-ai-pm" ? " and `.ai-org-handbook/playbooks/ai-pm.md` and `.ai-org-handbook/playbooks/feature-contract.md`" : agent.slug === "quinn-qa" ? " and `.ai-org-handbook/playbooks/qa-charter.md`" : "";
@@ -237,6 +242,7 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = 
       ? ["5. Read-only mode: task scope overrides role-card suggestions. Do not modify files, branches, labels, commits, PRs, handoffs, issues or comments. The workflow owns stage transitions and publishes your final assistant report. Return concise evidence as assistant text; never call a write tool. If reviewing, put the verdict first."]
       : ["5. Do not change issue stage labels or issue state; the workflow owns stage transitions. Apply only PR labels explicitly required by your role brief." ]),
     `6. Never print secrets. Never contact the founder except through ai:founder-decision or ai:founder-test issues.`,
+    ...(executionStrategy ? ["", strategyPrompt(executionStrategy)] : []),
     "", onboardingRules(number, { toolMode, featureSlug, stage, role: agent.slug }),
     ...(toolMode !== "readonly" && ["ai:review", "ai:tests-review", "ai:tests-signoff"].includes(stage) ? [
       "If the product manifest configures loop.aiVerdictReviewerIds, use the assigned review account. Post the verdict directly on the reviewed PR after pushing your handover. Include a standalone HTML comment in the form <!-- ai-org:reviewed-commit SHA --> using the full SHA you actually reviewed. Confirm it is still the PR head before posting.",
@@ -277,7 +283,7 @@ if (isMain(import.meta.url)) {
   if (r.role) {
     const agent = agentInfo(r.role);
     Object.assign(out, { agent_name: agent.name, agent_role: agent.role, model: agent.model });
-    if (r.action === "run") out.prompt = buildPrompt({ agent, number: arg("number"), isPR, repo: arg("repo"), stage: r.stage, toolMode, featureSlug: process.env.FEATURE_SLUG || "" });
+    if (r.action === "run") out.prompt = buildPrompt({ agent, number: arg("number"), isPR, repo: arg("repo"), stage: r.stage, toolMode, featureSlug: process.env.FEATURE_SLUG || "", executionStrategy: selectExecutionStrategy({engine:r.engine,stage:r.stage,model:r.free_model}) });
     if (r.action === "pause") out.pause_comment = pauseComment({ agent, stage: r.stage });
   }
   console.log(JSON.stringify({ ...out, prompt: out.prompt ? "(set)" : undefined, pause_comment: out.pause_comment ? "(set)" : undefined }));

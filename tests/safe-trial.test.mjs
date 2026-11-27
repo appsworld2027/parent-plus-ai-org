@@ -139,12 +139,20 @@ test("scan deletes output holding the key or a link", () => {
   assert.equal(run("scan.sh", [clean], { NVIDIA_NIM_API_KEY: "sk-test-value" }).status, 0);
 });
 
+test("isolated judge has both canonical policy and execution strategy when importing the router", () => {
+  const prepare = read("scripts/safe-trial/prepare.sh");
+  for (const name of ["AUTONOMY_POLICY.json", "EXECUTION_STRATEGIES.json"]) {
+    assert.ok(prepare.includes(`cp "$HB/governance/${name}" "$ROOT/judge/governance/${name}"`), name);
+  }
+});
+
 test("apply checks the paths really changed by the patch", () => {
   const root = mkdtempSync(join(tmpdir(), "apply-")); const product = join(root, "product");
   mkdirSync(join(product, "src"), { recursive: true }); mkdirSync(join(product, ".claude"));
   cpSync(fileURLToPath(new URL("../scripts", import.meta.url)), join(root, "judge/scripts"), { recursive: true });
   mkdirSync(join(root, "judge/governance"), { recursive: true });
   cpSync(fileURLToPath(new URL("../governance/AUTONOMY_POLICY.json", import.meta.url)), join(root, "judge/governance/AUTONOMY_POLICY.json"));
+  cpSync(fileURLToPath(new URL("../governance/EXECUTION_STRATEGIES.json", import.meta.url)), join(root, "judge/governance/EXECUTION_STRATEGIES.json"));
   const git = (...a) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@example.test", ...a], { cwd: product, encoding: "utf8" });
   writeFileSync(join(product, "src/a.ts"), "1\n"); writeFileSync(join(product, ".claude/settings.json"), "{}\n");
   git("init", "-q"); git("add", "-A"); git("commit", "-qm", "base");

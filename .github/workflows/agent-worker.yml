@@ -282,6 +282,11 @@ jobs:
           NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
           FREE_MODEL: ${{ steps.router.outputs.free_model }}
           PROMPT: ${{ steps.router.outputs.prompt }}
+          EXECUTION_STRATEGY: ${{ steps.router.outputs.execution_strategy }}
+          STRATEGY_MAX_TURNS: ${{ steps.router.outputs.strategy_worker_max_turns }}
+          STRATEGY_WALL_SECONDS: ${{ steps.router.outputs.strategy_worker_wall_seconds }}
+          STRATEGY_OUTPUT_CAP: ${{ steps.router.outputs.strategy_worker_output_cap }}
+          STRATEGY_REVIEW_OUTPUT_CAP: ${{ steps.router.outputs.strategy_worker_review_output_cap }}
           AGENT_NAME: ${{ steps.router.outputs.agent_name }}
           AGENT_ROLE: ${{ steps.router.outputs.agent_role }}
           STAGE: ${{ steps.item.outputs.stage }}
@@ -294,6 +299,9 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           test -s .ai-org-runtime/onboarding.md || { echo "::error::Workspace onboarding pack is missing; refusing to start the model."; exit 1; }
           mkdir -p /tmp/agent-logs
+          [ "$EXECUTION_STRATEGY" = "free-packeted" ] || { echo "::error::Invalid execution strategy for free worker."; exit 1; }
+          [[ "$STRATEGY_MAX_TURNS" =~ ^[1-9][0-9]{0,2}$ && "$STRATEGY_WALL_SECONDS" =~ ^[1-9][0-9]{0,3}$ && "$STRATEGY_OUTPUT_CAP" =~ ^[1-9][0-9]{0,2}$ && "$STRATEGY_REVIEW_OUTPUT_CAP" =~ ^[1-9][0-9]{0,2}$ ]] || { echo "::error::Missing or invalid trusted strategy ceilings."; exit 1; }
+          [ "$STRATEGY_MAX_TURNS" -le 150 ] && [ "$STRATEGY_WALL_SECONDS" -le 5400 ] || { echo "::error::Strategy bounds exceeded."; exit 1; }
           MODEL_ROUTE="$FREE_MODEL"
           EFFORT=""
           case "$MODEL_ROUTE" in *@*) EFFORT="${MODEL_ROUTE##*@}"; MODEL_ROUTE="${MODEL_ROUTE%@*}";; esac
@@ -420,7 +428,7 @@ jobs:
               exit 1
               ;;
           esac
-          OUTPUT_TOKEN_CAP=512
+          OUTPUT_TOKEN_CAP="$STRATEGY_OUTPUT_CAP"
           if [ "$TOOL_MODE" = "readonly" ] && { [[ "$STAGE_OVERRIDE" =~ ^ai:(discovery|review)$ ]] || [ -n "$QUALIFICATION_FIXTURE" ]; }; then
             # The authoritative synthetic issue body is already embedded.
             TOOLS=""; ALLOWED_TOOLS=""
@@ -428,7 +436,7 @@ jobs:
             Return a concise report from the embedded issue only. Do not request tools."
             if [ "$STAGE_OVERRIDE" = "ai:review" ] || [ -n "$QUALIFICATION_FIXTURE" ]; then
               # Measured 512 output-token exhaustion; remain below the observed 1000-token allowance.
-              OUTPUT_TOKEN_CAP=768
+              OUTPUT_TOKEN_CAP="$STRATEGY_REVIEW_OUTPUT_CAP"
               if [ -n "$QUALIFICATION_FIXTURE" ]; then
                 PROMPT="$PROMPT
                 Qualification: respond only with the required QUALIFICATION_JSON line from the embedded task; no extra explanation or tools."
@@ -443,9 +451,9 @@ jobs:
           rc=0
           CLAUDE_CODE_MAX_OUTPUT_TOKENS="$OUTPUT_TOKEN_CAP" CLAUDE_CODE_MAX_RETRIES=2 \
             ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
-            timeout 3600 claude --bare -p "$PROMPT" \
+            timeout "$STRATEGY_WALL_SECONDS" claude --bare -p "$PROMPT" \
             --system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md \
-            --tools "$TOOLS" --allowedTools "$ALLOWED_TOOLS" --max-turns 60 \
+            --tools "$TOOLS" --allowedTools "$ALLOWED_TOOLS" --max-turns "$STRATEGY_MAX_TURNS" \
             --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr || rc=$?
           RESULT=$(node .ai-org-handbook/scripts/classify-worker-result.mjs "$rc" /tmp/agent-logs/agent.jsonl /tmp/agent-logs/agent.stderr)
           rc=$(jq -er '.exitCode' <<< "$RESULT")

@@ -14,9 +14,10 @@
     "ai:pilot": "CEZ_HOME=$PWD/.ai/cezar/.runtime CEZ_AGENT_TMPDIR=0 CEZ_DRY_RUN=1 CEZ_NO_BANNER=1 cezar-run run --workflow one-team-delivery \"Validate the reusable AI organization without changing Parent Plus\"",
     "ai:automations:import": "CEZ_HOME=$PWD/.ai/cezar/.runtime CEZ_API_URL=http://127.0.0.1:4321 cezar-run automation import .ai/automation-templates.json --apply",
     "ai:recovery:smoke": "node scripts/fresh-recovery-smoke.mjs",
-    "ai:verify": "python3 -m unittest discover -s tests -v && node scripts/validate-ai-org.mjs && node scripts/sync-agents.mjs --check && node --test tests/worker-usage.test.mjs tests/agent-router.test.mjs tests/contract-lock.test.mjs tests/loop.test.mjs tests/grade-acceptance.test.mjs tests/handoff.test.mjs tests/remote-mcp.test.mjs tests/phase3a-execution.test.mjs tests/instruction-contract.test.mjs tests/session-recovery.test.mjs tests/safe-trial.test.mjs tests/workflow-contract.test.mjs tests/extract-readonly-report.test.mjs tests/runtime-recovery.test.mjs tests/reviewer-verdict.test.mjs tests/worker-result.test.mjs tests/role-qualification.test.mjs tests/onboarding-context.test.mjs",
+    "ai:verify": "python3 -m unittest discover -s tests -v && node scripts/validate-ai-org.mjs && node scripts/sync-agents.mjs --check && node --test tests/worker-usage.test.mjs tests/agent-router.test.mjs tests/contract-lock.test.mjs tests/loop.test.mjs tests/grade-acceptance.test.mjs tests/handoff.test.mjs tests/remote-mcp.test.mjs tests/phase3a-execution.test.mjs tests/instruction-contract.test.mjs tests/session-recovery.test.mjs tests/safe-trial.test.mjs tests/workflow-contract.test.mjs tests/extract-readonly-report.test.mjs tests/runtime-recovery.test.mjs tests/reviewer-verdict.test.mjs tests/worker-result.test.mjs tests/role-qualification.test.mjs tests/onboarding-context.test.mjs tests/execution-strategy.test.mjs tests/execution-strategy-task-model.test.mjs",
     "ai:quality-loop": "node scripts/quality-loop.mjs",
-    "ai:inventory": "node scripts/feature-inventory.mjs"
+    "ai:inventory": "node scripts/feature-inventory.mjs",
+    "ai:strategy:verify": "node --test tests/execution-strategy.test.mjs tests/execution-strategy-task-model.test.mjs"
   },
   "devDependencies": {
     "@open-mercato/cezar": "0.20.0",
