@@ -404,7 +404,7 @@ jobs:
       - name: Publish and verify read-only completion report
         if: success() && inputs.tool_mode == 'readonly' && steps.router.outputs.action == 'run'
         env:
-          NUMBER: ${{ steps.item.outputs.number }}
+          NUMBER: ${{ inputs.number }}
           AGENT_NAME: ${{ steps.router.outputs.agent_name }}
           AGENT_ROLE: ${{ steps.router.outputs.agent_role }}
           GH_TOKEN: ${{ github.token }}
