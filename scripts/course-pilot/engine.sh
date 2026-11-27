@@ -11,6 +11,11 @@ case "$MODEL" in groq/openai/gpt-oss-120b|groq/qwen/qwen3.8-27b) ;; *) echo "::e
 [ -n "${GROQ_API_KEY:-}" ] || { echo "::error::Approved free Groq key unavailable; no fallback"; exit 1; }
 as_proxy bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null && "$HOME/.local/bin/uv" tool install "free-claude-code==6.19.56" >/dev/null && mkdir -p "$HOME/.fcc" && chmod 700 "$HOME/.fcc"'
 printf 'GROQ_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\nENABLE_WEB_SERVER_TOOLS=false\n' "$GROQ_API_KEY" "$MODEL" | as_proxy bash -c 'umask 077; cat > "$HOME/.fcc/.env"'
+# Match the canonical worker's explicit reasoning policy, verified native medium route.
+if [ "$MODEL" = groq/openai/gpt-oss-120b ]; then
+  printf 'REASONING_POLICY=medium\n' | as_proxy bash -c 'umask 077; cat >> "$HOME/.fcc/.env"'
+  echo "Course GPT-OSS reasoning policy: medium"
+fi
 sudo mkdir -p /srv/trial-gate
 sudo cp "$J/scripts/safe-trial/gate.mjs" /srv/trial-gate/gate.mjs
 sudo chmod -R a+rX /srv/trial-gate
