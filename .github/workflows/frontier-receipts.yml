@@ -1,0 +1,21 @@
+name: Frontier receipt regression
+on:
+  pull_request:
+    paths:
+      - 'scripts/frontier-*.mjs'
+      - 'tests/frontier-*.test.mjs'
+      - 'governance/FRONTIER*'
+      - '.github/workflows/frontier-receipts.yml'
+permissions:
+  contents: read
+jobs:
+  receipt-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Run deterministic admission and receipt regressions
+        run: node --test tests/frontier-admission.test.mjs tests/frontier-receipts.test.mjs
