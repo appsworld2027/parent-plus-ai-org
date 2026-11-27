@@ -62,7 +62,7 @@ export function agentInfo(slug, dir = AGENTS_DIR) {
   return { slug, name: meta.name, role: meta.role, model: meta.model };
 }
 
-export function route({ labels = [], body = "", isPR = false, engines = { free: false }, freeModel = "", allowed = ALLOWED_ENGINES, supervisedTrial = false, syntheticSmoke = false, freeProviders = { groq: true, nvidia: false } }) {
+export function route({ labels = [], body = "", isPR = false, engines = { free: false }, freeModel = "", allowed = ALLOWED_ENGINES, supervisedTrial = false, syntheticSmoke = false, syntheticQualification = false, freeProviders = { groq: true, nvidia: false } }) {
   const policyAllowed = new Set(ALLOWED_ENGINES);
   engines = Object.fromEntries(ENGINES.map((e) => [e, policyAllowed.has(e) && allowed.includes(e) && !!engines[e]]));
   freeProviders = { groq: freeProviders?.groq === true, nvidia: freeProviders?.nvidia === true };
@@ -97,7 +97,7 @@ export function route({ labels = [], body = "", isPR = false, engines = { free: 
     const reviewerSeat = REVIEW_ROLES.includes(role) && stage !== "ai:tests";
     const available = (model) => freeProviders[model.split("/")[0]] === true;
     // NVIDIA developer endpoints are evaluation-only under the founder-approved policy.
-    const evaluation = supervisedTrial === true || (syntheticSmoke === true && stage === "ai:discovery");
+    const evaluation = supervisedTrial === true || syntheticQualification === true || (syntheticSmoke === true && stage === "ai:discovery");
     const candidates = reviewerSeat
       ? [FREE_MODELS.reviewer]
       : evaluation ? [FREE_MODELS.nvidiaBuilder, FREE_MODELS.builder] : [FREE_MODELS.builder];
@@ -267,6 +267,9 @@ if (isMain(import.meta.url)) {
     // An ordinary labelled issue, even read-only, is not a supervised NVIDIA evaluation.
     syntheticSmoke: toolMode === "readonly" && arg("repo") === "appsworld2027/parent-plus-ai-org" &&
       process.env.GITHUB_WORKFLOW === "Free-provider agent smoke test" && process.env.GITHUB_EVENT_NAME === "workflow_dispatch",
+    syntheticQualification: toolMode === "readonly" && arg("repo") === "appsworld2027/parent-plus-ai-org" &&
+      process.env.GITHUB_WORKFLOW === "Role qualification (synthetic, read only)" && process.env.GITHUB_EVENT_NAME === "workflow_dispatch" &&
+      /^[a-z]+-v[1-9][0-9]*$/.test(process.env.QUALIFICATION_FIXTURE || ""),
     engines: { free: process.env.ENGINE_FREE === "true" },
     freeProviders: { groq: process.env.ENGINE_GROQ === "true", nvidia: process.env.ENGINE_NVIDIA === "true" },
   });

@@ -1,0 +1,47 @@
+name: Role qualification (synthetic, read only)
+on:
+  workflow_dispatch:
+    inputs:
+      fixture:
+        description: Versioned synthetic role benchmark
+        required: true
+        type: choice
+        options:
+          - maya-v1
+          - arjun-v1
+          - kiran-v1
+          - leela-v1
+          - iris-v1
+          - dev-v1
+          - tara-v1
+          - ravi-v1
+          - quinn-v1
+          - rex-v1
+          - sam-v1
+      issue_number:
+        description: Dedicated [ROLE QUALIFICATION] issue number
+        required: true
+        type: string
+      handbook_ref:
+        description: Exact handbook commit SHA
+        required: true
+        type: string
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+  actions: read
+  statuses: read
+jobs:
+  qualify:
+    if: vars.UNATTENDED_AGENTS == 'on' && github.repository == 'appsworld2027/parent-plus-ai-org'
+    uses: ./.github/workflows/agent-worker.yml
+    with:
+      number: ${{ inputs.issue_number }}
+      handbook_ref: ${{ inputs.handbook_ref }}
+      dispatch_workflow: ai-agents.yml
+      tool_mode: readonly
+      qualification_fixture: ${{ inputs.fixture }}
+    secrets:
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}

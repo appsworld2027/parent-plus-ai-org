@@ -29,6 +29,11 @@ on:
         required: false
         type: string
         default: ""
+      qualification_fixture:
+        description: Versioned read-only AI Org synthetic qualification fixture
+        required: false
+        type: string
+        default: ""
       feature_slug:
         description: Optional stable feature slug; blank during initial discovery
         required: false
@@ -112,6 +117,7 @@ jobs:
         env:
           STAGE_OVERRIDE: ${{ inputs.stage_override }}
           INPUT_FEATURE_SLUG: ${{ inputs.feature_slug }}
+          QUALIFICATION_FIXTURE: ${{ inputs.qualification_fixture }}
         run: |
           set -euo pipefail
           gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER" > /tmp/item.json
@@ -131,6 +137,16 @@ jobs:
             STAGE="$STAGE_OVERRIDE"
             LABELS="$STAGE_OVERRIDE"
           fi
+          if [ -n "$QUALIFICATION_FIXTURE" ]; then
+            if [ "$GITHUB_REPOSITORY" != "appsworld2027/parent-plus-ai-org" ] || [ "$TOOL_MODE" != "readonly" ] || [ -n "$STAGE_OVERRIDE" ] || [ -n "$INPUT_FEATURE_SLUG" ] || [ "$TITLE" != "[ROLE QUALIFICATION] Canonical synthetic benchmark" ] || jq -e 'has("pull_request")' /tmp/item.json >/dev/null; then
+              echo "::error::Qualification requires the dedicated synthetic issue in read-only AI Org, without stage or feature override."
+              exit 1
+            fi
+            node .ai-org-handbook/scripts/role-qualification.mjs prepare "$QUALIFICATION_FIXTURE" > /tmp/qualification-input.json
+            STAGE=$(jq -er '.stage' /tmp/qualification-input.json)
+            LABELS="$STAGE"
+            jq -er '.prompt' /tmp/qualification-input.json > /tmp/body.md
+          fi
           FEATURE_SLUG="$INPUT_FEATURE_SLUG"
           if [ -z "$FEATURE_SLUG" ]; then
             FEATURE_SLUG=$(sed -nE 's/^[[:space:]]*Feature slug:[[:space:]]*([a-z0-9]+(-[a-z0-9]+)*)[[:space:]]*$/\1/p' /tmp/body.md | head -1)
@@ -148,6 +164,7 @@ jobs:
         id: router
         env:
           LABELS: ${{ steps.item.outputs.labels }}
+          QUALIFICATION_FIXTURE: ${{ inputs.qualification_fixture }}
           IS_PR: ${{ steps.item.outputs.is_pr }}
           FEATURE_SLUG: ${{ steps.item.outputs.feature_slug }}
           ENGINE_FREE: ${{ secrets.GROQ_API_KEY != '' || secrets.NVIDIA_NIM_API_KEY != '' }}
@@ -271,6 +288,7 @@ jobs:
           TOOL_MODE: ${{ inputs.tool_mode }}
           FEATURE_SLUG: ${{ steps.item.outputs.feature_slug }}
           STAGE_OVERRIDE: ${{ inputs.stage_override }}
+          QUALIFICATION_FIXTURE: ${{ inputs.qualification_fixture }}
         run: |
           set -uo pipefail
           cd "$GITHUB_WORKSPACE"
@@ -403,16 +421,21 @@ jobs:
               ;;
           esac
           OUTPUT_TOKEN_CAP=512
-          if [ "$TOOL_MODE" = "readonly" ] && [[ "$STAGE_OVERRIDE" =~ ^ai:(discovery|review)$ ]]; then
+          if [ "$TOOL_MODE" = "readonly" ] && { [[ "$STAGE_OVERRIDE" =~ ^ai:(discovery|review)$ ]] || [ -n "$QUALIFICATION_FIXTURE" ]; }; then
             # The authoritative synthetic issue body is already embedded.
             TOOLS=""; ALLOWED_TOOLS=""
             PROMPT="$PROMPT
             Return a concise report from the embedded issue only. Do not request tools."
-            if [ "$STAGE_OVERRIDE" = "ai:review" ]; then
+            if [ "$STAGE_OVERRIDE" = "ai:review" ] || [ -n "$QUALIFICATION_FIXTURE" ]; then
               # Measured 512 output-token exhaustion; remain below the observed 1000-token allowance.
               OUTPUT_TOKEN_CAP=768
-              PROMPT="$PROMPT
-              Format the review as a verdict line, at least three concise concrete defects, and one role/model/no-write evidence line. At most 120 words. No preamble or redundant discussion."
+              if [ -n "$QUALIFICATION_FIXTURE" ]; then
+                PROMPT="$PROMPT
+                Qualification: respond only with the required QUALIFICATION_JSON line from the embedded task; no extra explanation or tools."
+              else
+                PROMPT="$PROMPT
+                Format the review as a verdict line, at least three concise concrete defects, and one role/model/no-write evidence line. At most 120 words. No preamble or redundant discussion."
+              fi
             fi
           fi
           date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/agent-logs/started-at
@@ -458,6 +481,19 @@ jobs:
           tail -c 1500 /tmp/agent-logs/agent.stderr
           exit $rc
 
+      - name: Score synthetic role qualification
+        if: success() && inputs.qualification_fixture != '' && inputs.tool_mode == 'readonly' && steps.router.outputs.action == 'run'
+        env:
+          QUALIFICATION_FIXTURE: ${{ inputs.qualification_fixture }}
+        run: |
+          node .ai-org-handbook/scripts/role-qualification.mjs score "$QUALIFICATION_FIXTURE" /tmp/agent-logs/agent.jsonl /tmp/route.json "$(git -C .ai-org-handbook rev-parse HEAD)" > /tmp/qualification-result.json
+      - name: Publish synthetic qualification result
+        if: always() && inputs.qualification_fixture != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-org-qualification-${{ github.run_attempt }}
+          path: /tmp/qualification-result.json
+          if-no-files-found: ignore
       - name: Publish and verify read-only completion report
         if: success() && inputs.tool_mode == 'readonly' && steps.router.outputs.action == 'run'
         env:
