@@ -184,7 +184,7 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "" }) {
 
 export const PAUSE_MARKER = "<!-- ai-org:paused -->";
 export function pauseComment({ agent, stage }) {
-  return `${PAUSE_MARKER}\n**[${agent.name} — ${agent.role}] Paused.** This item is at `${stage}`, but no approved free engine or usable free quota is available. Paid engines and paid fallback are disabled.\n\nThe task remains queued until the free route is available. Nothing is lost.`;
+  return `${PAUSE_MARKER}\n**[${agent.name} — ${agent.role}] Paused.** This item is at ${stage}, but no approved free engine or usable free quota is available. Paid engines and paid fallback are disabled.\n\nThe task remains queued until the free route is available. Nothing is lost.`;
 }
 
 // ---- CLI ----
