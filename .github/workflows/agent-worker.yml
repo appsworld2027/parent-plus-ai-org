@@ -43,8 +43,8 @@ on:
 jobs:
   agent:
     if: >-
-      github.event.repository.private == true &&
-      (vars.UNATTENDED_AGENTS == 'on' || inputs.tool_mode == 'readonly')
+      vars.UNATTENDED_AGENTS == 'on' &&
+      (github.repository == 'appsworld2027/parent-plus-ai-org' || github.event.repository.private == true)
     runs-on: ubuntu-latest
     timeout-minutes: 95
     concurrency:
