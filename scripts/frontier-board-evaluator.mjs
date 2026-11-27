@@ -24,6 +24,11 @@ export async function evaluateBoardCode(code,{image}={}) {
   if(typeof code!=="string"||!code.trim()||Buffer.byteLength(code)>24000||code.includes("\u0000"))throw Error("invalid board artifact");
   if(typeof image!=="string"||!IMAGE.test(image))throw Error("digest-pinned Node image required");
   const locked=await readFile(LOCKED,"utf8");
+  return runIsolatedSuite(code,locked,{image,expectedCount:EXPECTED});
+}
+async function runIsolatedSuite(code,locked,{image,expectedCount=null}) {
+  if(typeof image!=="string"||!IMAGE.test(image))throw Error("digest-pinned Node image required");
+  for(const text of [code,locked])if(typeof text!=="string"||!text.trim()||Buffer.byteLength(text)>24000||text.includes("\u0000"))throw Error("invalid suite artifact");
   const dir=await mkdtemp(join(tmpdir(),"frontier-board-"));
   const name="frontier-board-"+randomUUID();
   const base={schema:1,kind:"synthetic-locked-board-behavior",candidateHash:digest(code),lockedTestHash:digest(locked),image,qualified:false};
@@ -42,13 +47,32 @@ export async function evaluateBoardCode(code,{image}={}) {
     const counts=Object.fromEntries(["tests","pass","fail","cancelled","skipped","todo"].map(k=>[k,asCount(stdout,k)]));
     // Missing/duplicate summary, no tests, skip/todo, infrastructure error and
     // timeouts cannot produce pass. Raw output is not a trusted statement of intent.
-    const complete=counts.tests===EXPECTED&&counts.pass+counts.fail===EXPECTED&&
+    const complete=Number.isSafeInteger(counts.tests)&&counts.tests>=1&&(expectedCount===null||counts.tests===expectedCount)&&counts.pass+counts.fail===counts.tests&&
       [counts.pass,counts.fail].every(Number.isSafeInteger)&&counts.cancelled===0&&counts.skipped===0&&counts.todo===0;
-    const status=complete&&exitCode===0&&counts.pass===EXPECTED&&counts.fail===0?"behavior-pass":
+    const status=complete&&exitCode===0&&counts.pass===counts.tests&&counts.fail===0?"behavior-pass":
       complete&&exitCode===1&&counts.fail>0?"behavior-fail":"infrastructure-or-incomplete";
     return {...base,status,counts,exitCode,stdoutHash:digest(stdout),stderrHash:digest(stderr)};
   } finally {
     try{await exec("docker",["rm","-f",name],{timeout:5000,maxBuffer:4096});}catch{}
     await rm(dir,{recursive:true,force:true});
   }
+}
+
+/**
+ * Mutation screen for a QA author's generated test artifact. Controls must be
+ * controller-owned clean/seeded source, never candidate supplied. The test file is
+ * run independently without keys/network, against each exact control. A clean
+ * pass plus both defect kills is necessary, but not sufficient, for Quinn admission.
+ */
+export async function evaluateQuinnTests(testCode,{image,clean,mutants}={}) {
+  if(!Array.isArray(mutants)||mutants.length!==2||new Set([clean,...mutants]).size!==3)throw Error("distinct trusted controls required");
+  const good=await runIsolatedSuite(clean,testCode,{image});
+  const failures=[];
+  if(good.status==="behavior-pass"&&good.counts.tests>=5){
+    for(const code of mutants)failures.push(await runIsolatedSuite(code,testCode,{image,expectedCount:good.counts.tests}));
+  }
+  const pass=good.status==="behavior-pass"&&good.counts.tests>=5&&failures.length===2&&
+    failures.every(r=>r.status==="behavior-fail"&&r.counts.fail>0);
+  return {schema:1,kind:"synthetic-qa-mutation-screen",testHash:digest(testCode),status:pass?"mutation-screen-pass":"mutation-screen-fail",
+    clean:good,mutants:failures,qualified:false};
 }
