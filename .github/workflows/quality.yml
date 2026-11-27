@@ -17,3 +17,5 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: npm run ai:verify
+      - name: Frontier artifact admission (deterministic, no inference)
+        run: node --test tests/frontier-admission.test.mjs
