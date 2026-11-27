@@ -89,7 +89,8 @@ test("the canonical background worker uses approved free providers with bounded 
   assert.ok(worker.includes("cat .ai-org-runtime/onboarding.md"));
   assert.ok(worker.includes("started-at"));
   assert.ok(worker.includes("github-actions[bot]"));
-  assert.ok(worker.includes("process exit alone is not completion"));
+  assert.ok(worker.includes("Publish and verify read-only completion report"));
+  assert.ok(worker.includes("Workflow could not verify its read-only report comment."));
 });
 
 test("the synthetic free-model smoke is manual and read-only; public access is limited to AI Org itself", () => {
