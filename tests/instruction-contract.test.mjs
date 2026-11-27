@@ -120,9 +120,9 @@ test("autonomy rule keeps its escalation limits; role models are routed and the 
 test("cross-repository public handbook checkout uses the caller token without requiring a deploy key", () => {
   for (const path of [".github/workflows/agent-worker.yml", ".github/workflows/ai-loop.yml", ".github/workflows/handbook-connectivity.yml", ".github/workflows/contract-lock.yml"]) {
     const workflow = read(path);
-    assert.match(workflow, /repository: appsworld2027\\/parent-plus-ai-org/);
-    assert.match(workflow, /token:.*github\\.token/);
-    assert.match(workflow, /persist-credentials: false/);
+    assert.ok(workflow.includes("repository: appsworld2027/parent-plus-ai-org"));
+    assert.ok(workflow.includes("token: ${{ github.token }}"));
+    assert.ok(workflow.includes("persist-credentials: false"));
     assert.doesNotMatch(workflow, /HANDBOOK_ACCESS|ssh-key:/);
     assert.doesNotMatch(workflow, /AI_ORG_HANDBOOK_TOKEN/);
   }
