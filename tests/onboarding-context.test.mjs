@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildPack } from "../scripts/onboarding-pack.mjs";
+import { buildPrompt, pauseComment } from "../scripts/agent-router.mjs";
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), "ai-org-onboarding-"));
@@ -64,4 +65,27 @@ test("bounded onboarding keeps the current task and stays within the configured 
 
   assert.ok(pack.length <= 16000);
   assert.ok(pack.includes("CURRENT_TASK_SENTINEL"));
+});
+
+test("routine agent prompts do not reload full governance handbooks", () => {
+  const prompt = buildPrompt({
+    agent: { slug: "maya-ai-pm", name: "Maya", role: "AI Product Manager" },
+    number: 91,
+    isPR: false,
+    repo: "appsworld2027/parent-plus-ai-org",
+    stage: "ai:discovery"
+  });
+
+  assert.ok(prompt.includes("Read the onboarding pack first"));
+  assert.ok(!prompt.includes("then `.ai-org-handbook/org/agents/"));
+  assert.ok(!prompt.includes("Read `.ai-org-handbook/governance/FOUNDER_DASHBOARD.md`"));
+  assert.ok(!prompt.includes("Read `.ai-org-handbook/governance/PERSONAL_OPERATING_STANDARD.md`"));
+  assert.ok(!prompt.includes("Read `.ai-org-handbook/AGENTS.md`"));
+});
+
+test("pause reports the actual free-provider/quota condition without suggesting paid fallback", () => {
+  const comment = pauseComment({ agent: { name: "Maya", role: "AI Product Manager" }, stage: "ai:discovery" });
+  assert.ok(comment.includes("no approved free engine or usable free quota is available"));
+  assert.ok(comment.includes("Paid engines and paid fallback are disabled"));
+  assert.ok(!comment.includes("supervised trials"));
 });
