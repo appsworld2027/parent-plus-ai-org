@@ -2580,7 +2580,7 @@ jobs:
   canonical-native-adapter:
     if: >-
       github.event_name == 'workflow_dispatch' &&
-      (inputs.confirm == 'COURSE NATIVE ADAPTER SMOKE' || inputs.confirm == 'COURSE NATIVE ADAPTER QUALIFICATION') &&
+      (inputs.confirm == 'COURSE NATIVE ADAPTER SMOKE' || inputs.confirm == 'COURSE NATIVE ADAPTER QUALIFICATION' || inputs.confirm == 'COURSE NATIVE ADAPTER GPT QUALIFICATION') &&
       github.repository == 'appsworld2027/parent-plus-ai-org' &&
       github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
       github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
@@ -2590,11 +2590,7 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        include:
-          - model: openai/gpt-oss-120b
-            label: gpt
-          - model: qwen/qwen3.8-27b
-            label: qwen
+        include: ${{ fromJSON(inputs.confirm == 'COURSE NATIVE ADAPTER GPT QUALIFICATION' && '[{"model":"openai/gpt-oss-120b","label":"gpt"}]' || '[{"model":"openai/gpt-oss-120b","label":"gpt"},{"model":"qwen/qwen3.8-27b","label":"qwen"}]') }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -2614,9 +2610,9 @@ jobs:
           sudo iptables -I OUTPUT -m owner --uid-owner "$(id -u trialagent)" -j REJECT
       - name: Exact canonical adapter with explicit smoke or actual provider mode
         env:
-          QUAL_MODE: ${{ inputs.confirm == 'COURSE NATIVE ADAPTER QUALIFICATION' && 'actual' || 'smoke' }}
+          QUAL_MODE: ${{ inputs.confirm != 'COURSE NATIVE ADAPTER SMOKE' && 'actual' || 'smoke' }}
           ROUTE_MODEL: ${{ matrix.model }}
-          GROQ_API_KEY: ${{ inputs.confirm == 'COURSE NATIVE ADAPTER QUALIFICATION' && secrets.GROQ_API_KEY || '' }}
+          GROQ_API_KEY: ${{ inputs.confirm != 'COURSE NATIVE ADAPTER SMOKE' && secrets.GROQ_API_KEY || '' }}
         run: node trial/controls/native-adapter-qualification.mjs
       - uses: actions/upload-artifact@v4
         if: always()
@@ -2634,7 +2630,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        label: [gpt, qwen]
+        label: ${{ fromJSON(inputs.confirm == 'COURSE NATIVE ADAPTER GPT QUALIFICATION' && '["gpt"]' || '["gpt","qwen"]') }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -2648,7 +2644,7 @@ jobs:
           path: untrusted
       - name: Fresh no-key grading of exact candidate and adapter bytes
         env:
-          EXPECT_MODE: ${{ inputs.confirm == 'COURSE NATIVE ADAPTER QUALIFICATION' && 'actual' || 'smoke' }}
+          EXPECT_MODE: ${{ inputs.confirm != 'COURSE NATIVE ADAPTER SMOKE' && 'actual' || 'smoke' }}
         run: |
           set -euo pipefail
           d=$(mktemp -d /tmp/canonical-grade-XXXXXX)
