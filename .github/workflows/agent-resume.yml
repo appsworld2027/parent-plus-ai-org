@@ -1,5 +1,5 @@
-# Reusable resume sweep. Resume open agent-stage issues/PRs when an approved Groq or NVIDIA free key exists.
-# Reviewer stages still require Groq; no paid fallback is available.
+# Standard recovery uses only the approved Groq free route.
+# NVIDIA is evaluation-only and cannot wake ordinary delivery. No paid fallback.
 name: Agent resume
 
 on:
@@ -26,7 +26,7 @@ jobs:
       cancel-in-progress: false
     env:
       GH_TOKEN: ${{ github.token }}
-      HAS_ENGINE: ${{ secrets.GROQ_API_KEY != '' || secrets.NVIDIA_NIM_API_KEY != '' }}
+      HAS_GROQ: ${{ secrets.GROQ_API_KEY != '' }}
       WORKFLOW: ${{ inputs.dispatch_workflow }}
     steps:
       - name: Re-dispatch resumable items from trusted runtime receipts
@@ -37,6 +37,21 @@ jobs:
           // BEGIN RECOVERY POLICY
           export const STAGES = new Set(["ai:discovery", "ai:plan", "ai:lane-a", "ai:lane-b", "ai:design", "ai:tests", "ai:tests-review", "ai:tests-signoff", "ai:build", "ai:database", "ai:integration", "ai:qa", "ai:review", "ai:release-ops", "ai:fix"]);
           export const MAX_RECOVERIES = 3;
+          // A resumed turn can consume substantial free-provider quota. One
+          // bounded recovery claim per sweep; normal independent lanes are unaffected.
+          export const MAX_DISPATCHES_PER_SWEEP = 1;
+          const ACTIVE_RUN_STATES = new Set(['requested','waiting','pending','queued','in_progress']);
+          export function recoveryCapacity({hasGroq,runs,currentRunId}={}) {
+            if (hasGroq !== true) return {allow:false,reason:'approved standard Groq route unavailable'};
+            if (!Array.isArray(runs) || !/^[1-9]\d*$/.test(String(currentRunId))) return {allow:false,reason:'active-run evidence unavailable'};
+            for (const r of runs) {
+              if (!Number.isSafeInteger(r?.id) || r.id < 1 || !(ACTIVE_RUN_STATES.has(r.status) || r.status === 'completed'))
+                return {allow:false,reason:'malformed active-run evidence'};
+              if (String(r.id) !== String(currentRunId) && ACTIVE_RUN_STATES.has(r.status))
+                return {allow:false,reason:'another agent workflow run is active'};
+            }
+            return {allow:true,reason:'no other active agent workflow run observed'};
+          }
           export function stageOf(issue) {
             if (issue?.state !== "open" || !Array.isArray(issue.labels)) return null;
             const labels = issue.labels.map(l => typeof l === "string" ? l : l?.name);
@@ -83,8 +98,8 @@ jobs:
           }
           // END RECOVERY POLICY
 
-          if (process.env.HAS_ENGINE !== "true") {
-            console.log("No approved free provider connected - nothing to resume.");
+          if (process.env.HAS_GROQ !== "true") {
+            console.log("No approved standard Groq route connected - nothing to resume. NVIDIA trial credentials cannot wake standard delivery.");
             process.exit(0);
           }
           const repo = process.env.GITHUB_REPOSITORY;
@@ -95,10 +110,12 @@ jobs:
           const api = path => JSON.parse(gh("api","repos/"+repo+"/"+path));
           const rows = (path,query) => gh("api","--paginate","repos/"+repo+"/"+path,"--jq",query).split("\n").filter(Boolean).map(JSON.parse);
           const commentsFor = n => rows("issues/"+n+"/comments?per_page=100",'.[] | select(.user.login=="github-actions[bot]" and (.body|startswith("<!-- ai-org:runtime:v1 "))) | {id,created_at,user,body:(.body|split("\n")[0])}');
-          const issues = rows("issues?state=open&per_page=100",'.[] | {number,state,labels}').filter(stageOf);
-          let dispatched=0, scanned=0, holds=0;
+          const issues = rows("issues?state=open&sort=updated&direction=asc&per_page=100",'.[] | {number,state,labels}').filter(stageOf);
+          const activeRuns = () => [...ACTIVE_RUN_STATES].flatMap(status =>
+            rows("actions/workflows/"+encodeURIComponent(workflow)+"/runs?status="+status+"&per_page=100",'.workflow_runs[] | {id,status}'));
+          let dispatched=0, attempted=0, scanned=0, holds=0;
           for (const issue of issues) {
-            if (dispatched>=8 || scanned>=100) break;
+            if (attempted>=MAX_DISPATCHES_PER_SWEEP || scanned>=100) break;
             scanned++;
             const n=issue.number;
             if (!Number.isSafeInteger(n) || n<1) continue;
@@ -116,14 +133,22 @@ jobs:
                 continue;
               }
               const receipt = state => "<!-- ai-org:runtime:v1 state="+state+" stage="+decision.stage+" run="+process.env.GITHUB_RUN_ID+" attempt="+process.env.GITHUB_RUN_ATTEMPT+" mode=standard source="+decision.source.id+" -->";
-              // Claim before dispatch: a timeout never causes an automatic duplicate.
-              gh("issue","comment",String(n),"--repo",repo,"--body",receipt("claimed"));
+              // Repo-scoped recovery gate; this is not a cross-repository global quota lock.
+              // Reconcile active worker status immediately before claiming an eligible item.
+              let capacity;
+              try { capacity=recoveryCapacity({hasGroq:true,runs:activeRuns(),currentRunId:process.env.GITHUB_RUN_ID}); }
+              catch { capacity={allow:false,reason:'active-run evidence unavailable'}; }
+              if (!capacity.allow) { holds++; console.log('Held recovery sweep: '+capacity.reason); break; }
+              // Count the claim attempt even if the network outcome is uncertain.
+              // The Issues API handles both issue and pull-request comments.
+              attempted++;
+              gh("api","--method","POST","repos/"+repo+"/issues/"+n+"/comments","--raw-field","body="+receipt("claimed"));
               try {
                 gh("workflow","run",workflow,"--repo",repo,"-f","number="+n);
                 dispatched++;
                 console.log("Resumed #"+n+" from receipt "+decision.source.id);
               } catch {
-                gh("issue","comment",String(n),"--repo",repo,"--body",receipt("dispatch_failed"));
+                gh("api","--method","POST","repos/"+repo+"/issues/"+n+"/comments","--raw-field","body="+receipt("dispatch_failed"));
                 holds++;
                 console.log("Held #"+n+": dispatch outcome uncertain; no automatic repeat");
               }
@@ -132,7 +157,7 @@ jobs:
               console.log("Held #"+n+": runtime evidence unavailable; no dispatch");
             }
           }
-          const summary="Scanned "+scanned+"/"+issues.length+" active items; dispatched "+dispatched+"; holds "+holds+".";
+          const summary="Scanned "+scanned+"/"+issues.length+" active items; recovery claims attempted "+attempted+"; dispatched "+dispatched+"; holds "+holds+".";
           console.log(summary);
           if (process.env.GITHUB_STEP_SUMMARY) {
             const { appendFileSync } = await import("node:fs");
