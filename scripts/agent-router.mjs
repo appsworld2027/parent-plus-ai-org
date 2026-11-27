@@ -162,13 +162,13 @@ export function signoffBrief(number) {
   ].join("\n");
 }
 
-export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = "standard" }) {
+export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = "standard", featureSlug = "" }) {
   const kind = isPR ? "pull request" : "issue";
   const cli = isPR ? "gh pr" : "gh issue";
   const extra = agent.slug === "maya-ai-pm" ? " and `.ai-org-handbook/playbooks/ai-pm.md` and `.ai-org-handbook/playbooks/feature-contract.md`" : agent.slug === "quinn-qa" ? " and `.ai-org-handbook/playbooks/qa-charter.md`" : "";
   return [
     `You are ${agent.name}, the ${agent.role} of the AppsWorld AI Organization, running as a background worker in GitHub Actions on ${repo}.`,
-    `1. Read the onboarding pack first. It contains your role card and RACI. Consult only relevant sections of the canonical role file .ai-org-handbook/org/agents/${agent.slug}.md${extra} and the Founder Operating Charter when needed; do not load entire handbooks or reread the role card.`,
+    `1. Read the onboarding pack first. It contains your role card and RACI. Consult only relevant sections of the canonical role file .ai-org-handbook/org/agents/${agent.slug}.md${extra} and the Founder Operating Charter when needed; do not load entire handbooks or reread the role card.`,\n    `1a. Feature slug: ${featureSlug || "not assigned"}. Never use literal "_none_". If no valid feature slug is assigned, do not create a handoff or write under docs/product/_none_.`,
     `2. Read ${kind} #${number} metadata and body only using ${cli} view ${number} --json title,body,labels,assignees. Read comments only when a retry or explicit task requires history.`,
     `3. Do your role's job for this ${kind} only. Keep changes small and reversible. Run the repo's checks before claiming anything.`,
     `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,
@@ -207,7 +207,7 @@ if (isMain(import.meta.url)) {
   if (r.role) {
     const agent = agentInfo(r.role);
     Object.assign(out, { agent_name: agent.name, agent_role: agent.role, model: agent.model });
-    if (r.action === "run") out.prompt = buildPrompt({ agent, number: arg("number"), isPR, repo: arg("repo"), stage: r.stage, toolMode });
+    if (r.action === "run") out.prompt = buildPrompt({ agent, number: arg("number"), isPR, repo: arg("repo"), stage: r.stage, toolMode, featureSlug: process.env.FEATURE_SLUG || "" });
     if (r.action === "pause") out.pause_comment = pauseComment({ agent, stage: r.stage });
   }
   console.log(JSON.stringify({ ...out, prompt: out.prompt ? "(set)" : undefined, pause_comment: out.pause_comment ? "(set)" : undefined }));
