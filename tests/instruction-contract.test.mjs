@@ -45,7 +45,8 @@ test("the scheduled GitHub path loads the canonical handbook with compact task-s
   assert.ok(worker.includes("path: .ai-org-handbook"));
   assert.ok(worker.includes("--system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md"));
   assert.ok(worker.includes("claude --bare -p"));
-  assert.ok(worker.includes("Verify read-only completion comment"));
+  assert.ok(worker.includes("Publish and verify read-only completion report"));
+  assert.ok(worker.includes("The workflow publishes it as the issue comment"));
   assert.ok(worker.includes("## Compact onboarding pack"));
   assert.ok(worker.includes("cat .ai-org-runtime/onboarding.md"));
   assert.ok(worker.includes("single-quoted plain-text body"));
