@@ -86,17 +86,17 @@ Hosted evidence: pull request #8, Actions run `44299136249`, and merge
 Status: implementation branch prepared; pending CI and required caller credentials.
 
 Scope:
-- Enforce free-only Groq execution in the router and reusable worker.
+- Enforce free-only multi-provider routing: NVIDIA NIM builder when available, Groq independent reviewer and approved free builder fallback.
 - Remove Claude/Codex paid-subscription execution paths from unattended agents.
 - Enable background execution by default with an explicit emergency-off variable.
-- Resume paused work when the Groq free key is available.
+- Resume paused work when an approved NVIDIA or Groq free key is available; reviewer stages still require Groq.
 - Replace the unavailable private-repository GitHub Pages deployment with a retained dashboard artifact.
 - Record numeric Groq usage as provider/model evidence without storing transcripts.
 
 Exit evidence required:
 - AI Org quality workflow passes on the merge candidate.
 - Router tests prove paid labels and credentials cannot select a paid engine.
-- A real Groq free-tier tool-call probe passes.
+- NVIDIA builder and Groq reviewer tool-call probes pass; NVIDIA capacity failure falls back only to the approved Groq free builder.
 - A supervised, synthetic task completes through discovery, plan, build, independent QA, repair and PR.
 - Parent Plus and Studio private handbook checkouts succeed after owner-side deploy-key setup.
 - A real product feature passes locked acceptance tests and independent review before any release.
