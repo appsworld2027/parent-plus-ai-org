@@ -1,0 +1,11 @@
+# Runtime recovery and durable attempt receipts
+
+The canonical worker posts a small structured GitHub issue comment at each lifecycle boundary: started before preparation, executing before provider/model execution, completed after successful checks, paused for verified transient provider failures, blocked for missing provider/policy conditions, and failed for other errors. Receipt identity binds the current stage, GitHub run ID, attempt number and tool mode. The run itself remains the evidence source.
+
+The resume workflow reads only trusted bot receipts from the exact open item, selects its single current stage, checks the referenced GitHub run/attempt and completion status, and applies an exponential cooldown of 15, 30 and 60 minutes. Automatic recovery is limited to three claimed retries per stage episode and eight dispatches per scheduler run. It can recover a verified transient pause or a cancelled/timed-out attempt that did not cross the execution boundary. It may not dispatch read-only work into standard tool mode. A job-level concurrency group serializes resume runs; the existing worker concurrency group serializes work on one issue.
+
+Before dispatch, the scheduler records a claim referencing the source receipt. A claim or uncertain/failed dispatch cannot automatically be repeated. A new trusted worker receipt advances the state. Ordinary human comments do not erase a pause; unknown, legacy or spoofed receipts, stage changes, blocked items, ambiguous evidence, missing provider/policy approval, and possible partial writes fail closed.
+
+**Limits:** no automatic recovery of arbitrary partially written work or uncertain dispatch outcome; those require reconciliation from actual branch/checkpoint evidence. No production interruption evidence is claimed by policy fixtures alone. The workflow must have issue-comment permission as well as Actions dispatch permission; it fails closed before dispatch if it cannot claim. Existing callers remain unchanged until their next approved integration update.
+
+The pure recovery policy inside the reusable workflow is executed directly by the regression tests, rather than a duplicated test implementation. All unattended model traffic continues through the approved free-only routing policy.

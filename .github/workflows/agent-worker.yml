@@ -168,6 +168,15 @@ jobs:
             cat /tmp/route.json
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Record task attempt
+        if: steps.router.outputs.action == 'run'
+        env:
+          STAGE: ${{ steps.router.outputs.stage }}
+        run: |
+          set -euo pipefail
+          [[ "$STAGE" =~ ^ai:[a-z-]+$ && "$TOOL_MODE" =~ ^(standard|readonly)$ ]]
+          printf '<!-- ai-org:runtime:v1 state=started stage=%s run=%s attempt=%s mode=%s -->\n' "$STAGE" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$TOOL_MODE" > /tmp/runtime-receipt.md
+          gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/runtime-receipt.md
       - name: Prepare the product workspace (dependencies + test browser)
         if: steps.router.outputs.action == 'run' && inputs.tool_mode != 'readonly' && (steps.router.outputs.stage == 'ai:build' || steps.router.outputs.stage == 'ai:fix' || steps.router.outputs.stage == 'ai:qa' || steps.router.outputs.stage == 'ai:tests')
         continue-on-error: true
@@ -228,16 +237,27 @@ jobs:
       - name: Pause (no engine connected)
         if: steps.router.outputs.action == 'pause'
         env:
+          STAGE: ${{ steps.router.outputs.stage }}
           PAUSE_COMMENT: ${{ steps.router.outputs.pause_comment }}
+          PAUSE_REASON: ${{ steps.router.outputs.reason }}
         run: |
           set -euo pipefail
-          if gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments" --paginate --jq '.[].body' | grep -q 'ai-org:paused'; then
-            echo "Pause comment already present - not posting again."
-          else
-            printf '%s\n' "$PAUSE_COMMENT" > /tmp/pause.md
-            gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/pause.md
-          fi
-
+          [[ "$STAGE" =~ ^ai:[a-z-]+$ && "$TOOL_MODE" =~ ^(standard|readonly)$ ]]
+          {
+            printf '<!-- ai-org:runtime:v1 state=blocked stage=%s run=%s attempt=%s mode=%s -->\n' "$STAGE" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$TOOL_MODE"
+            printf '%s\n\nRouter: %s\n' "$PAUSE_COMMENT" "$PAUSE_REASON"
+            echo "No automatic retry: a required provider or policy approval must be restored."
+          } > /tmp/pause.md
+          gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/pause.md
+      - name: Record model-execution boundary
+        if: steps.router.outputs.action == 'run'
+        env:
+          STAGE: ${{ steps.router.outputs.stage }}
+        run: |
+          set -euo pipefail
+          [[ "$STAGE" =~ ^ai:[a-z-]+$ && "$TOOL_MODE" =~ ^(standard|readonly)$ ]]
+          printf '<!-- ai-org:runtime:v1 state=executing stage=%s run=%s attempt=%s mode=%s -->\n' "$STAGE" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$TOOL_MODE" > /tmp/runtime-receipt.md
+          gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/runtime-receipt.md
       - name: Run agent with the selected free provider (FCC compatibility adapter)
         if: steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'free'
         env:
@@ -516,9 +536,19 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+      - name: Record completed attempt
+        if: success() && steps.router.outputs.action == 'run'
+        env:
+          STAGE: ${{ steps.router.outputs.stage }}
+        run: |
+          set -euo pipefail
+          [[ "$STAGE" =~ ^ai:[a-z-]+$ && "$TOOL_MODE" =~ ^(standard|readonly)$ ]]
+          printf '<!-- ai-org:runtime:v1 state=completed stage=%s run=%s attempt=%s mode=%s -->\n' "$STAGE" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$TOOL_MODE" > /tmp/runtime-receipt.md
+          gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/runtime-receipt.md
       - name: Report a failed run
         if: failure() && steps.router.outputs.action == 'run'
         env:
+          STAGE: ${{ steps.router.outputs.stage }}
           AGENT_NAME: ${{ steps.router.outputs.agent_name }}
           AGENT_ROLE: ${{ steps.router.outputs.agent_role }}
           FREE_MODEL: ${{ steps.router.outputs.free_model }}
@@ -532,6 +562,9 @@ jobs:
             SUMMARY="The run failed after starting the free-model execution path. It is not retried automatically; the next attempt reads this note first."
           fi
           {
+            [[ "$STAGE" =~ ^ai:[a-z-]+$ && "$TOOL_MODE" =~ ^(standard|readonly)$ ]] || exit 1
+            STATE="failed"; [ "$MARKER" = "ai-org:paused" ] && STATE="paused"
+            printf '<!-- ai-org:runtime:v1 state=%s stage=%s run=%s attempt=%s mode=%s -->\n' "$STATE" "$STAGE" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$TOOL_MODE"
             printf '<!-- %s -->\n' "$MARKER"
             ACTUAL_MODEL=$(jq -r '.free_model // empty' /tmp/route.json 2>/dev/null || true)
             [ -n "$ACTUAL_MODEL" ] || ACTUAL_MODEL="$FREE_MODEL"
