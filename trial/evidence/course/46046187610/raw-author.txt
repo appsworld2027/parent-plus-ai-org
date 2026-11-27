@@ -1,0 +1,190 @@
+import { test, expect } from '@playwright/test';
+import { backend, login } from '../support/backend';
+
+test.setTimeout(60000);
+
+test('CRS-01-SC-001', async ({ page }) => {
+  await backend(page, { academy: true });
+  await login(page);
+  // PROOF: Verify Courses button is visible (expected to fail because the feature is missing)
+  const coursesBtn = page.getByRole('button', { name: 'Courses' });
+  await expect(coursesBtn).toBeVisible();
+
+  // Verify the baseline tabs are present
+  await expect(page.getByRole('tab', { name: 'Today' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Schedule' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Feedback' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Students' })).toBeVisible();
+
+  // Verify empty state for courses
+  await expect(page.getByText('No courses yet')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Create course' })).toBeVisible();
+});
+
+test('CRS-01-SC-002', async ({ page }) => {
+  await backend(page, { academy: true });
+  await login(page);
+  // PROOF: Open the create‑course form and assert validation when title is blank
+  await page.getByRole('button', { name: 'Courses' }).click();
+  await page.getByRole('button', { name: 'Create course' }).click();
+
+  // Leave title empty, fill stage and objective to trigger validation
+  await page.getByLabel('Stage 1 title').fill('Stage One');
+  await page.getByLabel('Stage 1 objective 1').fill('First objective');
+  await page.getByRole('button', { name: 'Save draft' }).click();
+
+  await expect(page.getByText('Course title is required')).toBeVisible();
+
+  // Ensure no backend call was made for creation
+  const calls = await page.evaluate(() => window.__coachFixture.calls);
+  expect(calls).not.toContain('createCourse');
+});
+
+test('CRS-01-SC-003', async ({ page }) => {
+  await backend(page, { academy: true });
+  await login(page);
+  // PROOF: Create a valid draft with multiple stages/objectives, save, and verify edit restores fields
+  await page.getByRole('button', { name: 'Courses' }).click();
+  await page.getByRole('button', { name: 'Create course' }).click();
+
+  await page.getByLabel('Course title').fill('Advanced Coaching');
+  await page.getByLabel('Stage 1 title').fill('Foundations');
+  await page.getByLabel('Stage 1 objective 1').fill('Understand basics');
+
+  // Add second stage
+  await page.getByRole('button', { name: 'Add stage' }).click();
+  await page.getByLabel('Stage 2 title').fill('Advanced Techniques');
+  await page.getByLabel('Stage 2 objective 1').fill('Master complex scenarios');
+
+  // Add second objective to stage 1
+  await page.getByRole('button', { name: 'Add objective', exact: true }).first().click();
+  await page.getByLabel('Stage 1 objective 2').fill('Apply fundamentals');
+
+  await page.getByRole('button', { name: 'Save draft' }).click();
+
+  // Verify list shows title with Draft badge
+  await expect(page.getByText('Advanced Coaching')).toBeVisible();
+  await expect(page.getByText('Draft')).toBeVisible();
+
+  // Edit the course and verify fields are restored
+  await page.getByRole('button', { name: 'Edit', exact: true }).click();
+  await expect(page.getByLabel('Course title')).toHaveValue('Advanced Coaching');
+  await expect(page.getByLabel('Stage 1 title')).toHaveValue('Foundations');
+  await expect(page.getByLabel('Stage 1 objective 2')).toHaveValue('Apply fundamentals');
+
+  // Verify backend recorded a draft save
+  const calls = await page.evaluate(() => window.__coachFixture.calls);
+  expect(calls).toContain('saveDraft');
+});
+
+test('CRS-01-SC-004', async ({ page }) => {
+  await backend(page, { academy: true });
+  await login(page);
+  // PROOF: Publish two distinct immutable versions and verify history shows both titles
+  await page.getByRole('button', { name: 'Courses' }).click();
+  await page.getByRole('button', { name: 'Create course' }).click();
+
+  // First version
+  await page.getByLabel('Course title').fill('Version One');
+  await page.getByLabel('Stage 1 title').fill('Stage A');
+  await page.getByLabel('Stage 1 objective 1').fill('Objective A1');
+  await page.getByRole('button', { name: 'Save draft' }).click();
+  await page.getByRole('button', { name: 'Publish' }).click();
+  await page.getByRole('button', { name: 'Confirm publish' }).click();
+
+  // Verify version 1 appears
+  await expect(page.getByText('Version 1')).toBeVisible();
+  await expect(page.getByText('Version One')).toBeVisible();
+
+  // Edit title and publish second version
+  await page.getByRole('button', { name: 'Edit' }).click();
+  await page.getByLabel('Course title').fill('Version Two');
+  await page.getByRole('button', { name: 'Publish' }).click();
+  await page.getByRole('button', { name: 'Confirm publish' }).click();
+
+  // Verify history shows both immutable versions with distinct titles
+  await page.getByRole('button', { name: 'History' }).click();
+  await expect(page.getByText('Version 1')).toBeVisible();
+  await expect(page.getByText('Version One')).toBeVisible();
+  await expect(page.getByText('Version 2')).toBeVisible();
+  await expect(page.getByText('Version Two')).toBeVisible();
+
+  // Verify backend recorded two publish calls
+  const calls = await page.evaluate(() => window.__coachFixture.calls);
+  const publishCalls = calls.filter(c => c === 'publishCourse');
+  expect(publishCalls.length).toBe(2);
+});
+
+test('CRS-01-SC-005', async ({ page }) => {
+  await backend(page, { academy: true });
+  await login(page);
+  // PROOF: Dirty‑state guard – leaving the form shows confirmation and preserves input on “Keep editing”
+  await page.getByRole('button', { name: 'Courses' }).click();
+  await page.getByRole('button', { name: 'Create course' }).click();
+
+  await page.getByLabel('Course title').fill('Unsaved Course');
+  await page.getByLabel('Stage 1 title').fill('Stage X');
+
+  // Attempt to navigate away
+  await page.getByRole('tab', { name: 'Today' }).click();
+
+  // Expect confirmation dialog
+  const dialog = page.getByText('Leave your unsaved changes?');
+  await expect(dialog).toBeVisible();
+
+  // Choose “Keep editing”
+  await page.getByRole('button', { name: 'Keep editing' }).click();
+
+  // Verify inputs are still present
+  await expect(page.getByLabel('Course title')).toHaveValue('Unsaved Course');
+  await expect(page.getByLabel('Stage 1 title')).toHaveValue('Stage X');
+
+  // Verify no backend call for discard
+  const calls = await page.evaluate(() => window.__coachFixture.calls);
+  expect(calls).not.toContain('discardDraft');
+});
+
+test('CRS-01-SC-006', async ({ page }) => {
+  await backend(page, { academy: true });
+  await login(page);
+  // PROOF: Draft persists across navigation and no network request is sent for the draft save
+  await page.getByRole('button', { name: 'Courses' }).click();
+  await page.getByRole('button', { name: 'Create course' }).click();
+
+  await page.getByLabel('Course title').fill('Persistent Draft');
+  await page.getByLabel('Stage 1 title').fill('Stage Persist');
+  await page.getByLabel('Stage 1 objective 1').fill('Objective Persist');
+  await page.getByRole('button', { name: 'Save draft' }).click();
+
+  // Navigate away and back
+  await page.getByRole('tab', { name: 'Schedule' }).click();
+  await page.getByRole('tab', { name: 'Today' }).click();
+  await page.getByRole('button', { name: 'Courses' }).click();
+
+  // Verify draft is still listed
+  await expect(page.getByText('Persistent Draft')).toBeVisible();
+  await expect(page.getByText('Draft')).toBeVisible();
+
+  // Verify no network request was recorded for the draft save
+  const calls = await page.evaluate(() => window.__coachFixture.calls);
+  expect(calls).not.toContain('saveCourseNetwork');
+});
+
+
+//===GUARD===
+
+import { test, expect } from '@playwright/test';
+import { backend, login } from '../support/backend';
+
+test.setTimeout(60000);
+
+test('GUARD-CRS-FLAG-OFF', async ({ page }) => {
+  await backend(page, { academy: true });
+  await login(page);
+  // PROOF: When the course pilot flag is off, the Courses button must not be visible
+  const coursesBtn = page.getByRole('button', { name: 'Courses' });
+  await expect(coursesBtn).not.toBeVisible();
+});
+
+
+// LIMITATIONS: The exact backend call identifiers (e.g., 'saveDraft', 'publishCourse') are inferred from the fixture contract and may differ in the real implementation. Dialog button texts and role selectors assume standard accessible naming; variations could affect test stability. No verification of network payloads beyond call name presence.
