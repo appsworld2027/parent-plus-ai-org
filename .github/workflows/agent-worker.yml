@@ -257,7 +257,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           PROMPT="$PROMPT
           7. Engine facts: you are running on the model $FREE_MODEL, served by the Groq free tier through Free Claude Code. You are not a Claude model. Whenever you name the model or engine that did the work (comments, commits, PRs), state exactly this.
-          8. Normal work: use --body-file for comments and PR bodies. Read-only mode: the only permitted write is the requested issue comment; use gh issue comment --body with a single-quoted plain-text body, never unescaped backticks or $() shell substitutions; do not create files.
+          8. Normal work: use --body-file for comments and PR bodies. Read-only mode: the only permitted write is the requested issue comment; use gh issue comment --body with a single-quoted plain-text body, never unescaped backticks or \$() shell substitutions; do not create files.
           9. Feature slug: $FEATURE_SLUG. Never use literal _none_. If no feature slug is assigned, do not create a handoff.
           10. Do not change issue stage labels or issue state; the workflow owns stage transitions.
           11. Evidence rule: every claim that checks passed must link a CI run or quote the command and its result line."
