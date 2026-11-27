@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const autonomyPolicy = JSON.parse(readFileSync(new URL("../governance/AUTONOMY_POLICY.json", import.meta.url), "utf8"));
-import { route as policyRoute, ENGINES, ALLOWED_ENGINES, agentInfo, buildPrompt, pauseComment, PAUSE_MARKER, FREE_MODELS, testsBrief, buildBrief, STAGE_SEAT } from "../scripts/agent-router.mjs";
+import { route as policyRoute, ENGINES, ALLOWED_ENGINES, agentInfo, buildPrompt, pauseComment, PAUSE_MARKER, FREE_MODELS, testsBrief, buildBrief, STAGE_SEAT, STAGE_ROLE } from "../scripts/agent-router.mjs";
 
 // Tests exercise the canonical policy: caller inputs cannot widen the allowed engine set.
 const route = (a) => policyRoute(a);
@@ -15,7 +15,14 @@ test("founder and blocked stages never run an agent", () => {
   for (const s of ["ai:founder-decision", "ai:founder-test", "ai:blocked", "ai:release", "ai:delivery", "ai:contract"]) assert.equal(route({ labels: [s, "ai:build"], engines: all }).action, "skip");
 });
 test("stages map to the right agents", () => {
-  const cases = { "ai:discovery": "maya-ai-pm", "ai:plan": "arjun-cpto", "ai:tests": "quinn-qa", "ai:tests-review": "quinn-qa", "ai:tests-signoff": "arjun-cpto", "ai:build": "dev-coder", "ai:qa": "quinn-qa", "ai:review": "rex-reviewer", "ai:fix": "dev-coder" };
+  const cases = {
+    "ai:discovery": "maya-ai-pm", "ai:plan": "arjun-cpto",
+    "ai:lane-a": "kiran-pjm-a", "ai:lane-b": "leela-pjm-b",
+    "ai:design": "iris-design", "ai:database": "tara-database", "ai:integration": "ravi-integration",
+    "ai:tests": "quinn-qa", "ai:tests-review": "quinn-qa", "ai:tests-signoff": "arjun-cpto",
+    "ai:build": "dev-coder", "ai:qa": "quinn-qa", "ai:review": "rex-reviewer",
+    "ai:fix": "dev-coder", "ai:release-ops": "sam-release"
+  };
   for (const [s, role] of Object.entries(cases)) assert.equal(route({ labels: [s], engines: both }).role, role);
 });
 test("Owner line routes build work to Tara or Ravi", () => {
@@ -50,8 +57,12 @@ test("free engine runs when it is the only engine, with builder and reviewer mod
   assert.equal(q.engine, "free"); assert.equal(q.free_model, FREE_MODELS.reviewer);
   assert.notEqual(FREE_MODELS.builder, FREE_MODELS.reviewer);
 });
-test("every routed role has an agent file with a name", () => {
-  for (const slug of ["maya-ai-pm", "arjun-cpto", "dev-coder", "tara-database", "ravi-integration", "quinn-qa", "rex-reviewer"]) {
+test("all 11 organization roles are reachable through an explicit stage and have a role file", () => {
+  const expected = ["arjun-cpto", "dev-coder", "iris-design", "kiran-pjm-a", "leela-pjm-b",
+    "maya-ai-pm", "quinn-qa", "ravi-integration", "rex-reviewer", "sam-release", "tara-database"];
+  const routed = [...new Set(Object.values(STAGE_ROLE))].sort();
+  assert.deepEqual(routed, [...expected].sort());
+  for (const slug of expected) {
     const a = agentInfo(slug); assert.ok(a.name && a.role, slug);
   }
 });
