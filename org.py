@@ -73,7 +73,7 @@ def report(path):
         "attempts": len(attempts),
         "observed_tokens": dict(observed),
         "missing_usage": len(attempts - measured),
-        "billing_basis": "Existing Codex allowance. Token counts are not an invoice.",
+        "billing_basis": "Approved free-provider tier usage. Token counts are not an invoice.",
     }
 
 
