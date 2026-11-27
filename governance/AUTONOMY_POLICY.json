@@ -42,6 +42,7 @@
     "neverPersistSecretsOrCustomerPersonalData": true
   },
   "notes": [
+    "Background worker execution requires the caller repository to be private and the caller Actions variable UNATTENDED_AGENTS=on.",
     "This policy is the machine-readable authority contract for AI Org.",
     "Unattended development agents use only the Groq free tier through the pinned Free Claude Code adapter.",
     "If the free key, model, or quota is unavailable, execution pauses; no paid fallback or automatic upgrade is permitted.",
