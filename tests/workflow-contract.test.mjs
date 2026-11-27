@@ -23,6 +23,13 @@ test("the canonical background worker accepts Groq and has no NVIDIA inference s
   assert.ok(worker.includes("GROQ_API_KEY:\n        required: false"));
   assert.ok(!worker.includes("NVIDIA_NIM_API_KEY"));
   assert.ok(worker.includes("api.groq.com"));
+  assert.ok(worker.includes("claude --bare -p"));
+  assert.ok(worker.includes("--system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md"));
+  assert.ok(worker.includes('--tools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch"'));
+  assert.ok(worker.includes("CLAUDE_CODE_MAX_OUTPUT_TOKENS=2048"));
+  const systemPrompt = read("../governance/FREE_AGENT_SYSTEM_PROMPT.md");
+  assert.ok(systemPrompt.includes("Groq free-tier"));
+  assert.ok(systemPrompt.includes("Never call another provider"));
 });
 
 test("the canonical organization workflow delegates only the free Groq engine", () => {
