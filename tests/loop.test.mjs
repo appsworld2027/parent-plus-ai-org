@@ -161,3 +161,35 @@ test("unauthorized human account cannot satisfy the independent PR approval allo
   const unauthorized = { id: 1, user: { id: 99, login: "unlisted-reviewer", type: "User" }, state: "APPROVED", commit_id: "current" };
   assert.equal(hasIndependentApproval([unauthorized], options), false);
 });
+
+import { selectDeliveryItems, scopesConflict } from "../scripts/delivery-lanes.mjs";
+
+test("delivery lanes allow disjoint declared scopes and cap at two", () => {
+  const scoped = path => ({ files:[path], migrations:[], apis:[], rules:[], dependsOn:[] });
+  const items = ["alpha","beta","gamma"].map(slug => ({slug}));
+  const scopes = {alpha:scoped("src/alpha"), beta:scoped("src/beta"), gamma:scoped("src/gamma")};
+  assert.deepEqual(selectDeliveryItems({items,scopes,maxLanes:2}).map(x=>x.slug),["alpha","beta"]);
+  assert.deepEqual(selectDeliveryItems({items,scopes,maxLanes:2,active:[{title:"Discovery: Alpha [alpha]"}]}).map(x=>x.slug),["beta"]);
+  assert.deepEqual(selectDeliveryItems({items,scopes,maxLanes:2,active:[{title:"Discovery: Alpha [alpha]"},{baseRefName:"ai/contract-alpha"}]}).map(x=>x.slug),["beta"]);
+});
+test("delivery lanes serialize missing, conflicting, or unknown scope and unmet dependencies", () => {
+  const scoped = path => ({ files:[path], migrations:[], apis:[], rules:[], dependsOn:[] });
+  const items = [{slug:"alpha"},{slug:"beta"}];
+  const active = [{headRefName:"ai/contract-alpha"}];
+  const scopes = {alpha:scoped("src/shared"), beta:scoped("src/shared/child")};
+  assert.deepEqual(selectDeliveryItems({items,scopes,active,maxLanes:2}),[]);
+  assert.deepEqual(selectDeliveryItems({items,active,maxLanes:2}),[]);
+  assert.deepEqual(selectDeliveryItems({items,maxLanes:2}),[items[0]]);
+  assert.deepEqual(selectDeliveryItems({items,scopes,active:[{title:"unidentified task"}],maxLanes:2}),[]);
+  scopes.beta = {...scoped("src/beta"),dependsOn:["alpha"]};
+  assert.deepEqual(selectDeliveryItems({items:[items[1]],scopes,maxLanes:2}),[]);
+  assert.deepEqual(selectDeliveryItems({items:[items[1]],scopes,maxLanes:2,completed:["alpha"]}),[items[1]]);
+  assert.deepEqual(selectDeliveryItems({items:[items[1]],scopes:{beta:scoped("../src")},maxLanes:2}),[]);
+});
+test("delivery lanes detect shared API, migration, and product-rule scopes", () => {
+  const a = {files:["src/a"], migrations:[], apis:[], rules:[], dependsOn:[]};
+  for (const key of ["migrations","apis","rules"]) {
+    const b = {...a,files:["src/b"],[key]:["shared"]};
+    assert.equal(scopesConflict({...a,[key]:["shared"]},b),true);
+  }
+});

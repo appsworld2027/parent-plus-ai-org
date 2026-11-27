@@ -3,10 +3,11 @@
 // with the handbook at .ai-org-handbook/. Modes:
 //   advance  - move every open loop item one step when its gate is met (scheduled + after each agent run)
 //   command  - handle a founder command comment: /approve  /changes <text>  /next  /stop
-//   next     - start the next backlog item (only when nothing else is in flight)
+//   next     - start eligible backlog items under the delivery lane policy
 // Founder touches only two gates: approve the Feature Contract, and approve the Demo Pack (ship to main).
 // Everything else (contract tests, build, QA, review, merge into the feature branch, release checks) is automatic.
 import { execFileSync } from "node:child_process";
+import { selectDeliveryItems } from "./delivery-lanes.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { realpathSync } from "node:fs";
@@ -376,15 +377,29 @@ export function advance() {
   log(`advance: looked at ${prs.length} open PR(s)`);
 }
 export function next() {
-  const open = ghj("issue", "list", "--repo", REPO, "--state", "open", "--limit", "200", "--json", "number,labels");
-  const busy = open.filter((i) => labelsOf(i).some((l) => IN_FLIGHT.includes(l)));
-  if (busy.length) return log(`next: busy with #${busy.map((i) => i.number).join(", #")} (one feature at a time)`);
+  const open = ghj("issue", "list", "--repo", REPO, "--state", "open", "--limit", "200", "--json", "number,title,body,labels");
+  const prs = openPRs();
+  if (open.length >= 200 || prs.length >= 100) return log("next: incomplete active inventory; scheduling paused");
+  const busy = [...open.filter(i => /^Discovery: .* \[/.test(i.title) || labelsOf(i).some(l => [...IN_FLIGHT, "ai:founder-decision", "ai:blocked"].includes(l))),
+    ...prs.filter(p => /^ai\/(contract|build|fix)-/.test(p.headRefName) || labelsOf(p).some(l => [...IN_FLIGHT, "ai:blocked"].includes(l)))];
   let md = ""; try { md = readFileSync(cfg().loop.backlog, "utf8"); } catch { return log(`next: no ${cfg().loop.backlog}`); }
   const titles = ghj("issue", "list", "--repo", REPO, "--state", "all", "--limit", "300", "--search", "Discovery: in:title", "--json", "title").map((i) => i.title);
   const used = titles.map((t) => (t.match(/\[([a-z0-9-]+)\]$/) || [])[1]).filter(Boolean);
-  const item = nextBacklogItem(md, used);
-  if (!item) return log("next: backlog empty — Maya will propose new items when asked");
-  newIssue(`Discovery: ${item.title} [${item.slug}]`, discoveryIssueBody(item), "ai:discovery");
+  const items = [];
+  for (let item; (item = nextBacklogItem(md, [...used, ...items.map(i => i.slug)]));) items.push(item);
+  if (!items.length) return log("next: backlog empty — Maya will propose new items when asked");
+  let scopes = {};
+  try {
+    if (existsSync(".ai-org/delivery-lanes.json")) {
+      scopes = JSON.parse(readFileSync(".ai-org/delivery-lanes.json", "utf8")).features;
+      if (!scopes || typeof scopes !== "object" || Array.isArray(scopes)) throw Error("invalid scopes");
+    }
+  } catch { return log("next: invalid delivery scope configuration; scheduling paused"); }
+  const policy = JSON.parse(readFileSync(join(HERE, "../governance/AUTONOMY_POLICY.json"), "utf8"));
+  const completed = Object.keys(scopes).length ? ghj("pr", "list", "--repo", REPO, "--state", "merged", "--base", "main", "--limit", "300", "--json", "headRefName").map(p => slugOfBranch(p.headRefName)).filter(Boolean) : [];
+  const selected = selectDeliveryItems({items, active:busy, scopes, completed, maxLanes:policy.execution.maxConcurrentDeliveryLanes});
+  if (!selected.length) return log("next: capacity, unresolved dependency, unknown scope or overlap; scheduling paused");
+  for (const item of selected) newIssue(`Discovery: ${item.title} [${item.slug}]`, discoveryIssueBody(item), "ai:discovery");
 }
 function command() {
   const id = process.env.COMMENT_ID; if (!id) return log("command: no COMMENT_ID");
