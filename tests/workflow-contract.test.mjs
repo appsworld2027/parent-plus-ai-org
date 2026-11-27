@@ -14,10 +14,13 @@ test("cross-repository private handbook consumers require the read-only deploy k
   }
 });
 
-test("background agent execution fails closed unless explicitly enabled on a private caller repository", () => {
+test("background execution defaults on, has an emergency stop, and gates external callers to private repos", () => {
   const worker = read("../.github/workflows/agent-worker.yml");
-  assert.ok(worker.includes("vars.UNATTENDED_AGENTS == 'on'"));
+  assert.ok(worker.includes("vars.UNATTENDED_AGENTS != 'off'"));
+  assert.ok(worker.includes("github.repository == 'appsworld2027/parent-plus-ai-org'"));
   assert.ok(worker.includes("github.event.repository.private == true"));
+  assert.ok(worker.includes("Check handbook access"));
+  assert.ok(worker.includes("HANDBOOK_ACCESS: ${{ secrets.AI_ORG_HANDBOOK_SSH_KEY != '' }}"));
 });
 
 test("the canonical background worker is Groq free-tier only with bounded output and stage-aware tools", () => {
@@ -41,19 +44,22 @@ test("the canonical background worker is Groq free-tier only with bounded output
   assert.ok(worker.includes('--tools "$TOOLS"'));
   assert.ok(worker.includes('--allowedTools "$TOOLS"'));
   assert.ok(worker.includes("CLAUDE_CODE_MAX_OUTPUT_TOKENS=512"));
+  assert.ok(worker.includes("--max-turns 60"));
   assert.ok(worker.includes("--max 5000"));
   const systemPrompt = read("../governance/FREE_AGENT_SYSTEM_PROMPT.md");
   assert.ok(systemPrompt.includes("Groq free-tier"));
   assert.ok(systemPrompt.includes("Never call another provider"));
 });
 
-test("the synthetic free-model smoke test is manual, private-only and read-only", () => {
+test("the synthetic free-model smoke is scoped to a dedicated PR branch and read-only", () => {
   const smoke = read("../.github/workflows/free-agent-smoke.yml");
-  assert.ok(!smoke.includes("pull_request:"));
   assert.ok(smoke.includes("workflow_dispatch:"));
-  assert.ok(smoke.includes("github.event.repository.private == true"));
+  assert.ok(smoke.includes("pull_request:"));
+  assert.ok(smoke.includes("fix/public-handbook-checkout-20261127"));
   assert.ok(smoke.includes("tool_mode: readonly"));
   assert.ok(smoke.includes("stage_override: ai:discovery"));
+  const worker = read("../.github/workflows/agent-worker.yml");
+  assert.ok(worker.includes("Synthetic stage override is restricted to read-only AI Org smoke-test issues."));
 });
 
 test("the canonical organization workflow delegates only the free Groq engine", () => {
