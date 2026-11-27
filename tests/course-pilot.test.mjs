@@ -154,3 +154,45 @@ test('disabled direct tool primitive binds exact paths, bytes, hash, and indepen
     assert.equal(readFileSync(join(root,'outside.ts'),'utf8'),'do not touch');
   }finally{rmSync(root,{recursive:true,force:true})}
 });
+
+test('declarative QA coverage rejects false approvals and compiles exact stage selectors',async()=>{
+  const {coverageIssues,assertCourseCoverage,COURSE_IDS}=await import('../scripts/course-pilot/declarative-coverage.mjs');
+  const {compileCourseCases,compileCourseOperation}=await import('../scripts/course-pilot/declarative-compiler.mjs');
+  const [a,b,c,d,e,f,g]=COURSE_IDS;
+  const form=[['B','Courses'],['B','Create course']],initial=[['F','Course title','A'],['F','Stage 1 title','S'],['F','Stage 1 objective 1','O']];
+  const confirm=[['B','Publish version'],['VB','Confirm publish'],['B','Confirm publish']];
+  const leave=[['T','Today'],['X','Leave your unsaved changes?']];
+  const fields=['Course title','Stage 1 title','Stage 1 objective 1','Stage 1 objective 2','Stage 2 title','Stage 2 objective 1'];
+  // Controller-authored unit fixture calibrates the gate only, not Quinn role evidence.
+  const cases={
+    [a]:[['B','Courses'],['H','Courses'],['X','Course pilot — not synced'],['X','No courses yet'],['VB','Create course'],...['Today','Schedule','Feedback','Students','Fees'].map(x=>['VT',x])],
+    [b]:[...form,...fields.slice(0,3).map(x=>['I',x]),...initial.slice(1),['B','Save draft'],['X','Course title is required'],['V','Stage 1 title','S'],['V','Stage 1 objective 1','O'],...leave,['B','Discard and leave'],['B','Courses'],['X','No courses yet']],
+    [c]:[...form,...initial,['B','Add objective to stage 1'],['F','Stage 1 objective 2','O2'],['B','Add stage'],['F','Stage 2 title','S2'],['F','Stage 2 objective 1','O3'],['B','Save draft'],['X','A'],['X','Draft'],['B','Edit course'],...fields.map((x,i)=>['V',x,['A','S','O','O2','S2','O3'][i]]),['O',fields]],
+    [d]:[...form,...initial,['B','Save draft'],...confirm,['X','Version 1'],['B','Edit course'],['F','Course title','B'],['B','Save draft'],...confirm,['X','Version 2'],['B','View history'],...['Version 1','Version 2','A','B'].flatMap(x=>[['X',x],['N',x,1]])],
+    [e]:[...form,...initial,...leave,['B','Keep editing'],...initial.map(x=>['V',x[1],x[2]]),...leave,['B','Discard and leave'],['B','Courses'],['X','No courses yet']],
+    [f]:[...form,...initial,['B','Save draft'],['X','A'],['T','Today'],['B','Courses'],['X','A'],['X','Course pilot — not synced'],['NET']],
+    [g]:[['VT','Today'],['NB','Courses'],['NET']]
+  };
+  const artifact={cases,limitations:'controller grammar control only'};
+  assert.deepEqual(coverageIssues(artifact),[]);
+  const {spec,guard}=compileCourseCases(artifact);
+  assert.match(spec,/name: "Add objective to stage 1", exact: true/);
+  assert.match(guard,/window.__coachFixture.calls/);
+  assert.equal(compileCourseOperation(['B','Add objective',0]),compileCourseOperation(['B','Add objective to stage 1']));
+  assert.equal(compileCourseOperation(['B','Add objective',1]),compileCourseOperation(['B','Add objective to stage 2']));
+  assert.throws(()=>compileCourseOperation(['B','Add objective']));
+  assert.throws(()=>compileCourseOperation(['B','Add objective to stage 3']));
+  const defects=[
+    [a,op=>op[1]==='Course pilot — not synced'],
+    [b,op=>op[0]==='V'],
+    [c,op=>op[0]==='O'],
+    [d,op=>op[0]==='N'],
+    [e,op=>op[1]==='Leave your unsaved changes?'],
+    [f,op=>op[0]==='NET'],
+    [g,op=>op[0]==='NB']
+  ];
+  for(const [id,drop] of defects){const bad=structuredClone(artifact);bad.cases[id]=bad.cases[id].filter(o=>!drop(o));assert.ok(coverageIssues(bad).some(x=>x.id===id),id);assert.throws(()=>assertCourseCoverage(bad));assert.throws(()=>compileCourseCases(bad));}
+  const reordered=structuredClone(artifact);const secondSave=reordered.cases[d].findLastIndex(o=>o[0]==='B'&&o[1]==='Save draft');reordered.cases[d].splice(secondSave,1);assert.ok(coverageIssues(reordered).some(x=>x.id===d));
+  const sameTitle=structuredClone(artifact);sameTitle.cases[d].find(o=>o[0]==='F'&&o[2]==='B')[2]='A';assert.ok(coverageIssues(sameTitle).some(x=>x.id===d));
+  const badGuard=structuredClone(artifact);delete badGuard.cases[g];assert.throws(()=>assertCourseCoverage(badGuard));
+});
