@@ -702,5 +702,12 @@
     "exactSource": "frozen-plan-sourceSha",
     "binding": "trusted-verifier-kind-receiptId-canonical-payload-digest",
     "productionReady": false
+  },
+  "planRequirements": {
+    "roleVariantSlots": 33,
+    "distinctFixtureHashes": 33,
+    "distinctPromptHashes": 33,
+    "source": "frozen-exact-commit",
+    "rationale": "Each scenario must pose a separately frozen role-specific artifact task; reusing a prompt or fixture cannot stand in for distinct scenario qualification."
   }
 }
