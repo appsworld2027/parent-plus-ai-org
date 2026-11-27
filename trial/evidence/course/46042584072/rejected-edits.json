@@ -1,0 +1,52 @@
+[
+  {
+    "file": "quinn.spec.ts",
+    "old": "    const tabs = ['Today', 'Classes', 'Roster', 'Attendance', 'Observations'];\n    for (const tab of tabs) {\n      await expect(page.getByRole('tab', { name: tab })).toBeVisible();\n    }",
+    "replacement": "    const tabs = ['Today', 'Schedule', 'Feedback', 'Students', 'Fees'];\n    for (const tab of tabs) {\n      await expect(page.getByRole('tab', { name: tab })).toBeVisible();\n    }"
+  },
+  {
+    "file": "quinn.spec.ts",
+    "old": "    await page.getByLabel('Course title').fill('Valid Title');\n    await expect(page.getByText('Course title is required')).not.toBeVisible();",
+    "replacement": "    await page.getByLabel('Course title').fill('Valid Title');\n    await page.getByRole('button', { name: 'Save draft' }).click();\n    await expect(page.getByText('Course title is required')).not.toBeVisible();\n    await expect(page.getByText('Valid Title')).toBeVisible();\n    await expect(page.getByText('Draft')).toBeVisible();"
+  },
+  {
+    "file": "quinn.spec.ts",
+    "old": "    const idx1 = order.indexOf('Stage 1 title');\n    const idx2 = order.indexOf('Stage 2 title');\n    expect(idx1).toBeLessThan(idx2);",
+    "replacement": "    const idx1 = order.indexOf('Stage 1 title');\n    const idx2 = order.indexOf('Stage 2 title');\n    expect(idx1).toBeGreaterThanOrEqual(0);\n    expect(idx2).toBeGreaterThanOrEqual(0);\n    expect(idx1).toBeLessThan(idx2);"
+  },
+  {
+    "file": "quinn.spec.ts",
+    "old": "    await expect(page.getByText('Version 1')).toBeVisible();\n    await page.getByRole('button', { name: 'Edit course' }).click();\n    await page.getByLabel('Course title').fill('Science Basics Updated');\n    await page.getByRole('button', { name: 'Save draft' }).click();\n    await page.getByRole('button', { name: 'Publish version' }).click();\n    await page.getByRole('button', { name: 'Confirm publish' }).click();\n    await expect(page.getByText('Version 2')).toBeVisible();\n    await page.getByRole('button', { name: 'View history' }).click();\n    const historyText = await page.locator('body').innerText();\n    const v1Count = (historyText.match(/Version 1/g) || []).length;\n    const v2Count = (historyText.match(/Version 2/g) || []).length;\n    expect(v1Count).toBeGreaterThan(0);\n    expect(v2Count).toBeGreaterThan(0);\n    expect(historyText).toContain('Science Basics');\n    expect(historyText).toContain('Science Basics Updated');",
+    "replacement": "    await expect(page.getByText('Version 1', { exact: true })).toBeVisible();\n    await expect(page.getByText('Version 1', { exact: true })).toHaveCount(1);\n    await page.getByRole('button', { name: 'Edit course' }).click();\n    await page.getByLabel('Course title').fill('Science Basics Updated');\n    await page.getByRole('button', { name: 'Save draft' }).click();\n    await page.getByRole('button', { name: 'Publish version' }).click();\n    await page.getByRole('button', { name: 'Confirm publish' }).click();\n    await expect(page.getByText('Version 2', { exact: true })).toBeVisible();\n    await expect(page.getByText('Version 2', { exact: true })).toHaveCount(1);\n    await page.getByRole('button', { name: 'View history' }).click();\n    await expect(page.getByText('Science Basics', { exact: true })).toBeVisible();\n    await expect(page.getByText('Science Basics', { exact: true })).toHaveCount(1);\n    await expect(page.getByText('Science Basics Updated', { exact: true })).toBeVisible();\n    await expect(page.getByText('Science Basics Updated', { exact: true })).toHaveCount(1);"
+  },
+  {
+    "file": "quinn.spec.ts",
+    "old": "    await page.getByRole('button', { name: 'Discard and leave' }).click();\n    await expect(page.getByRole('tab', { name: 'Today' })).toBeVisible();\n    await expect(page.getByLabel('Course title')).not.toBeVisible();",
+    "replacement": "    await page.getByRole('button', { name: 'Discard and leave' }).click();\n    await page.getByRole('button', { name: 'Courses' }).click();\n    await expect(page.getByText('No courses yet')).toBeVisible();"
+  },
+  {
+    "file": "quinn.spec.ts",
+    "old": "    page.on('request', (req) => {\n      const url = req.url();\n      if (url.includes('course') || url.includes('curriculum')) {\n        requests.push(url);\n      }\n    });",
+    "replacement": "    page.on('request', (req) => {\n      const url = req.url();\n      if (/course|curriculum/i.test(url)) {\n        requests.push(url);\n      }\n    });"
+  },
+  {
+    "file": "quinn.spec.ts",
+    "old": "    const courseCalls = (calls as string[]).filter((c) => c.toLowerCase().includes('course') || c.toLowerCase().includes('curriculum'));\n    expect(courseCalls).toHaveLength(0);",
+    "replacement": "    const courseCalls = (calls as string[]).filter((c) => /course|curriculum/i.test(c));\n    expect(courseCalls).toHaveLength(0);"
+  },
+  {
+    "file": "quinn.spec.ts",
+    "old": "    await page.getByRole('tab', { name: 'Courses' }).click();",
+    "replacement": "    await page.getByRole('button', { name: 'Courses' }).click();"
+  },
+  {
+    "file": "quinn.spec.ts",
+    "old": "    await expect(page.getByText(/synced/i)).not.toBeVisible();",
+    "replacement": "    await expect(page.getByText('Course pilot — not synced')).toBeVisible();"
+  },
+  {
+    "file": "guard.ts",
+    "old": "    page.on('request', (req) => {\n      const url = req.url();\n      if (url.includes('course') || url.includes('curriculum')) {\n        requests.push(url);\n      }\n    });",
+    "replacement": "    page.on('request', (req) => {\n      const url = req.url();\n      if (/course|curriculum/i.test(url)) {\n        requests.push(url);\n      }\n    });"
+  }
+]
