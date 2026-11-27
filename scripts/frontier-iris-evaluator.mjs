@@ -35,7 +35,7 @@ export async function evaluateIrisHtml(html,{image}={}){
     // Controller-selected seccomp profile permits Chromium user namespaces, but
     // the inner Chromium sandbox is requested and the outer container has no network,
     // credentials, host services, repo mount, elevated caps or writable host paths.
-    const args=['run','--name',name,'--rm','--pull','never','--network','none','--read-only','--cap-drop','ALL',
+    const args=['run','--name',name,'--rm','--init','--pull','never','--network','none','--read-only','--cap-drop','ALL',
       '--security-opt','no-new-privileges','--security-opt','seccomp='+seccomp,'--user','1000:1000','--pids-limit','256',
       '--memory','768m','--cpus','1.5','--shm-size','128m','--tmpfs','/tmp:rw,nosuid,nodev,noexec,size=128m',
       '--env','HOME=/tmp','--env','XDG_CACHE_HOME=/tmp/.cache','--mount','type=bind,src='+dir+',dst=/work,readonly',
@@ -43,8 +43,18 @@ export async function evaluateIrisHtml(html,{image}={}){
     try{const r=await exec('docker',args,{timeout:120000,maxBuffer:256*1024});stdout=r.stdout;stderr=r.stderr;exitCode=0}
     catch(e){stdout=typeof e.stdout==='string'?e.stdout:'';stderr=typeof e.stderr==='string'?e.stderr:'';exitCode=Number.isInteger(e.code)?e.code:null}
     const result=validateIrisReceipt(stdout,exitCode);
+    let diagnostic=null;
+    if(result.status==='infrastructure-or-incomplete'){
+      diagnostic='incomplete-receipt';
+      try{
+        const receipt=JSON.parse(stdout);
+        const allowed=['sandbox-unavailable','browser-runtime-unavailable','runtime-filesystem','browser-launch-failure','controller-failure'];
+        if(exitCode===2&&receipt.schema===1&&receipt.infrastructureFailure===true&&receipt.browserSandboxRequested===true&&allowed.includes(receipt.failure))diagnostic=receipt.failure;
+      }catch{}
+      if(exitCode===125)diagnostic='container-start-failure';
+    }
     return {schema:1,kind:'synthetic-browser-design-screen',candidateHash:hash(html),image,stdoutHash:hash(stdout),stderrHash:hash(stderr),exitCode,
-      ...result,qualification:false,productionReady:false,diagnostic:result.status==='infrastructure-or-incomplete'?stderr.slice(0,1500):null};
+      ...result,qualification:false,productionReady:false,diagnostic};
   }finally{
     try{await exec('docker',['rm','-f',name],{timeout:5000,maxBuffer:4096})}catch{}
     await rm(dir,{recursive:true,force:true});

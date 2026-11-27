@@ -119,6 +119,9 @@ try{
  await check(ids[9],()=>assert.equal(networkAttempts,0));
  console.log(JSON.stringify({schema:1,checks,networkAttempts,browserSandbox:true}));
  if(!ids.every(id=>checks[id]?.pass===true))process.exitCode=1;
-}catch{
- console.log(JSON.stringify({schema:1,infrastructureFailure:true,browserSandboxRequested:true}));process.exitCode=2;
+}catch(e){
+ // Launch errors are controller-owned. Never emit candidate-influenced raw messages.
+ const m=browser?'':String(e?.message??'');
+ const failure=browser?'controller-failure':/No usable sandbox|namespace|Operation not permitted|zygote/i.test(m)?'sandbox-unavailable':/read-only|permission denied|EACCES|crashpad/i.test(m)?'runtime-filesystem':/executable|missing dependencies|not found/i.test(m)?'browser-runtime-unavailable':'browser-launch-failure';
+ console.log(JSON.stringify({schema:1,infrastructureFailure:true,browserSandboxRequested:true,failure}));process.exitCode=2;
 }finally{if(browser)await browser.close()}

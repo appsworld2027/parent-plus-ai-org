@@ -12,7 +12,9 @@ permissions:
   contents: read
 jobs:
   iris-browser:
-    runs-on: ubuntu-latest
+    # Explicit LTS runner avoids Ubuntu Noble host user-namespace restrictions.
+    # No host security policy or Chromium sandbox is disabled.
+    runs-on: ubuntu-22.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -28,5 +30,7 @@ jobs:
           IMAGE="$(docker image inspect --format '{{.Id}}' frontier-iris-ci)"
           [[ "$IMAGE" =~ ^sha256:[a-f0-9]{64}$ ]]
           echo "FRONTIER_IRIS_IMAGE=$IMAGE" >> "$GITHUB_ENV"
-      - name: Execute clean and seeded-defect browser controls in isolated containers
-        run: node --test tests/frontier-iris-evaluator.test.mjs
+      - name: Verify sandbox with trusted reference before defect controls
+        run: node --test --test-name-pattern='trusted reference' tests/frontier-iris-evaluator.test.mjs
+      - name: Execute receipt and seeded-defect controls in isolated containers
+        run: node --test --test-name-pattern='strict receipt|unsafe input|reject ' tests/frontier-iris-evaluator.test.mjs
