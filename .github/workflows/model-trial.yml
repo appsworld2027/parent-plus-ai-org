@@ -1,107 +1,167 @@
-name: Model trial
+# Temporary owner-only isolated native model artifact proof. NEVER merge.
+name: Frontier Ravi actual artifact proof (temporary)
 on:
-  workflow_dispatch:
-    inputs:
-      review_only:
-        type: boolean
-        description: Review the retained, previously tested candidate
-        default: false
-      review_provider:
-        type: choice
-        description: Provider for independent review
-        options: [nvidia, groq]
-        default: nvidia
+  pull_request:
+    types: [opened, synchronize]
+    branches: ['feat/frontier-integration-evaluator-20261127']
+    paths: ['.github/workflows/model-trial.yml']
 permissions:
   contents: read
+  actions: read
+concurrency:
+  group: frontier-ravi-native-proof
+  cancel-in-progress: false
+env:
+  FRONTIER_SOURCE_SHA: d0e924aeb66547a808b37dde7f5367b31e1577d3
+  FRONTIER_SEED: synthetic-ravi-proof-20261127
+  FRONTIER_NODE_IMAGE: node@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a
 jobs:
-  autonomy:
-    if: ${{ !inputs.review_only }}
+  generate:
+    if: >-
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.head.ref == 'review/frontier-ravi-artifact-20261127' &&
+      github.event.pull_request.base.ref == 'feat/frontier-integration-evaluator-20261127' &&
+      github.event.pull_request.user.login == github.repository_owner &&
+      github.event.pull_request.draft == true
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        variant: [normal, edge, adversarial]
+    env:
+      FRONTIER_VARIANT: ${{ matrix.variant }}
     runs-on: ubuntu-latest
-    timeout-minutes: 17
+    timeout-minutes: 6
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: d0e924aeb66547a808b37dde7f5367b31e1577d3
           persist-credentials: false
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          node-version: 22
-      - name: Install the existing AI Org NVIDIA adapter and agent client
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null
-          "$HOME/.local/bin/uv" tool install free-claude-code
-          npm install -g @anthropic-ai/claude-code
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-      - name: Dev autonomously implements the fictional waitlist
-        id: build
+          node-version: '22'
+      - name: Respect free request window
+        run: sleep 65
+      - name: Execute bounded native free Ravi model fixture
         env:
-          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OUTPUT_DIR: ${{ runner.temp }}/frontier-ravi-generate
         run: |
           set -euo pipefail
-          [ -n "$NVIDIA_NIM_API_KEY" ]
-          mkdir -p "$HOME/.fcc" "$RUNNER_TEMP/pilot" "$RUNNER_TEMP/evidence"
-          umask 077
-          printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=nvidia_nim/nvidia/nemotron-3-ultra-550b-a55b\nFCC_OPEN_BROWSER=false\nREASONING_POLICY=low\n' "$NVIDIA_NIM_API_KEY" > "$HOME/.fcc/.env"
-          fcc-server > "$RUNNER_TEMP/adapter.log" 2>&1 &
-          echo "$!" > "$RUNNER_TEMP/adapter.pid"
-          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8082/v1/models >/dev/null 2>&1 && break; sleep 1; done
-          prompt="$(printf 'You are Dev, the AI Org coding specialist. This is an isolated exercise. Write the one deliverable with the Write tool immediately, then give the short handover. The external evaluator runs all tests.\n'; cat trial/autonomy/objective.md)"
-          cd "$RUNNER_TEMP/pilot"
-          printf '%s\n' "$prompt" | env -u NVIDIA_NIM_API_KEY ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc DISABLE_AUTOUPDATER=1 \
-            timeout 300 claude -p --permission-mode acceptEdits --allowedTools "Read,Write,Edit,Glob,Grep" --max-turns 16 --output-format stream-json --verbose > "$RUNNER_TEMP/build.jsonl"
-      - name: Run the prewritten acceptance checks
-        run: |
-          set -euo pipefail
-          git show "$GITHUB_SHA:trial/autonomy/acceptance.mjs" > "$RUNNER_TEMP/acceptance.mjs"
-          node "$RUNNER_TEMP/acceptance.mjs" "$RUNNER_TEMP/pilot/waitlist.mjs" | tee "$RUNNER_TEMP/evidence/acceptance.txt"
-          cp "$RUNNER_TEMP/pilot/waitlist.mjs" "$RUNNER_TEMP/evidence/waitlist.mjs"
-      - name: Rex reviews the exact candidate that passed acceptance
-        env:
-          REVIEW_PROVIDER: ${{ inputs.review_provider }}
-          NVIDIA_NIM_API_KEY: ${{ inputs.review_provider == 'nvidia' && secrets.NVIDIA_NIM_API_KEY || '' }}
-          GROQ_API_KEY: ${{ inputs.review_provider == 'groq' && secrets.GROQ_API_KEY || '' }}
-        run: |
-          set -euo pipefail
-          sha256sum "$RUNNER_TEMP/evidence/waitlist.mjs" | tee "$RUNNER_TEMP/evidence/candidate.sha256"
-          node trial/autonomy/review.mjs "$RUNNER_TEMP/evidence/waitlist.mjs" | tee "$RUNNER_TEMP/evidence/review.json"
-      - name: Report evidence
-        if: always()
-        run: |
-          mkdir -p "$RUNNER_TEMP/evidence"
-          if [ -s "$RUNNER_TEMP/build.jsonl" ]; then
-            echo "Builder tool calls:"
-            jq -r 'select(.type=="assistant") | .message.content[]? | select(.type=="tool_use") | .name' "$RUNNER_TEMP/build.jsonl" | sort | uniq -c || true
-          fi
-          for role in build review; do
-            if [ -s "$RUNNER_TEMP/$role.jsonl" ]; then
-              jq -c 'select(.type=="result") | {subtype,is_error,num_turns,duration_ms,modelUsage,result}' "$RUNNER_TEMP/$role.jsonl" | tee "$RUNNER_TEMP/evidence/$role.jsonl" || true
-            fi
-          done
-          if [ -f "$RUNNER_TEMP/evidence/acceptance.txt" ]; then
-            cat "$RUNNER_TEMP/evidence/acceptance.txt" >> "$GITHUB_STEP_SUMMARY"
-            echo "Generated implementation:"
-            cat "$RUNNER_TEMP/evidence/waitlist.mjs"
-          fi
+          [ "$(git rev-parse HEAD)" = "$FRONTIER_SOURCE_SHA" ]
+          node --input-type=module <<'NODE'
+          import {mkdirSync,readFileSync,writeFileSync} from 'node:fs';
+          import {join} from 'node:path';
+          import {createHash} from 'node:crypto';
+          import {prepareFrontierCasebook,intakeFrontierArtifact} from './scripts/frontier-casebook.mjs';
+          import {rubric,canonicalHash} from './scripts/frontier-admission.mjs';
+          const sha=x=>createHash('sha256').update(x).digest('hex');
+          const sourceSha=process.env.FRONTIER_SOURCE_SHA,seed=process.env.FRONTIER_SEED,dir=process.env.OUTPUT_DIR;
+          mkdirSync(dir,{recursive:true});
+          const roleDefinitions=Object.fromEntries(rubric.roles.map(({role})=>[role,readFileSync('org/agents/'+role+'.md','utf8')]));
+          const book=prepareFrontierCasebook({sourceSha,seed,roleDefinitions});
+          const c=book.cases.find(x=>x.fixture.role==='ravi-integration'&&x.fixture.variant===process.env.FRONTIER_VARIANT);
+          const model='qwen/qwen3.8-27b',key=process.env.GROQ_API_KEY;
+          const attempt={schema:1,sourceSha,planHash:book.planHash,fixtureHash:c.fixtureHash,promptHash:c.promptHash,
+            role:'ravi-integration',variant:process.env.FRONTIER_VARIANT,provider:'groq',requestedModel:model,route:'native-readonly-artifact-response',
+            runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,
+            scope:'isolated-synthetic',qualification:false,toolExecution:false,productionReady:false};
+          const save=()=>writeFileSync(join(dir,'attempt.json'),JSON.stringify(attempt,null,2));
+          save();
+          if(!key)throw Error('Approved free-route key missing; no fallback');
+          const body={model,temperature:0,max_completion_tokens:5000,messages:[{role:'system',content:'You are Ravi, integration specialist. Produce adapter.mjs and adapter.test.mjs actual runnable ESM/Node test code only. Exact contract: export async function send(input,{transport,sleep,clock}); input {tenant,notificationId,idempotencyKey,body}, nonempty key required. Call only supplied transport({...input,operation:"send"|"status"},{signal}); return {state:"delivered"|"failed"|"uncertain",correlationId:input.idempotencyKey,attempts:total transport calls}. Max 3 calls, each bounded within 1 sec; 200 delivered only with nonempty deliveryId, 409 also duplicate:true; 429 numeric retryAfterMs clamp 0..2000; 503 bounded backoff; 401 terminal failed; malformed or ordinary timeout uncertain; TIMEOUT_AFTER_EFFECT reconcile only via status with same key, never resend blindly; if status not confirmed uncertain. No provider body/secrets in return, no network, no sleep after final attempt, invalid key failed zero calls. Compact adapter max 3500 chars, authored tests max 1800 chars. Return exact artifact JSON only; do not claim tests run.'},{role:'user',content:c.prompt}]};
+          attempt.requestHash=canonicalHash(body);
+          const t=Date.now();
+          try{
+            const res=await fetch('https://api.groq.com/openai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify(body),redirect:'error',signal:AbortSignal.timeout(120000)});
+            attempt.httpStatus=res.status;
+            if(!res.ok){
+              try{const e=(await res.json()).error||{};if(typeof e.code==='string'&&/^[a-zA-Z0-9_-]{1,64}$/.test(e.code))attempt.errorCode=e.code;}catch{}
+              throw Error('Provider rejected exact free model: '+res.status);
+            }
+            const j=await res.json();attempt.observedModel=j.model;attempt.finishReason=j.choices?.[0]?.finish_reason;
+            attempt.usage={prompt:j.usage?.prompt_tokens??null,completion:j.usage?.completion_tokens??null,total:j.usage?.total_tokens??null};
+            if(j.model!==model||j.choices?.length!==1||attempt.finishReason!=='stop')throw Error('Incomplete or wrong observed model');
+            const raw=j.choices[0].message?.content;
+            if(typeof raw!=='string'||raw.length>50000||raw.includes(key))throw Error('Invalid model response');
+            attempt.responseHash=sha(raw);
+            const parsed=JSON.parse(raw.trim().replace(/^\x60\x60\x60(?:json)?\s*([\s\S]*?)\s*\x60\x60\x60$/i,'$1'));
+            const intake=intakeFrontierArtifact(c.fixture,parsed);
+            attempt.artifactHash=intake.artifactHash;attempt.status='artifact-intake-only';
+            writeFileSync(join(dir,'candidate.json'),JSON.stringify({files:intake.files},null,2));
+            writeFileSync(join(dir,'plan.json'),JSON.stringify(book.payload,null,2));
+            console.log(JSON.stringify({role:attempt.role,variant:attempt.variant,model:attempt.observedModel,artifactHash:attempt.artifactHash,usage:attempt.usage,qualification:false}));
+          }catch(e){attempt.status='failed-no-fallback';throw e;}
+          finally{attempt.durationMs=Date.now()-t;save();console.log(JSON.stringify({observedModel:attempt.observedModel,finishReason:attempt.finishReason,usage:attempt.usage,status:attempt.status,httpStatus:attempt.httpStatus}));}
+          NODE
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: autonomy-pilot-evidence
-          path: ${{ runner.temp }}/evidence/
-  review_retained_candidate:
-    if: inputs.review_only
+          name: frontier-ravi-candidate-${{ matrix.variant }}
+          path: ${{ runner.temp }}/frontier-ravi-generate/
+          if-no-files-found: error
+          retention-days: 14
+  independent-evaluation:
+    needs: generate
+    if: always() && needs.generate.result != 'skipped' && needs.generate.result != 'cancelled'
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [normal, edge, adversarial]
+    env:
+      FRONTIER_VARIANT: ${{ matrix.variant }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
+          ref: d0e924aeb66547a808b37dde7f5367b31e1577d3
           persist-credentials: false
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
-          node-version: 22
-      - name: Verify the retained candidate
-        run: node trial/autonomy/acceptance.mjs trial/autonomy/waitlist.mjs
-      - name: Get Rex's independent review from the selected provider
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontier-ravi-candidate-${{ matrix.variant }}
+          path: ${{ runner.temp }}/frontier-ravi-candidate
+      - name: Verify exact integration artifact and execute 13 independent locked fault checks
         env:
-          REVIEW_PROVIDER: ${{ inputs.review_provider }}
-          NVIDIA_NIM_API_KEY: ${{ inputs.review_provider == 'nvidia' && secrets.NVIDIA_NIM_API_KEY || '' }}
-          GROQ_API_KEY: ${{ inputs.review_provider == 'groq' && secrets.GROQ_API_KEY || '' }}
-        run: node trial/autonomy/review.mjs
+          INPUT_DIR: ${{ runner.temp }}/frontier-ravi-candidate
+          OUTPUT_DIR: ${{ runner.temp }}/frontier-ravi-eval
+        run: |
+          set -euo pipefail
+          [ "$(git rev-parse HEAD)" = "$FRONTIER_SOURCE_SHA" ]
+          docker pull "$FRONTIER_NODE_IMAGE"
+          node --input-type=module <<'NODE'
+          import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
+          import {join} from 'node:path';
+          import {prepareFrontierCasebook,intakeFrontierArtifact} from './scripts/frontier-casebook.mjs';
+          import {rubric,canonicalHash} from './scripts/frontier-admission.mjs';
+          import {evaluateRaviArtifact} from './scripts/frontier-integration-evaluator.mjs';
+          const src=process.env.FRONTIER_SOURCE_SHA,dir=process.env.INPUT_DIR,out=process.env.OUTPUT_DIR;
+          const read=name=>JSON.parse(readFileSync(join(dir,name),'utf8'));
+          const a=read('attempt.json'),plan=read('plan.json'),raw=read('candidate.json');
+          const roleDefinitions=Object.fromEntries(rubric.roles.map(({role})=>[role,readFileSync('org/agents/'+role+'.md','utf8')]));
+          const book=prepareFrontierCasebook({sourceSha:src,seed:process.env.FRONTIER_SEED,roleDefinitions});
+          const c=book.cases.find(x=>x.fixture.role==='ravi-integration'&&x.fixture.variant===process.env.FRONTIER_VARIANT);
+          const intake=intakeFrontierArtifact(c.fixture,raw);
+          if(a.sourceSha!==src||a.planHash!==book.planHash||canonicalHash(plan)!==book.planHash||
+            a.fixtureHash!==c.fixtureHash||a.promptHash!==c.promptHash||a.artifactHash!==intake.artifactHash||
+            a.observedModel!=='qwen/qwen3.8-27b'||a.runId!==process.env.GITHUB_RUN_ID||a.attempt!==process.env.GITHUB_RUN_ATTEMPT||
+            a.status!=='artifact-intake-only')throw Error('Candidate provenance mismatch');
+          const result=await evaluateRaviArtifact(c.fixture,raw,{image:process.env.FRONTIER_NODE_IMAGE});
+          const evidence={schema:1,runId:process.env.GITHUB_RUN_ID,attempt:process.env.GITHUB_RUN_ATTEMPT,sourceSha:src,planHash:book.planHash,fixtureHash:c.fixtureHash,artifactHash:intake.artifactHash,executionAttemptHash:canonicalHash(a),result,qualification:false,productionReady:false};
+          mkdirSync(out,{recursive:true});writeFileSync(join(out,'behavior.json'),JSON.stringify(evidence,null,2));
+          console.log(JSON.stringify({role:'ravi-integration',variant:process.env.FRONTIER_VARIANT,artifactHash:intake.artifactHash,status:result.status,counts:result.behavior.counts,liveProviderCalled:false,qualification:false}));
+          if(result.status!=='integration-screen-pass')process.exitCode=1;
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontier-ravi-independent-behavior-${{ matrix.variant }}
+          path: ${{ runner.temp }}/frontier-ravi-eval/
+          if-no-files-found: warn
+          retention-days: 14
