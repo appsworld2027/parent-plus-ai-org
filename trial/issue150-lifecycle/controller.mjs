@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import {evaluateReviewReproduction} from '../../scripts/frontier-board-evaluator.mjs';
 import {gateDecision,qaChainStep,checksState} from '../../scripts/loop.mjs';
 import {inspectSamPlan} from '../../scripts/frontier-release-evaluator.mjs';
-import {AUTHOR,REVIEWER,CONTRACT,TESTS,contractHash,testHash,head,requireHead,hash,read,json,save,validReceipt,validCandidate,validGrade,validReview,releaseInputs} from './shared.mjs';
+import {AUTHOR,REVIEWER,CONTRACT,TESTS,contractHash,testHash,head,requireHead,hash,read,json,save,validReceipt,validCandidate,validGrade,validReview,releaseInputs,validReleasePlans} from './shared.mjs';
 import {verifyBuild} from './replay-build.mjs';
+import {verifyReview} from './replay-review.mjs';
 const [phase,out,...dirs]=process.argv.slice(2),image=process.env.TRIAL_NODE_IMAGE||'';
 const base={schema:1,scope:'isolated-synthetic',issue:150,phase,sourceSha:head,contractHash,testHash,image,status:'blocked',qualified:false,productionReady:false,deployed:false};
 const evalCode=code=>evaluateReviewReproduction(code,TESTS,{image});
@@ -49,10 +50,10 @@ async function grade(){
 }
 async function release(){
  const code=await build(dirs[0]),g=await json(dirs[1],'grade.json');assert.ok(validGrade(g,code)&&g.image===image,'grade provenance');
- const review=await read(dirs[2],'review.json'),rr=await json(dirs[2],'call.json');
- assert.ok(validReceipt(rr,'review',REVIEWER,review)&&AUTHOR!==REVIEWER&&validReview(JSON.parse(review),code)&&JSON.parse(review).verdict==='APPROVE','independent model review');
+ const review=await verifyReview(dirs[2],code);
+ assert.ok(AUTHOR!==REVIEWER&&validReview(JSON.parse(review),code)&&JSON.parse(review).verdict==='APPROVE','independent model review');
  const plan=await read(dirs[3],'release-plan.json'),rp=await json(dirs[3],'call.json');assert.ok(validReceipt(rp,'release',AUTHOR,plan),'release plan provenance');
- const plans=JSON.parse(plan);const cases=releaseInputs(hash(code));
+ const plans=JSON.parse(plan);const cases=releaseInputs(hash(code));assert.ok(validReleasePlans(plans,cases),"release action schema");
  base.candidateHash=hash(code);base.reviewHash=hash(review);base.releasePlanHash=hash(plan);base.reviewModel=REVIEWER;
  base.releaseControls=cases.map(c=>({id:c.id,...inspectSamPlan(plans.find(p=>p.id===c.id),c)}));
  assert.ok(base.releaseControls.every(x=>x.planMatches),'release safety control');

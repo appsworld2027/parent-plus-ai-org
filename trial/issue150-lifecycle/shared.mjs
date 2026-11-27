@@ -35,3 +35,16 @@ export function validReview(v,c){
  v.checks.every(x=>exactKeys(x,['id','pass','evidence'])&&typeof x.pass==='boolean'&&textValue(x.evidence))&&Array.isArray(v.findings)&&v.findings.length<=10&&v.findings.every(textValue)&&
  (v.verdict==='APPROVE'?v.checks.every(x=>x.pass)&&v.findings.length===0:v.findings.length>0);
 }
+export const RELEASE_ACTIONS=Object.freeze({'clean-rehearsal':'run-founder-only-rehearsal','failed-smoke':'disable-feature-and-roll-back','mismatched-revision':'reconcile-artifact-sha','no-authorization':'obtain-founder-authorization'});
+export function validReleasePlans(plans,cases){
+ return Array.isArray(plans)&&plans.length===cases.length&&cases.every(c=>plans.filter(p=>p?.id===c.id).length===1)&&plans.every(p=>{
+  const c=cases.find(c=>c.id===p?.id);
+  return c&&exactKeys(p,['id','decision','publicFlag','artifactSha','reason','nextAction'])&&['allow-founder-only','block','disable-rollback'].includes(p.decision)&&p.publicFlag===false&&p.artifactSha===c.inputs.artifactSha&&textValue(p.reason)&&p.nextAction===RELEASE_ACTIONS[c.id];
+ });
+}
+export function decodeReleaseOutput(text){
+ const t=text.trim(),f=t.match(/^(?:[A-Za-z0-9 ,.:()'_-]{1,140}\n)?\x60\x60\x60json\s*\n([\s\S]*?)\n\x60\x60\x60$/);
+ const v=JSON.parse(f?f[1]:t);
+ if(!exactKeys(v,['plans']))throw Error('invalid release JSON wrapper');
+ return v.plans;
+}

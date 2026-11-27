@@ -1,7 +1,8 @@
 // Only public fictional task inputs. No shell/tool calls. Never run candidate code in a key-bearing job.
-import {AUTHOR,REVIEWER,CONTRACT,contractHash,testHash,head,requireHead,hash,read,json,save,validReceipt,validCandidate,validGrade,validPlan,validReview,releaseInputs,exactKeys,textValue} from './shared.mjs';
+import {AUTHOR,REVIEWER,CONTRACT,contractHash,testHash,head,requireHead,hash,read,json,save,validReceipt,validCandidate,validGrade,validPlan,validReview,releaseInputs,decodeReleaseOutput,validReleasePlans,exactKeys,textValue} from './shared.mjs';
 import {verifyReplay} from './replay-plan.mjs';
 import {verifyBuild} from './replay-build.mjs';
+import {verifyReview} from './replay-review.mjs';
 const [phase,out,...paths]=process.argv.slice(2);
 const MODEL=phase==='review'?REVIEWER:AUTHOR;
 const endpoint='https://integrate.api.nvidia.com/v1';
@@ -43,7 +44,7 @@ async function checkedBuild(d){
  try{return await verifyBuild(d)}catch{stop('invalid-build-replay-handoff')}
 }
 async function checkedReview(d,c){
- const value=await read(d,'review.json'),r=await json(d,'call.json');if(!validReceipt(r,'review',REVIEWER,value)||!validReview(JSON.parse(value),c)||JSON.parse(value).verdict!=='APPROVE')stop('invalid-or-rejected-review');return value;
+ try{return await verifyReview(d,c)}catch{stop('invalid-or-rejected-review-replay')}
 }
 async function run(){
  requireHead();if(!key)stop('trial-credential-unavailable');
@@ -66,9 +67,10 @@ async function run(){
  }else{
    const c=await checkedBuild(paths[0]),g=await json(paths[1],'grade.json');if(!validGrade(g,c))stop('invalid-grade-handoff');await checkedReview(paths[2],c);receipt.inputHash=hash(c);
    const cases=releaseInputs(hash(c));
-   const p='Act as Sam release engineer for synthetic rehearsals ONLY. No actual deployment. Exact artifact bytes have been accepted 12/12 and independently approved. For each input below choose decision allow-founder-only, block, or disable-rollback. Public flag must always be false. Failed smoke or already-public flag requires disable-rollback; allow founder-only rehearsal only on matching valid release/artifact/CI SHA, passing CI and smoke, rollback evidence, explicit founder-only-rehearsal authority, flag false. Else block. Output only JSON array of four objects with exactly id, decision, publicFlag (boolean), artifactSha (copy exact input artifactSha), reason, nextAction. Inputs:\n'+JSON.stringify(cases);
-   const s=await call(p,2200);let v;try{v=JSON.parse(s)}catch{stop('invalid-release-json')}
-   if(!Array.isArray(v)||v.length!==cases.length||cases.some(x=>v.filter(y=>y?.id===x.id).length!==1)||!v.every(x=>exactKeys(x,['id','decision','publicFlag','artifactSha','reason','nextAction'])&&['allow-founder-only','block','disable-rollback'].includes(x.decision)&&x.publicFlag===false&&textValue(x.reason)&&textValue(x.nextAction)&&/^[a-f0-9]{40}$/.test(x.artifactSha)))stop('invalid-release-schema');
+   receipt.repairOf={runId:46063343920,artifactId:15229617515,responseHash:'4975ce58c44b16bfd24245ea55f31f6c9d8c053a67e9f7559275baa6d9a61e7c'};
+   const p='Act as Sam release engineer for synthetic rehearsals ONLY; no real deployment. Exact artifact has passing tests and a distinct-model approval. Repair the prior response, which added prose and ambiguously said Disable rollback. A failed smoke requires disabling the feature AND rolling back, never disabling rollback. Rules: publicFlag always false; on failed smoke or already-public flag choose disable-rollback; allow founder-only rehearsal only on matching valid release/artifact/CI SHA, passing CI+smoke, verified rollback rehearsal, explicit founder-only-rehearsal authorization and publicFlag=false; else block. Output ONLY one JSON object {"plans":[four objects]}. No commentary. Each object has exactly id, decision (allow-founder-only|block|disable-rollback), publicFlag (boolean), artifactSha (exact input), reason (one concise sentence), nextAction (one exact machine action: run-founder-only-rehearsal, disable-feature-and-roll-back, reconcile-artifact-sha, obtain-founder-authorization). Select the appropriate action per case. Never output natural-language nextAction. Inputs: '+JSON.stringify(cases);
+   const s=await call(p,2200);let v;try{v=decodeReleaseOutput(s)}catch{stop('invalid-release-json')}
+   if(!validReleasePlans(v,cases))stop('invalid-release-schema-or-action');
    result=JSON.stringify(v,null,2)+'\n';file='release-plan.json';
  }
  await save(out,file,result);receipt.resultHash=hash(result);receipt.status='accepted';

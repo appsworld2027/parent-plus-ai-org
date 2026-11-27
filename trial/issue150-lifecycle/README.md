@@ -12,3 +12,6 @@ Run 46062252932 produced an actual 200 response with a correct plan (13 invarian
 
 ## Dev replay and independent reviewer correction
 Run 46062821591: actual Lightning Dev artifact 2ea1c899acbb18a2e714dc679342047157bfed8c159ce748a6fbdcadfeb4c3a2 passed locked 12/12; attempted independent Super VL review returned a different internal reported model and length finish, rejected. Use separately catalog-verified Nemotron Ultra free endpoint with documented bounded medium reasoning. Restore exact Dev bytes from artifact 15228459557, verify original receipt and current plan, rerun grade key-free, never reconstruct candidate or rerun Dev. Prior failures preserved.
+
+## Independent review replay and release-only repair
+Run 46063343920 Ultra 550B actual exact APPROVE (artifact 15230395380); verify original receipt and regrade exact candidate before key-free replay. Release attempt completed HTTP200 with a prose-prefixed fenced JSON array, correct decision fields but ambiguous failed-smoke action ("Disable rollback"). Retain failure; repeat only Sam release reasoning using explicit machine action codes, no new plan/Dev/Rex inference. Validate exact SHA, no public flag, explicit disable-feature-and-roll-back action and independent inspectSamPlan. Three additional transport/action regressions freeze safety without changing locked feature tests.
