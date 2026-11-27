@@ -4,7 +4,14 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 
-export const rubric = JSON.parse(readFileSync(new URL("../governance/FRONTIER_ARTIFACT_RUBRIC.json", import.meta.url), "utf8"));
+function deepFreeze(value) {
+  if (value !== null && typeof value === "object") {
+    for (const child of Object.values(value)) deepFreeze(child);
+    Object.freeze(value);
+  }
+  return value;
+}
+export const rubric = deepFreeze(JSON.parse(readFileSync(new URL("../governance/FRONTIER_ARTIFACT_RUBRIC.json", import.meta.url), "utf8")));
 const ROLES = ["maya-ai-pm","arjun-cpto","iris-design","kiran-pjm-a","leela-pjm-b","dev-coder","tara-database","ravi-integration","quinn-qa","rex-reviewer","sam-release"];
 const VARIANTS = ["normal","edge","adversarial"];
 const sha40 = x => typeof x === "string" && /^[a-f0-9]{40}$/.test(x);
@@ -25,7 +32,9 @@ export const canonicalHash = x => createHash("sha256").update(canonical(x)).dige
 export const rubricHash = canonicalHash(rubric);
 function assertRubric() {
   if (rubric.schema!==1 || rubric.scope!=="isolated-synthetic" || rubric.minScore!==90 ||
-      !sameSet(rubric.variants,VARIANTS) || !sameSet(rubric.roles.map(r=>r.role),ROLES)) throw Error("Invalid pinned rubric");
+      !sameSet(rubric.variants,VARIANTS) || !sameSet(rubric.roles.map(r=>r.role),ROLES) ||
+      rubric.hardGates.length!==10 || new Set(rubric.hardGates).size!==10 ||
+      rubric.integratedGates.length!==15 || new Set(rubric.integratedGates).size!==15) throw Error("Invalid pinned rubric");
   for (const r of rubric.roles) {
     const totals = {correctness:0,edge:0,evidence:0,efficiency:0};
     if (r.checks.length!==8 || new Set(r.checks.map(c=>c.id)).size!==8) throw Error("Invalid role rubric");
