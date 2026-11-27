@@ -2718,3 +2718,37 @@ jobs:
           name: course-focused-author-sc004
           path: ${{ runner.temp }}/course-focused/
           retention-days: 14
+
+  course-nvidia-route-discovery:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE NVIDIA FREE ROUTE DISCOVERY' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Query existing NVIDIA developer model inventory, no inference or key output
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/nvidia-route-discovery"
+          node --input-type=module <<'NODE'
+          import {writeFileSync} from 'node:fs';
+          const key=process.env.NVIDIA_NIM_API_KEY;if(!key)throw Error('Existing approved NVIDIA developer key unavailable');
+          const r=await fetch('https://integrate.api.nvidia.com/v1/models',{headers:{Authorization:'Bearer '+key},redirect:'error',signal:AbortSignal.timeout(30000)});
+          const out={schema:'course-nvidia-route-inventory/v1',provider:'nvidia',observedAt:new Date().toISOString(),httpStatus:r.status,inference:false,billingVerified:false,models:[]};
+          if(r.ok){const j=await r.json();out.models=(j.data||[]).map(m=>m.id).filter(x=>typeof x==='string'&&/gpt-oss|nemotron|deepseek|qwen|glm/i.test(x)).sort();}
+          writeFileSync(process.env.RUNNER_TEMP+'/nvidia-route-discovery/inventory.json',JSON.stringify(out,null,2));console.log(JSON.stringify(out,null,2));
+          if(!r.ok)process.exitCode=1;
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-nvidia-route-discovery
+          path: ${{ runner.temp }}/nvidia-route-discovery/
+          retention-days: 14
