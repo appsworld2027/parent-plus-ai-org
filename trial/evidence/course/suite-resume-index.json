@@ -35,6 +35,15 @@
         "CRS-01-SC-003/create-ordered"
       ],
       "revalidate": []
+    },
+    {
+      "runId": 46065798373,
+      "path": "trial/evidence/course/46065798373/suite-author-bundle.json",
+      "blob": "32e670f0fe2201f3102c92a3897c98f17d66ea6c",
+      "packets": [
+        "CRS-01-SC-005/dirty"
+      ],
+      "revalidate": []
     }
   ]
 }
