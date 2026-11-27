@@ -115,8 +115,22 @@ jobs:
           path: eligibility.json
           retention-days: 14
 
-  build:
+  prebuild-lock:
     needs: [baseline, eligibility]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Require exact canonical role approvals and locked inputs before Dev
+        run: node scripts/course-pilot/prebuild-lock.mjs
+
+  build:
+    needs: [baseline, eligibility, prebuild-lock]
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:

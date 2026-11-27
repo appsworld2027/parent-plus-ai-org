@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 const read=(p)=>readFileSync(new URL('../'+p,import.meta.url),'utf8');
 process.env.TRIAL_PROFILE='course-pilot';
-const { TRIAL, patchProblems, builderPrompt, reviewerPrompt, verdict, parseRaw }=await import('../scripts/safe-trial.mjs');
+const { TRIAL, patchProblems, builderPrompt, reviewerPrompt, verdict, parseRaw, courseContractProblems }=await import('../scripts/safe-trial.mjs');
 const { checkBaseline }=await import('../scripts/course-pilot/baseline.mjs');
 const { extractReview }=await import('../scripts/course-pilot/review.mjs');
 const { checkEligibility }=await import('../scripts/course-pilot/eligibility.mjs');
@@ -65,7 +65,7 @@ test('course workflow is owner-only for inference, read-only GitHub, isolated; P
   assert.match(flow,/persist-credentials: false/);
   assert.doesNotMatch(flow,/NVIDIA_NIM_API_KEY|OPENAI_API_KEY|ANTHROPIC_API_KEY|CODEX_AUTH|git push|gh pr merge|gh workflow run/);
   assert.doesNotMatch(flow.slice(flow.indexOf('\n  grade:'),flow.indexOf('\n  review:')),/secrets\.|engine\.sh|agent\.sh/);
-  assert.match(flow,/needs: \[baseline, eligibility\]/);
+  assert.match(flow,/needs: \[baseline, eligibility, prebuild-lock\]/);
   assert.match(flow,/needs: \[build, grade, review\]/);
   for(const stage of ['course-build','course-grade','course-review','course-release-simulation'])assert.ok(flow.includes(stage));
   assert.match(read('scripts/course-pilot/engine.sh'),/groq\/openai\/gpt-oss-120b\|groq\/qwen\/qwen3\.8-27b/);
@@ -90,7 +90,28 @@ test('PRD free-only gate rejects missing, unknown, expired or unqualified routes
   for(const ch of [{billingGuard:'unknown'},{paidFallback:true},{dataClass:'private'},{privateOrCustomerData:true},{expiresAt:'2026-11-26T23:00:00Z'},{billingEvidence:''},{routes:x.routes.slice(1)},{routes:[{...x.routes[0],observedIdentity:'different'},x.routes[1]]},{routes:[{...x.routes[0],toolArtifactVerified:false},x.routes[1]]}])assert.throws(()=>checkEligibility(JSON.stringify({...x,...ch}),now));
   const flow=read('.github/workflows/course-pilot.yml');
   assert.match(flow,/course-provider-eligibility/);
-  assert.match(flow,/needs: \[baseline, eligibility\]/);
+  assert.match(flow,/needs: \[baseline, eligibility, prebuild-lock\]/);
   assert.equal((flow.match(/COURSE_PILOT_PROVIDER_ELIGIBILITY: /g)||[]).length,4);
   assert.match(read('scripts/course-pilot/engine.sh'),/node "\$J\/scripts\/course-pilot\/eligibility\.mjs"/);
+});
+
+test('canonical Course lock rejects skipped/focused new tests and absent actual patch',()=>{
+  const changes=[M('tests/course-model.test.ts','A')];
+  assert.ok(courseContractProblems(changes,'').length);
+  assert.ok(courseContractProblems(changes,'+++ b/tests/course-model.test.ts\n+test.skip("pretend",()=>{});').length);
+  assert.ok(courseContractProblems(changes,'+++ b/tests/course-model.test.ts\n+test.only("pretend",()=>{});').length);
+  assert.deepEqual(courseContractProblems(changes,'+++ b/tests/course-model.test.ts\n+test("invariant",()=>{});'),[]);
+});
+test('prebuild lock requires exact hashes, separate canonical roles and intended RED proof',async()=>{
+  const {validateLock}=await import('../scripts/course-pilot/prebuild-lock.mjs');
+  const h='a'.repeat(64),source=TRIAL.base,inputs={source,contractHash:h,testHash:h,supportHash:h};
+  const stages=[['ai:tests','quinn-qa','author'],['ai:tests-review','quinn-qa','challenger'],['ai:tests-signoff','arjun-cpto','accountable']].map(([stage,role,seat],i)=>({...inputs,stage,role,seat,passed:true,attempt:'test-attempt-'+i,contextSha256:String(i).repeat(64),artifactSha256:String(i+3).repeat(64),run:'https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/'+(i+1)}));
+  const lock={...inputs,schema:'course-test-lock/v1',stages,intendedRed:true,redRun:'https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/9',redReceiptSha256:h,criticalMutationControlsPassed:true};
+  assert.equal(validateLock(lock,inputs),true);
+  assert.throws(()=>validateLock(null,inputs));
+  assert.throws(()=>validateLock({...lock,testHash:'b'.repeat(64)},inputs));
+  assert.throws(()=>validateLock({...lock,stages:[stages[0],{...stages[1],contextSha256:stages[0].contextSha256},stages[2]]},inputs));
+  assert.throws(()=>validateLock({...lock,intendedRed:false},inputs));
+  assert.throws(()=>validateLock({...lock,criticalMutationControlsPassed:false},inputs));
+  const flow=read('.github/workflows/course-pilot.yml');assert.match(flow,/needs: \[baseline, eligibility, prebuild-lock\]/);
 });

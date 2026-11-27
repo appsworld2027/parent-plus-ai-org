@@ -4,7 +4,7 @@ Status: P0 isolated harness candidate, **not approved for activation**. The Cour
 
 ## Traceability and current stage
 - G1: real autonomous work not demonstrated. Current harness has a sequential plan/build/grade/review outline, not verified canonical orchestration or two-lane execution.
-- G2: trusted reference contract and six browser cases exist; no baseline RED, Quinn-authored acceptance suite, independent challenger/Arjun lock, mutation assessment, full candidate QA, or exact-head independent approval yet. Do not admit Dev until those prebuild conditions are implemented and verified.
+- G2: trusted reference contract and six browser cases exist; no baseline RED, Quinn-authored acceptance suite, independent challenger/Arjun lock, mutation assessment, full candidate QA, or exact-head independent approval yet. The executable prebuild-lock gate now rejects the missing exact approval and support manifests. Do not admit Dev until the canonical stages produce real evidence and it is independently reviewed.
 - G3: both named routes are configuration only until the owner-controlled eligibility record attests to provider-enforced no-charge billing, permitted public/synthetic transmission, separate actual observed model identities and tool-artifact evidence. Missing, expired, or ambiguous eligibility blocks inference. A syntactically valid receipt is not independent verification of its cited evidence. Never manufacture it. No paid fallback; no private/customer data.
 - G4: candidate hash and run artifacts designed; fresh worker/process recovery, durable Garage checkpoint/hash acknowledgement, stale/duplicate effects not demonstrated.
 - G5: source-linked reporting to #82; two-founder Studio evidence parity, versioned decisions/stop and feedback not demonstrated.
@@ -18,3 +18,5 @@ Status: P0 isolated harness candidate, **not approved for activation**. The Cour
 5. Retain separate later production authorization and safety gates; report exact versions and evidence to #82.
 
 Until the prebuild lock is implemented, this branch is a draft harness; do not merge or dispatch it as an approved product build. PR checks are non-inference. This note is a public-safe operational summary; the full founder PRD is not copied into the public repository.
+
+The Course candidate's actual applied diff is also checked by the existing canonical contract-lock checker to reject skipped/focused tests and changes to locked paths. The lock manifest validator checks shape, exact hashes and separation; it cannot by itself verify the external contents of referenced role runs. No lock receipt has been created or manufactured.

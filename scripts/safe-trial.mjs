@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { FREE_MODELS } from "./agent-router.mjs";
+import { checkContractLock, parseAddedLines } from "./contract-lock.mjs";
 
 function isMain(url) { try { return !!process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(url)); } catch { return false; } }
 
@@ -51,6 +52,12 @@ export function patchProblems(entries) {
     if (path.includes("..") || instructions || !(app || support || newTest || notes)) problems.push(`not allowed: ${status} ${path}`);
   }
   return problems;
+}
+// Reuse the canonical product lock for Course; builder-created tests may not be skipped or focused.
+export function courseContractProblems(entries, patchText) {
+  if (profile !== "course-pilot") return [];
+  if (typeof patchText !== "string" || !patchText.trim()) return ["exact candidate patch required for canonical contract lock"];
+  return checkContractLock({changes:entries,addedLines:parseAddedLines(patchText),lockedPaths:["e2e/acceptance/","e2e/support/","docs/product/coach-course-management/"]}).violations;
 }
 // Input: `git diff --raw --no-renames` lines. Links and sub-repositories are refused.
 export function parseRaw(text) {
@@ -200,7 +207,8 @@ if (isMain(import.meta.url)) {
   else if (cmd === "builder-prompt") console.log(builderPrompt());
   else if (cmd === "reviewer-prompt") console.log(reviewerPrompt(read(a[0]).trim() || "unavailable"));
   else if (cmd === "guard") {
-    const p = patchProblems(parseRaw(read(a[0])));
+    const entries = parseRaw(read(a[0]));
+    const p = [...patchProblems(entries), ...courseContractProblems(entries, a[1] ? read(a[1]) : undefined)];
     console.log(p.join("\n") || "patch paths allowed"); process.exit(p.length ? 1 : 0);
   } else if (cmd === "verdict") {
     const [raw, checkExit, acc, before, after, out] = a;
