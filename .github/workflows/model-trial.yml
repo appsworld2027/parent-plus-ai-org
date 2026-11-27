@@ -6,7 +6,7 @@ on:
       confirm:
         type: string
         required: true
-        description: Enter COURSE BASELINE ONLY
+        description: Enter COURSE BASELINE ONLY or GROQ METADATA ONLY
 permissions:
   contents: read
 concurrency:
@@ -65,3 +65,33 @@ jobs:
           name: course-p0-baseline-no-inference
           path: /srv/trial/out/
           retention-days: 14
+
+  metadata:
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      inputs.confirm == 'GROQ METADATA ONLY' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner &&
+      github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Read provider model catalogue with the existing credential (no inference)
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          const key=process.env.GROQ_API_KEY;
+          if(!key)throw Error('Existing credential missing');
+          const t=Date.now();
+          const r=await fetch('https://api.groq.com/openai/v1/models',{headers:{Authorization:'Bearer '+key},redirect:'error',signal:AbortSignal.timeout(30000)});
+          if(!r.ok)throw Error('Provider catalogue rejected existing key: HTTP '+r.status);
+          const x=await r.json();
+          const routes=['openai/gpt-oss-120b','qwen/qwen3.8-27b'];
+          for(const id of routes)if(!x.data?.some(m=>m.id===id&&m.active!==false))throw Error('Approved route unavailable: '+id);
+          console.log(JSON.stringify({type:'metadata-only',provider:'groq',http:r.status,availableRoutes:routes,observedAt:new Date().toISOString(),durationMs:Date.now()-t,inferenceRequests:0},null,2));
+          NODE
