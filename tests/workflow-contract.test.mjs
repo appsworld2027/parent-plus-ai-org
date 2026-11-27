@@ -39,8 +39,8 @@ test("the canonical background worker is Groq free-tier only with bounded output
   assert.ok(worker.includes('TOOLS="Bash,Read"'));
   assert.ok(worker.includes('--tools "$TOOLS"'));
   assert.ok(worker.includes('--allowedTools "$TOOLS"'));
-  assert.ok(worker.includes("CLAUDE_CODE_MAX_OUTPUT_TOKENS=1024"));
-  assert.ok(worker.includes("--max 8000"));
+  assert.ok(worker.includes("CLAUDE_CODE_MAX_OUTPUT_TOKENS=512"));
+  assert.ok(worker.includes("--max 5000"));
   const systemPrompt = read("../governance/FREE_AGENT_SYSTEM_PROMPT.md");
   assert.ok(systemPrompt.includes("Groq free-tier"));
   assert.ok(systemPrompt.includes("Never call another provider"));

@@ -168,7 +168,7 @@ jobs:
           READONLY_FLAG=""
           if [ "$TOOL_MODE" = "readonly" ]; then READONLY_FLAG="--read-only"; fi
           node .ai-org-handbook/scripts/onboarding-pack.mjs --role "$ROLE" --stage "$STAGE" --slug "$SLUG" --seat "$SEAT" --feature "$FEATURE" \
-            --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md --max 8000 $READONLY_FLAG
+            --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md --max 5000 $READONLY_FLAG
           cp /tmp/onboarding.md /tmp/agent-logs/onboarding.md
           echo "onboarding pack: $(wc -c < /tmp/onboarding.md) characters for $ROLE ($STAGE, seat ${SEAT:-none}, feature ${SLUG:-none})"
           echo "slug=$SLUG" >> "$GITHUB_ENV"
@@ -273,7 +273,7 @@ jobs:
               ;;
           esac
           start=$(date +%s)
-          CLAUDE_CODE_MAX_OUTPUT_TOKENS=1024 CLAUDE_CODE_MAX_RETRIES=2 \
+          CLAUDE_CODE_MAX_OUTPUT_TOKENS=512 CLAUDE_CODE_MAX_RETRIES=2 \
             ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
             timeout 3600 claude --bare -p "$PROMPT" \
             --system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md \
@@ -433,7 +433,7 @@ jobs:
           sed -i -E '/^[[:space:]]*total[[:space:]]+used[[:space:]]/d; /^Mem:/d; /^Swap:/d' /tmp/attempt.md
           printf 'Item #%s, stage %s, seat %s. Read issue metadata and body only: gh issue view %s --json title,body,labels,assignees\n' "$NUMBER" "$STAGE" "${SEAT:-none}" "$NUMBER" > /tmp/task.md
           node .ai-org-handbook/scripts/onboarding-pack.mjs --role "$ROLE" --stage "$STAGE" --slug "$SLUG" --seat "$SEAT" --feature "$FEATURE" \
-            --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md --max 8000
+            --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md --max 5000
           cp /tmp/onboarding.md /tmp/agent-logs/onboarding.md
           echo "onboarding pack: $(wc -c < /tmp/onboarding.md) characters for $ROLE ($STAGE, seat ${SEAT:-none}, feature ${SLUG:-none})"
           echo "slug=$SLUG" >> "$GITHUB_ENV"
@@ -531,7 +531,7 @@ jobs:
               ;;
           esac
           start=$(date +%s)
-          CLAUDE_CODE_MAX_OUTPUT_TOKENS=1024 CLAUDE_CODE_MAX_RETRIES=2 \
+          CLAUDE_CODE_MAX_OUTPUT_TOKENS=512 CLAUDE_CODE_MAX_RETRIES=2 \
             ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
             timeout 3600 claude --bare -p "$PROMPT" \
             --system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md \
