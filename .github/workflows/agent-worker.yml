@@ -402,16 +402,23 @@ jobs:
               exit 1
               ;;
           esac
+          OUTPUT_TOKEN_CAP=512
           if [ "$TOOL_MODE" = "readonly" ] && [[ "$STAGE_OVERRIDE" =~ ^ai:(discovery|review)$ ]]; then
             # The authoritative synthetic issue body is already embedded.
             TOOLS=""; ALLOWED_TOOLS=""
             PROMPT="$PROMPT
-            Return a concise report (at most 300 words) from the embedded issue only. For review, put the verdict first. Do not request tools."
+            Return a concise report from the embedded issue only. Do not request tools."
+            if [ "$STAGE_OVERRIDE" = "ai:review" ]; then
+              # Measured 512 output-token exhaustion; remain below the observed 1000-token allowance.
+              OUTPUT_TOKEN_CAP=768
+              PROMPT="$PROMPT
+              Format the review as a verdict line, at least three concise concrete defects, and one role/model/no-write evidence line. At most 120 words. No preamble or redundant discussion."
+            fi
           fi
           date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/agent-logs/started-at
           start=$(date +%s)
           rc=0
-          CLAUDE_CODE_MAX_OUTPUT_TOKENS=512 CLAUDE_CODE_MAX_RETRIES=2 \
+          CLAUDE_CODE_MAX_OUTPUT_TOKENS="$OUTPUT_TOKEN_CAP" CLAUDE_CODE_MAX_RETRIES=2 \
             ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
             timeout 3600 claude --bare -p "$PROMPT" \
             --system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md \
@@ -421,6 +428,10 @@ jobs:
           rc=$(jq -er '.exitCode' <<< "$RESULT")
           KIND=$(jq -er '.kind' <<< "$RESULT")
           case "$KIND" in
+            output-limit)
+              touch /tmp/agent-logs/output-limit
+              echo "Free-provider output ceiling exhausted; revise the bounded report before retrying." | tee -a "$GITHUB_STEP_SUMMARY"
+              ;;
             request-too-large)
               touch /tmp/agent-logs/request-too-large
               echo "Free-provider input allowance exceeded; reduce context before retrying." | tee -a "$GITHUB_STEP_SUMMARY"
@@ -573,7 +584,10 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           STATE="failed"
-          if [ -f /tmp/agent-logs/request-too-large ]; then
+          if [ -f /tmp/agent-logs/output-limit ]; then
+            MARKER="ai-org:failed"; STATE="blocked"
+            SUMMARY="The free-model output ceiling was exhausted. Reconcile the attempt and reduce report scope before retrying. No paid fallback was attempted."
+          elif [ -f /tmp/agent-logs/request-too-large ]; then
             MARKER="ai-org:failed"; STATE="blocked"
             SUMMARY="The approved free model rejected the request size. Reduce context and reconcile the exact attempt before retrying. No paid fallback was attempted."
           elif [ -f /tmp/agent-logs/execution-interrupted ]; then
