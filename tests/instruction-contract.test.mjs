@@ -147,7 +147,7 @@ test("cross-repository private handbook checkout uses a read-only deploy key wit
   }
   const smoke = read(".github/workflows/handbook-connectivity.yml");
   assert.match(smoke, /contents: read/);
-  assert.ok(smoke.includes("NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}"));
+  assert.doesNotMatch(smoke, /NVIDIA_NIM_API_KEY|CODEX_AUTH_JSON|CLAUDE_CODE_OAUTH_TOKEN/);
   assert.doesNotMatch(smoke, /CODEX_AUTH_JSON|CLAUDE_CODE_OAUTH_TOKEN/);
   assert.match(smoke, /git rev-parse HEAD/);
 });
