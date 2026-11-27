@@ -356,7 +356,7 @@ jobs:
           13. Dependencies (node_modules) and the Playwright Chromium browser are already installed. Do not reinstall them and do not read dependency source code."
           if [ "$TOOL_MODE" = "readonly" ]; then
             PROMPT="$PROMPT
-8. Reporting: provide a concise final report in your assistant response. The workflow publishes it as the issue comment; do not attempt GitHub writes or shell commands."
+          8. Reporting: provide a concise final report in your assistant response. The workflow publishes it as the issue comment; do not attempt GitHub writes or shell commands."
           fi
           case "$TOOL_MODE" in
             readonly)
