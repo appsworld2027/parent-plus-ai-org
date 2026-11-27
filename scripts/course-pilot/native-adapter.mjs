@@ -22,7 +22,7 @@ export async function nativeGroqTransport(body,key){
 export function isolatedBoundedExecutor({node,helper}){
  if(!isAbsolute(node)||!isAbsolute(helper))throw Error('Trusted absolute executable and helper required');
  return (policy,request)=>{
-  const b=spawnSync('/usr/bin/sudo',['-n','-u','trialagent','--','/usr/bin/env','-i','PATH=/usr/bin:/bin','HOME=/home/trialagent','LANG=C.UTF-8',node,helper],{input:JSON.stringify({policy,request}),encoding:'utf8',timeout:12000,maxBuffer:1024*1024,cwd:'/'});
+  const b=spawnSync('/usr/bin/sudo',['-n','-u','trialagent','--','/usr/bin/env','-i','PATH=/usr/bin:/bin','HOME=/home/trialagent','LANG=C.UTF-8',node,helper],{input:JSON.stringify({policy,request}),encoding:'utf8',timeout:12000,maxBuffer:1024*1024,cwd:'/',env:{PATH:'/usr/bin:/bin'}});
   if(b.error||b.signal)throw Error('Bounded executor failed');
   let result;try{result=JSON.parse(b.stdout)}catch{throw Error('Invalid isolated tool result')}
   if(b.status===0&&result?.ok===true)return result;
