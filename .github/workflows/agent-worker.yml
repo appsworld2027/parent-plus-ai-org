@@ -141,7 +141,7 @@ jobs:
           sed -i -E '/^[[:space:]]*total[[:space:]]+used[[:space:]]/d; /^Mem:/d; /^Swap:/d' /tmp/attempt.md
           printf 'Item #%s, stage %s, seat %s. Read issue metadata and body only: gh issue view %s --json title,body,labels,assignees\n' "$NUMBER" "$STAGE" "${SEAT:-none}" "$NUMBER" > /tmp/task.md
           node .ai-org-handbook/scripts/onboarding-pack.mjs --role "$ROLE" --stage "$STAGE" --slug "$SLUG" --seat "$SEAT" --feature "$FEATURE" \
-            --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md --max 16000
+            --attempt /tmp/attempt.md --task /tmp/task.md --out /tmp/onboarding.md --max 8000
           cp /tmp/onboarding.md /tmp/agent-logs/onboarding.md
           echo "onboarding pack: $(wc -c < /tmp/onboarding.md) characters for $ROLE ($STAGE, seat ${SEAT:-none}, feature ${SLUG:-none})"
           echo "slug=$SLUG" >> "$GITHUB_ENV"
@@ -227,7 +227,7 @@ jobs:
           11. Dependencies (node_modules) and the Playwright Chromium browser are already installed. Do not reinstall them and do not read dependency source code."
           case "$TOOL_MODE" in
             readonly)
-              TOOLS="Bash,Read,Glob,Grep"
+              TOOLS="Bash,Read"
               ;;
             standard)
               TOOLS="Bash,Read,Edit,Write,Glob,Grep"

@@ -56,16 +56,17 @@ test("feature onboarding includes only the latest two handovers for that feature
   assert.ok(!pack.includes("UNRELATED_NONE_HANDOVER_SENTINEL"));
 });
 
-test("bounded onboarding keeps the current task and stays within the configured character budget", (t) => {
+test("bounded onboarding puts the current task first and stays within the 8000-character budget", (t) => {
   const f = fixture(t);
   writeFileSync(join(f.handbook, "org", "agents", "maya-ai-pm.md"), "R".repeat(10000));
   writeFileSync(join(f.handbook, "org", "lessons", "maya-ai-pm.md"), "L".repeat(10000));
   writeFileSync(join(f.product, "docs", "ai-memory", "memory.md"), "M".repeat(10000));
 
-  const pack = buildPack({ role: "maya-ai-pm", stage: "ai:discovery", product: f.product, handbook: f.handbook, task: f.task, max: 16000 });
+  const pack = buildPack({ role: "maya-ai-pm", stage: "ai:discovery", product: f.product, handbook: f.handbook, task: f.task, max: 8000 });
 
-  assert.ok(pack.length <= 16000);
+  assert.ok(pack.length <= 8000);
   assert.ok(pack.includes("CURRENT_TASK_SENTINEL"));
+  assert.ok(pack.indexOf("CURRENT_TASK_SENTINEL") < pack.indexOf("Your role and RACI"));
 });
 
 test("routine agent prompts do not reload full governance handbooks", () => {
