@@ -2907,3 +2907,65 @@ jobs:
           name: course-single-case-grade
           path: /srv/trial/out/single-case-grade.json
           retention-days: 14
+
+
+  course-suite-packet-author:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE SUITE QWEN' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      accepted: ${{ steps.author.outputs.accepted }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Bounded independent authoring with exact resume and no paid fallback
+        id: author
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: |
+          node --check trial/controls/quinn-suite-packet-author.mjs
+          node trial/controls/quinn-suite-packet-author.mjs author
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-suite-packet-author
+          path: ${{ runner.temp }}/course-suite-author/
+          retention-days: 14
+
+  course-suite-packet-verification:
+    needs: course-suite-packet-author
+    if: needs.course-suite-packet-author.outputs.accepted != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          path: handbook
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: course-suite-packet-author
+          path: authored
+      - name: Verify exact receipt hashes and isolated source
+        run: bash handbook/trial/controls/course-suite-grade.sh prepare
+      - name: No-key browser grade of each accepted case and relevant defects
+        run: bash handbook/trial/controls/course-suite-grade.sh grade
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-suite-packet-grade
+          path: |
+            /srv/trial/out/*.json
+            /srv/trial/out/*.exit
+          retention-days: 14
