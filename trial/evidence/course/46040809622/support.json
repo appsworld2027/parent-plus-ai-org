@@ -1,0 +1,10 @@
+{
+  "schema": "course-support/v1",
+  "source": "710082b2d8cf3c1007086df31f87b34ae8e02573",
+  "files": {
+    "e2e/support/backend.ts": "871b2ec45fdcbf0226db8856e20a860fc9aae0c86c6d1cbaf85db21bce333b63",
+    "playwright.config.ts": "0c8843c6c89dfdadd3d6f901b0979ad8f71586b153c6b9dc098ce42a42fd04d7",
+    "package.json": "cf32b7c72e5725dca93af2abf3530bf14e8e1b9516f254140cc03c048358b649",
+    "App.tsx": "55fbde651c74c392701da8574491a82a7b0bb705d6aaa977bc5cc5c7b38f39e8"
+  }
+}
