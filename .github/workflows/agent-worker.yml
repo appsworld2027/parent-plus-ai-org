@@ -209,12 +209,12 @@ jobs:
           [ -d node_modules ] && PROMPT="$PROMPT
           11. Dependencies (node_modules) and the Playwright Chromium browser are already installed. Do not reinstall them and do not read dependency source code."
           start=$(date +%s)
-          CLAUDE_CODE_MAX_OUTPUT_TOKENS=2048 CLAUDE_CODE_MAX_RETRIES=2 \
+          CLAUDE_CODE_MAX_OUTPUT_TOKENS=1024 CLAUDE_CODE_MAX_RETRIES=2 \
             ANTHROPIC_BASE_URL=http://127.0.0.1:8082 ANTHROPIC_AUTH_TOKEN=freecc API_TIMEOUT_MS=600000 DISABLE_AUTOUPDATER=1 \
             timeout 3600 claude --bare -p "$PROMPT" \
             --system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md \
-            --tools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch" \
-            --allowedTools "Bash,Read,Edit,Write,Glob,Grep,WebSearch,WebFetch" --max-turns 80 \
+            --tools "Bash,Read,Edit" \
+            --allowedTools "Bash,Read,Edit" --max-turns 80 \
             --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr
           rc=$?
           secs=$(( $(date +%s) - start ))
