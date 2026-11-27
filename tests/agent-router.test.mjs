@@ -70,7 +70,11 @@ test("prompt and pause comment carry the agent identity", () => {
   const agent = agentInfo("quinn-qa");
   const p = buildPrompt({ agent, number: 7, isPR: true, repo: "o/r" });
   assert.match(p, /You are Quinn/); assert.match(p, /gh pr view 7/); assert.match(p, /quinn-qa\.md/);
-  assert.ok(pauseComment({ agent, stage: "ai:qa" }).startsWith(PAUSE_MARKER));
+  const pause = pauseComment({ agent, stage: "ai:qa" });
+  assert.ok(pause.startsWith(PAUSE_MARKER));
+  assert.match(pause, /Groq free tier only/);
+  assert.match(pause, /no paid fallback/i);
+  assert.doesNotMatch(pause, /supervised trials/);
 });
 
 test("Quinn's prompt points to the QA charter and Maya's to the contract playbook", () => {
