@@ -65,7 +65,7 @@ test("the canonical background worker uses approved free providers with bounded 
   assert.ok(worker.includes('TOOLS="Bash,Read"'));
   assert.ok(worker.includes('--tools "$TOOLS"'));
   assert.ok(worker.includes('--allowedTools "$ALLOWED_TOOLS"'));
-  assert.ok(worker.includes('ALLOWED_TOOLS="Read,Bash(grep:*),Bash(sed:*),Bash(gh issue view:*),Bash(gh issue comment:*),Bash(git status:*),Bash(pwd:*),Bash(head:*),Bash(tail:*),Bash(wc:*)'));
+  assert.ok(worker.includes('ALLOWED_TOOLS="Read,Bash(grep:*),Bash(sed:*),Bash(gh issue view:*),Bash(git status:*),Bash(pwd:*),Bash(head:*),Bash(tail:*),Bash(wc:*)'));
   assert.ok(!worker.includes('--allowedTools "$TOOLS"'), "read-only mode must not pre-authorize unrestricted Bash");
   assert.equal((worker.match(/- name: Run agent with the selected free provider/g) || []).length, 1, "one workflow run starts one model worker");
   const outputCap = Number(worker.match(/CLAUDE_CODE_MAX_OUTPUT_TOKENS=(\d+)/)?.[1] || 0);
@@ -83,7 +83,8 @@ test("the canonical background worker uses approved free providers with bounded 
   assert.ok(systemPrompt.includes("Never call an unapproved provider"));
   assert.ok(systemPrompt.includes("single-quoted"));
   assert.ok(systemPrompt.includes("unescaped backticks"));
-  assert.ok(worker.includes("Verify read-only completion comment"));
+  assert.ok(worker.includes("Publish and verify read-only completion report"));
+  assert.ok(worker.includes("The workflow publishes it as the issue comment"));
   assert.ok(worker.includes("## Compact onboarding pack"));
   assert.ok(worker.includes("cat .ai-org-runtime/onboarding.md"));
   assert.ok(worker.includes("started-at"));
