@@ -35,6 +35,13 @@ function assertRubric() {
       !sameSet(rubric.variants,VARIANTS) || !sameSet(rubric.roles.map(r=>r.role),ROLES) ||
       rubric.hardGates.length!==10 || new Set(rubric.hardGates).size!==10 ||
       rubric.integratedGates.length!==15 || new Set(rubric.integratedGates).size!==15) throw Error("Invalid pinned rubric");
+  const scoring=rubric.scoring;
+  if (!scoring || scoring.maxScore!==100 || scoring.minimumScope!=="each-role-variant" ||
+      scoring.aggregation!=="all-33-slots-and-all-integrated-gates" || scoring.averagingAllowed!==false ||
+      !object(rubric.integratedGateOwners) ||
+      !sameSet(Object.keys(rubric.integratedGateOwners),rubric.integratedGates) ||
+      !Object.values(rubric.integratedGateOwners).every(owners=>Array.isArray(owners)&&owners.length>0&&
+        new Set(owners).size===owners.length&&owners.every(role=>ROLES.includes(role)))) throw Error("Invalid scoring or integrated gate ownership");
   for (const r of rubric.roles) {
     const totals = {correctness:0,edge:0,evidence:0,efficiency:0};
     if (r.checks.length!==8 || new Set(r.checks.map(c=>c.id)).size!==8) throw Error("Invalid role rubric");
