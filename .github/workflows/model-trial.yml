@@ -1426,3 +1426,98 @@ jobs:
             ${{ runner.temp }}/feedback/raw-feedback.json
           retention-days: 14
 
+
+  quinn-indexed-verification:
+    needs: quinn-indexed-feedback
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+          path: handbook
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: course-quinn-indexed-feedback
+          path: repaired
+      - name: Bind exact repaired tests to public source and verified evaluator control
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/control"
+          cp handbook/trial/controls/course-test-control-server.mjs "$RUNNER_TEMP/control/server.mjs"
+          bash handbook/scripts/safe-trial/prepare.sh handbook
+          cd /srv/trial/product
+          node --input-type=module - "$GITHUB_WORKSPACE/repaired" <<'NODE'
+          import {readFileSync,writeFileSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const d=process.argv[2],sha=x=>createHash('sha256').update(x).digest('hex'),a=JSON.parse(readFileSync(d+'/receipt.json')),m=JSON.parse(readFileSync(d+'/support.json')),p=readFileSync(d+'/quinn-repaired.spec.ts'),g=readFileSync(d+'/quinn-repaired-guard.spec.ts');
+          if(a.source!=='710082b2d8cf3c1007086df31f87b34ae8e02573'||sha(p)!==a.testHash||sha(g)!==a.guardHash||sha(readFileSync(d+'/support.json'))!==a.supportHash||sha(readFileSync('docs/product/coach-course-management/ACCEPTANCE.md'))!==a.contractHash)throw Error('Indexed receipt mismatch');
+          for(const [path,h] of Object.entries(m.files))if(sha(readFileSync(path))!==h)throw Error('Support mismatch '+path);
+          writeFileSync('e2e/acceptance/coach-course-management.spec.ts',p);
+          writeFileSync('e2e/acceptance/course-repaired-guard.spec.ts',g);
+          NODE
+          npm ci --no-audit --no-fund
+          PLAYWRIGHT_BROWSERS_PATH=/srv/trial/browsers npx playwright install --with-deps chromium
+          chmod -R a+rX /srv/trial/browsers
+          bash /srv/trial/judge/scripts/safe-trial/isolate.sh
+      - name: Exact agent artifact against clean, six mutants, flag-off, and actual untouched product
+        run: |
+          set -euo pipefail
+          . /srv/trial/judge/scripts/safe-trial/lib.sh
+          lock_workspace grading
+          mkdir -p /srv/trial/out
+          cd /srv/trial/product
+          start_server() { MUTANT="$1" PORT=18082 node "$RUNNER_TEMP/control/server.mjs" >/srv/trial/out/server.log 2>&1 & SERVER=$!; for i in $(seq 1 25); do if curl -sf http://127.0.0.1:18082/ >/dev/null; then return 0; fi; sleep 1; done; return 1; }
+          stop_server(){ kill "$SERVER" 2>/dev/null || true; wait "$SERVER" 2>/dev/null || true; }
+          trial(){
+            local mode="$1" spec="$2" label="$3" grep="$4" rc=0
+            start_server "$mode"
+            args=(); if [ -n "$grep" ]; then args=(--grep "$grep"); fi
+            as_agent env PLAYWRIGHT_BASE_URL=http://127.0.0.1:18082 timeout 200 npx playwright test "$spec" --reporter=json --workers=1 --timeout=22000 "${args[@]}" > "/srv/trial/out/$label.json" || rc=$?
+            kill_agent;stop_server
+            echo "$rc" > "/srv/trial/out/$label.exit"
+          }
+          ref=e2e/acceptance/coach-course-management.spec.ts
+          guard=e2e/acceptance/course-repaired-guard.spec.ts
+          trial clean "$ref" author-clean ''
+          if [ "$(cat /srv/trial/out/author-clean.exit)" = 0 ]; then
+            trial missing-entry "$ref" mutant-001 CRS-01-SC-001
+            trial invalid-title "$ref" mutant-002 CRS-01-SC-002
+            trial drop-objective "$ref" mutant-003 CRS-01-SC-003
+            trial overwrite-history "$ref" mutant-004 CRS-01-SC-004
+            trial dirty-bypass "$ref" mutant-005 CRS-01-SC-005
+            trial network-leak "$ref" mutant-006 CRS-01-SC-006
+          fi
+          trial flag-off "$guard" guard-clean ''
+          trial flag-off-leak "$guard" guard-mutant ''
+          # Actual unchanged Parent Plus pinned source: no model key, separate build and browser run.
+          rc=0
+          as_agent timeout 600 npx playwright test "$ref" --reporter=json --workers=2 --timeout=30000 >/srv/trial/out/actual-red.json || rc=$?
+          kill_agent;echo "$rc" >/srv/trial/out/actual-red.exit
+          rc=0
+          as_agent env EXPO_PUBLIC_COURSE_PILOT=0 timeout 300 npx playwright test "$guard" --reporter=json --workers=1 --timeout=30000 >/srv/trial/out/actual-guard.json || rc=$?
+          kill_agent;echo "$rc" >/srv/trial/out/actual-guard.exit
+          node --input-type=module <<'NODE'
+          import {readFileSync,writeFileSync,existsSync} from 'node:fs';
+          import {createHash} from 'node:crypto';
+          const d='/srv/trial/out',sha=x=>createHash('sha256').update(x).digest('hex');
+          function load(label){const p=d+'/'+label+'.json';if(!existsSync(p))return null;const b=readFileSync(p),r=JSON.parse(b),out=[];const walk=s=>{for(const spec of s.specs||[])for(const t of spec.tests||[])out.push({title:spec.title,status:t.status,error:t.results.find(x=>x.error)?.error?.message?.slice(0,600)??null});for(const q of s.suites||[])walk(q)};for(const s of r.suites||[])walk(s);return {label,sha256:sha(b),exit:Number(readFileSync(d+'/'+label+'.exit')),cases:out}}
+          const clean=load('author-clean'),mutants=Array.from({length:6},(_,n)=>load('mutant-00'+(n+1))),g=load('guard-clean'),gm=load('guard-mutant'),red=load('actual-red'),ag=load('actual-guard');
+          const cleanPass=clean?.exit===0&&clean.cases.length===6&&clean.cases.every(x=>x.status==='expected');
+          const mutationRecall=mutants.filter(x=>x?.exit!==0&&x?.cases?.length===1&&x.cases[0].status==='unexpected'&&!!x.cases[0].error).length;
+          const guardPass=g?.exit===0&&g.cases.length===1&&g.cases[0].status==='expected'&&gm?.exit!==0&&gm.cases.length===1&&gm.cases[0].status==='unexpected';
+          const intendedRed=red?.exit!==0&&red.cases.length===6&&red.cases.every(x=>x.status==='unexpected'&&x.error?.includes('Courses')&&x.error?.includes('toBeVisible'));
+          const actualGuard=ag?.exit===0&&ag.cases.length===1&&ag.cases[0].status==='expected';
+          const receipt={schema:'course-indexed-test-verification/v1',cleanPass,mutationRecall,guardPass,intendedRed,actualGuard,criticalMutationControlsPassed:cleanPass&&mutationRecall===6&&guardPass&&intendedRed&&actualGuard,clean,mutants,g,gm,red,ag};
+          writeFileSync(d+'/indexed-verification-receipt.json',JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));
+          if(!receipt.criticalMutationControlsPassed)process.exitCode=1;
+          NODE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-indexed-test-verification
+          path: /srv/trial/out/indexed-verification-receipt.json
+          retention-days: 14
