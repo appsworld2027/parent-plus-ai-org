@@ -37,6 +37,8 @@ on:
     secrets:
       GROQ_API_KEY:
         required: false
+      AI_ORG_HANDBOOK_SSH_KEY:
+        required: false
 
 jobs:
   agent:
