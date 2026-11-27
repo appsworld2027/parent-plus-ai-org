@@ -2696,3 +2696,29 @@ jobs:
           name: course-grounded-challenger-calibration
           path: ${{ runner.temp }}/course-challenge/
           retention-days: 14
+
+  course-focused-author-sc004:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE SC004 FOCUSED AUTHOR' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: One bounded real source-contract case, not a benchmark admission
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: node trial/controls/quinn-focused-case-author.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-focused-author-sc004
+          path: ${{ runner.temp }}/course-focused/
+          retention-days: 14
