@@ -5,7 +5,14 @@ HB=$(realpath "$1"); ROOT=${TRIAL_ROOT:-/srv/trial}; SOURCE=${TRIAL_SOURCE:-http
 eval "$(node "$HB/scripts/safe-trial.mjs" env | sed -E 's/^([A-Z_]+)=(.*)$/export \1="\2"/')"
 sudo mkdir -p "$ROOT" && sudo chown "$(id -un):" "$ROOT"; chmod 755 "$ROOT"
 git init -q "$ROOT/product" && cd "$ROOT/product"
-git fetch -q --depth 1 "$SOURCE" "$TRIAL_BASE"
+if [ "${TRIAL_PROFILE:-}" = "course-pilot" ]; then
+  # Some Git transports reject a raw SHA request. Fetch the named MM ref, never substitute its revision.
+  if ! git fetch -q --depth 1 "$SOURCE" "$TRIAL_BASE"; then
+    git fetch -q --depth 1 "$SOURCE" refs/heads/MM/development
+  fi
+else
+  git fetch -q --depth 1 "$SOURCE" "$TRIAL_BASE"
+fi
 git checkout -q FETCH_HEAD
 [ "$(git rev-parse HEAD)" = "$TRIAL_BASE" ] || { echo "Unexpected source revision"; exit 1; }
 rm -rf $TRIAL_STRIP
