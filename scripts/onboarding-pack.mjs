@@ -42,17 +42,20 @@ export function buildPack({ role, stage, slug, seat = "", handbook = ".ai-org-ha
   const handoffs = handoffDir && existsSync(handoffDir)
     ? packetsIn(handoffDir).slice(-2).map((p) => `### ${p.split("/").pop()}\n${read(p).trim()}`).join("\n\n")
     : "";
+  const handoverContext = slug
+    ? (handoffs || "No handovers yet — you are the first role on this feature.")
+    : "No feature slug is assigned yet. Never use `_none_`; do not create a handoff folder until a valid feature slug exists.";
 
   const parts = [
     ["1. Your task now", 1800, read(task).trim() || "See the issue."],
     ["2. Your role and RACI", 3000, `${read(join(handbook, "org/agents", `${role}.md`)).trim()}\n\n${seat ? `**Your seat in this stage: ${seat}.**\n\n` : ""}${raciText(raciFor(manifest, stage), raciStage(stage))}`],
-    ["3. Feature contract and relevant handovers", 2000, `${slug ? read(join(featureDir, "ACCEPTANCE.md")).trim() || "no contract file" : "no feature slug"}\n\n${handoffs || "No handovers yet — you are the first role on this feature."}`],
+    ["3. Feature contract and relevant handovers", 2000, `${slug ? read(join(featureDir, "ACCEPTANCE.md")).trim() || "no contract file" : "no feature slug"}\n\n${handoverContext}`],
     ["4. Previous attempt (why it failed — do not repeat it)", 500, read(attempt).trim() || "First attempt."],
     ["5. Lessons for your role (from earlier features)", 400, read(join(handbook, "org/lessons", `${role}.md`)).trim() || "none yet"],
     ["6. Product memory (verified facts about this product)", 300, memory || "none yet"],
   ];
   let body = parts.map(([h, n, t]) => `## ${h}\n\n${cap(t, n)}`).join("\n\n");
-  body = cap(`# Onboarding pack — ${role} — ${stage}${slug ? ` — ${slug}` : ""}\n\nRead all of this before acting. Your first output must be the 5-line Understanding (goal · constraints · known traps · what you must not touch · how you will prove it is done).\n\n${body}`, max);
+  const modeNote = readOnly ? "\n\n**READ-ONLY VALIDATION:** Do not modify files, issue labels, branches, commits, PRs or handoffs. Only post the specific issue comment requested by the task. The workflow owns stage transitions." : "";\n  body = cap(`# Onboarding pack — ${role} — ${stage}${slug ? ` — ${slug}` : ""}\n\nRead all of this before acting. Your first output must be the 5-line Understanding (goal · constraints · known traps · what you must not touch · how you will prove it is done).${modeNote}\n\n${body}`, max);
   return body;
 }
 
