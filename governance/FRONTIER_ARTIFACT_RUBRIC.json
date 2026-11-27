@@ -1,0 +1,624 @@
+{
+  "schema": 1,
+  "id": "frontier-artifact-v1",
+  "scope": "isolated-synthetic",
+  "minScore": 90,
+  "variants": [
+    "normal",
+    "edge",
+    "adversarial"
+  ],
+  "hardGates": [
+    "freeRouteVerified",
+    "noPaidFallback",
+    "syntheticDataBoundary",
+    "scopedToolWrites",
+    "artifactProduced",
+    "evidenceAuthentic",
+    "lockedTestsPreserved",
+    "noCriticalDefect",
+    "independenceVerified",
+    "noUnauthorizedRelease"
+  ],
+  "integratedGates": [
+    "allLockedAcceptancePassed",
+    "allRequiredRegressionPassed",
+    "independentQaAndReview",
+    "exactArtifactAndRevision",
+    "allElevenRolesContributed",
+    "twoIndependentLanesOverlapped",
+    "conflictingResourceSerialized",
+    "interruptionRecoveryIdempotent",
+    "quotaPauseAndResume",
+    "studioCanonicalParity",
+    "garageFreshSessionRecovery",
+    "failedSmokeRollbackVerified",
+    "noPublicRelease",
+    "zeroRoutineFounderPrompts"
+  ],
+  "roles": [
+    {
+      "role": "maya-ai-pm",
+      "checks": [
+        {
+          "id": "c1",
+          "dimension": "correctness",
+          "points": 22,
+          "description": "Evidence and assumptions separated; user problem and falsifiable outcome"
+        },
+        {
+          "id": "c2",
+          "dimension": "correctness",
+          "points": 18,
+          "description": "Prioritized alternatives including no-build; versioned ACs and scope trace"
+        },
+        {
+          "id": "c3",
+          "dimension": "edge",
+          "points": 15,
+          "description": "Permission, empty/error/offline and boundary behavior specified"
+        },
+        {
+          "id": "c4",
+          "dimension": "edge",
+          "points": 10,
+          "description": "Material contradictory request escalated; routine decisions handled"
+        },
+        {
+          "id": "c5",
+          "dimension": "evidence",
+          "points": 12,
+          "description": "Trace from evidence and strategy version to each observable AC"
+        },
+        {
+          "id": "c6",
+          "dimension": "evidence",
+          "points": 8,
+          "description": "Independent contract review and durable handover with source references"
+        },
+        {
+          "id": "c7",
+          "dimension": "efficiency",
+          "points": 8,
+          "description": "Compact, decision-ready founder brief; no redundant research"
+        },
+        {
+          "id": "c8",
+          "dimension": "efficiency",
+          "points": 7,
+          "description": "Feedback classification and recoverable next action without routine prompt"
+        }
+      ]
+    },
+    {
+      "role": "arjun-cpto",
+      "checks": [
+        {
+          "id": "c1",
+          "dimension": "correctness",
+          "points": 22,
+          "description": "Architecture and tradeoff ADR grounded in existing constraints; coherent interfaces"
+        },
+        {
+          "id": "c2",
+          "dimension": "correctness",
+          "points": 18,
+          "description": "Data/API invariants and dependency graph, scoped ownership and technical sign-off"
+        },
+        {
+          "id": "c3",
+          "dimension": "edge",
+          "points": 15,
+          "description": "Tenant access and concurrency/migration compatibility covered"
+        },
+        {
+          "id": "c4",
+          "dimension": "edge",
+          "points": 10,
+          "description": "Failure, rollback and transient retry/idempotency design"
+        },
+        {
+          "id": "c5",
+          "dimension": "evidence",
+          "points": 12,
+          "description": "Executable verification plan mapped to invariants and exact inputs"
+        },
+        {
+          "id": "c6",
+          "dimension": "evidence",
+          "points": 8,
+          "description": "Independent challenge, review and handoff with artifacts"
+        },
+        {
+          "id": "c7",
+          "dimension": "efficiency",
+          "points": 8,
+          "description": "Smallest sufficient reversible design and bounded context"
+        },
+        {
+          "id": "c8",
+          "dimension": "efficiency",
+          "points": 7,
+          "description": "Replan and isolate blocked shared resources with recovery proof"
+        }
+      ]
+    },
+    {
+      "role": "iris-design",
+      "checks": [
+        {
+          "id": "c1",
+          "dimension": "correctness",
+          "points": 22,
+          "description": "Complete user journey, coherent hierarchy and reusable components"
+        },
+        {
+          "id": "c2",
+          "dimension": "correctness",
+          "points": 18,
+          "description": "Responsive accessible UX and honest save/confirmation states"
+        },
+        {
+          "id": "c3",
+          "dimension": "edge",
+          "points": 15,
+          "description": "Loading/empty/error/offline/denied and stale-edit recovery"
+        },
+        {
+          "id": "c4",
+          "dimension": "edge",
+          "points": 10,
+          "description": "Keyboard/focus, narrow viewport and long-text/invalid-data resilience"
+        },
+        {
+          "id": "c5",
+          "dimension": "evidence",
+          "points": 12,
+          "description": "Observed walkthrough and state-to-AC trace, not mere mockup"
+        },
+        {
+          "id": "c6",
+          "dimension": "evidence",
+          "points": 8,
+          "description": "Independent design challenge and concrete validation evidence"
+        },
+        {
+          "id": "c7",
+          "dimension": "efficiency",
+          "points": 8,
+          "description": "Minimal changes consistent with existing design system"
+        },
+        {
+          "id": "c8",
+          "dimension": "efficiency",
+          "points": 7,
+          "description": "Non-destructive recovery, actionable next handover"
+        }
+      ]
+    },
+    {
+      "role": "kiran-pjm-a",
+      "checks": [
+        {
+          "id": "c1",
+          "dimension": "correctness",
+          "points": 22,
+          "description": "Dependency-valid scoped task graph with accountable owners and AC links"
+        },
+        {
+          "id": "c2",
+          "dimension": "correctness",
+          "points": 18,
+          "description": "Correct scheduling and lock/lease readiness, no duplicate dispatch"
+        },
+        {
+          "id": "c3",
+          "dimension": "edge",
+          "points": 15,
+          "description": "Blocked dependency and saturated capacity handled while independent work continues"
+        },
+        {
+          "id": "c4",
+          "dimension": "edge",
+          "points": 10,
+          "description": "Interrupted dispatch/PR reconciled against actual state"
+        },
+        {
+          "id": "c5",
+          "dimension": "evidence",
+          "points": 12,
+          "description": "Task-event receipts and exact checkpoint evidence"
+        },
+        {
+          "id": "c6",
+          "dimension": "evidence",
+          "points": 8,
+          "description": "Ownership/independent challenge and clear task handover"
+        },
+        {
+          "id": "c7",
+          "dimension": "efficiency",
+          "points": 8,
+          "description": "Deterministic scheduling plus quota-aware prioritization"
+        },
+        {
+          "id": "c8",
+          "dimension": "efficiency",
+          "points": 7,
+          "description": "Bounded retry/replan; no routine founder escalation"
+        }
+      ]
+    },
+    {
+      "role": "leela-pjm-b",
+      "checks": [
+        {
+          "id": "c1",
+          "dimension": "correctness",
+          "points": 22,
+          "description": "Independent lane plan reconciles ownership and dependencies with Lane A"
+        },
+        {
+          "id": "c2",
+          "dimension": "correctness",
+          "points": 18,
+          "description": "Semantic file/schema/API/rule conflict detection and safe serialization"
+        },
+        {
+          "id": "c3",
+          "dimension": "edge",
+          "points": 15,
+          "description": "Two safe tasks can overlap; shared change cannot corrupt others"
+        },
+        {
+          "id": "c4",
+          "dimension": "edge",
+          "points": 10,
+          "description": "Interrupted/expired worker resumes fenced checkpoint without duplicate effect"
+        },
+        {
+          "id": "c5",
+          "dimension": "evidence",
+          "points": 12,
+          "description": "Measured timeline, lock/checkpoint and exact upstream evidence"
+        },
+        {
+          "id": "c6",
+          "dimension": "evidence",
+          "points": 8,
+          "description": "Independent conflict challenge and integration handover"
+        },
+        {
+          "id": "c7",
+          "dimension": "efficiency",
+          "points": 8,
+          "description": "Continue unrelated work while waiting; use stable interfaces"
+        },
+        {
+          "id": "c8",
+          "dimension": "efficiency",
+          "points": 7,
+          "description": "Reconcile stale base and recover without overwrite"
+        }
+      ]
+    },
+    {
+      "role": "dev-coder",
+      "checks": [
+        {
+          "id": "c1",
+          "dimension": "correctness",
+          "points": 22,
+          "description": "Actual scoped implementation passes locked ACs and full required regression"
+        },
+        {
+          "id": "c2",
+          "dimension": "correctness",
+          "points": 18,
+          "description": "Maintainable minimal patch, integration contracts and appropriate unit tests"
+        },
+        {
+          "id": "c3",
+          "dimension": "edge",
+          "points": 15,
+          "description": "Boundary, invalid, duplicate, stale/offline and failure behavior"
+        },
+        {
+          "id": "c4",
+          "dimension": "edge",
+          "points": 10,
+          "description": "Correct repair without weakened tests or scope escape"
+        },
+        {
+          "id": "c5",
+          "dimension": "evidence",
+          "points": 12,
+          "description": "RED intended before build and actual exact revision test/CI evidence"
+        },
+        {
+          "id": "c6",
+          "dimension": "evidence",
+          "points": 8,
+          "description": "Independent QA/review and diff/artifact handover"
+        },
+        {
+          "id": "c7",
+          "dimension": "efficiency",
+          "points": 8,
+          "description": "Incremental hypothesis-driven debug and bounded context"
+        },
+        {
+          "id": "c8",
+          "dimension": "efficiency",
+          "points": 7,
+          "description": "Recovery checkpoint and scoped commit/no duplicate side effects"
+        }
+      ]
+    },
+    {
+      "role": "tara-database",
+      "checks": [
+        {
+          "id": "c1",
+          "dimension": "correctness",
+          "points": 22,
+          "description": "Schema/constraints and tenant-scoped RLS/access implemented"
+        },
+        {
+          "id": "c2",
+          "dimension": "correctness",
+          "points": 18,
+          "description": "Safe migration, compatible clients and verified query/data invariants"
+        },
+        {
+          "id": "c3",
+          "dimension": "edge",
+          "points": 15,
+          "description": "Negative cross-tenant and concurrent idempotency cases"
+        },
+        {
+          "id": "c4",
+          "dimension": "edge",
+          "points": 10,
+          "description": "Rehearsed migration recovery without synthetic data loss"
+        },
+        {
+          "id": "c5",
+          "dimension": "evidence",
+          "points": 12,
+          "description": "Executed distinct-tenant tests, migration logs and exact version"
+        },
+        {
+          "id": "c6",
+          "dimension": "evidence",
+          "points": 8,
+          "description": "Independent specialist/QA review and versioned migration evidence"
+        },
+        {
+          "id": "c7",
+          "dimension": "efficiency",
+          "points": 8,
+          "description": "Minimal appropriate indexes/schema, exclusive resource ownership"
+        },
+        {
+          "id": "c8",
+          "dimension": "efficiency",
+          "points": 7,
+          "description": "Rollback/forward recovery verified; no protected environment access"
+        }
+      ]
+    },
+    {
+      "role": "ravi-integration",
+      "checks": [
+        {
+          "id": "c1",
+          "dimension": "correctness",
+          "points": 22,
+          "description": "Typed mock provider contract and usable adapter behavior"
+        },
+        {
+          "id": "c2",
+          "dimension": "correctness",
+          "points": 18,
+          "description": "Bounded timeouts/retries, idempotency and honest delivery state"
+        },
+        {
+          "id": "c3",
+          "dimension": "edge",
+          "points": 15,
+          "description": "429 Retry-After, malformed response, duplicate and timeout after effect handled"
+        },
+        {
+          "id": "c4",
+          "dimension": "edge",
+          "points": 10,
+          "description": "Auth/secret redaction and graceful degradation on provider failure"
+        },
+        {
+          "id": "c5",
+          "dimension": "evidence",
+          "points": 12,
+          "description": "Executed mock contract/fault tests and correlation evidence"
+        },
+        {
+          "id": "c6",
+          "dimension": "evidence",
+          "points": 8,
+          "description": "Independent review/handoff tied to exact integration artifact"
+        },
+        {
+          "id": "c7",
+          "dimension": "efficiency",
+          "points": 8,
+          "description": "Minimal adapter/reuse; no unnecessary provider calls"
+        },
+        {
+          "id": "c8",
+          "dimension": "efficiency",
+          "points": 7,
+          "description": "Reconcile uncertain side effects; bounded retry with checkpoint"
+        }
+      ]
+    },
+    {
+      "role": "quinn-qa",
+      "checks": [
+        {
+          "id": "c1",
+          "dimension": "correctness",
+          "points": 22,
+          "description": "Locked meaningful test per AC with independent synthetic fixtures"
+        },
+        {
+          "id": "c2",
+          "dimension": "correctness",
+          "points": 18,
+          "description": "Actual QA catches critical seeded defects and accepts clean control"
+        },
+        {
+          "id": "c3",
+          "dimension": "edge",
+          "points": 15,
+          "description": "Negative access, boundary, concurrency, offline and regression coverage"
+        },
+        {
+          "id": "c4",
+          "dimension": "edge",
+          "points": 10,
+          "description": "Detect vacuous assertions, skipped tests and weakened evaluation support"
+        },
+        {
+          "id": "c5",
+          "dimension": "evidence",
+          "points": 12,
+          "description": "Intended RED and exact green runs, mutation/coverage evidence"
+        },
+        {
+          "id": "c6",
+          "dimension": "evidence",
+          "points": 8,
+          "description": "Distinct author/challenger context and independent review handoff"
+        },
+        {
+          "id": "c7",
+          "dimension": "efficiency",
+          "points": 8,
+          "description": "Risk-driven test selection, deterministic reproduction"
+        },
+        {
+          "id": "c8",
+          "dimension": "efficiency",
+          "points": 7,
+          "description": "Classify harness vs app failure, safe lock-version correction and retest"
+        }
+      ]
+    },
+    {
+      "role": "rex-reviewer",
+      "checks": [
+        {
+          "id": "c1",
+          "dimension": "correctness",
+          "points": 22,
+          "description": "Reject flawed exact diff with critical/high findings; approve clean control"
+        },
+        {
+          "id": "c2",
+          "dimension": "correctness",
+          "points": 18,
+          "description": "Precise reproducible evidence, severity and architecture/contract scope"
+        },
+        {
+          "id": "c3",
+          "dimension": "edge",
+          "points": 15,
+          "description": "Hidden access, concurrency, retry/rollback and vacuous tests challenged"
+        },
+        {
+          "id": "c4",
+          "dimension": "edge",
+          "points": 10,
+          "description": "Stale SHA, missing evidence, review independence and false approvals blocked"
+        },
+        {
+          "id": "c5",
+          "dimension": "evidence",
+          "points": 12,
+          "description": "Exact revision/verdict and file/line or executable repro"
+        },
+        {
+          "id": "c6",
+          "dimension": "evidence",
+          "points": 8,
+          "description": "Independent reviewer identity and refreshed evidence after repair"
+        },
+        {
+          "id": "c7",
+          "dimension": "efficiency",
+          "points": 8,
+          "description": "Focused review without scope creep or fabricated findings"
+        },
+        {
+          "id": "c8",
+          "dimension": "efficiency",
+          "points": 7,
+          "description": "Bounded changes-needed loop with clear actionable repair"
+        }
+      ]
+    },
+    {
+      "role": "sam-release",
+      "checks": [
+        {
+          "id": "c1",
+          "dimension": "correctness",
+          "points": 22,
+          "description": "Reject mismatched source/artifact, stale CI or missing authorization"
+        },
+        {
+          "id": "c2",
+          "dimension": "correctness",
+          "points": 18,
+          "description": "Protected founder access and public flag OFF until versioned decision"
+        },
+        {
+          "id": "c3",
+          "dimension": "edge",
+          "points": 15,
+          "description": "Failed smoke triggers disable/rollback; direct unauthorized access denied"
+        },
+        {
+          "id": "c4",
+          "dimension": "edge",
+          "points": 10,
+          "description": "Idempotent release rehearsal, recover stale or uncertain deployment"
+        },
+        {
+          "id": "c5",
+          "dimension": "evidence",
+          "points": 12,
+          "description": "Exact artifact/SHA, test and observed simulated health receipts"
+        },
+        {
+          "id": "c6",
+          "dimension": "evidence",
+          "points": 8,
+          "description": "Independent release reviewer, rollback proof and demo evidence"
+        },
+        {
+          "id": "c7",
+          "dimension": "efficiency",
+          "points": 8,
+          "description": "Deterministic gate first, no unnecessary inference or public action"
+        },
+        {
+          "id": "c8",
+          "dimension": "efficiency",
+          "points": 7,
+          "description": "Reconcile deploy effects and verified recovery before invite"
+        }
+      ]
+    }
+  ]
+}
