@@ -31,7 +31,7 @@ export function raciText(row, stage) {
   return [`| Stage | Responsible | Reviewer | Consulted | Accountable | Informed |`, `|---|---|---|---|---|---|`,
     `| ${stage} | ${f("responsible")} | ${f("reviewer")} | ${f("consulted")} | ${f("accountable")} | ${f("informed")} |`].join("\n");
 }
-export function buildPack({ role, stage, slug, seat = "", handbook = ".ai-org-handbook", product = ".", feature = "", attempt = "", task = "", max = 8000 }) {
+export function buildPack({ role, stage, slug, seat = "", handbook = ".ai-org-handbook", product = ".", feature = "", attempt = "", task = "", max = 8000, readOnly = false }) {
   const manifest = (() => { try { return JSON.parse(read(join(product, ".ai-org/manifest.json"))); } catch { return {}; } })();
   const docs = manifest?.product?.docsFolder || "docs/product";
   const memDir = join(product, manifest?.memory?.folder || "docs/ai-memory");
@@ -59,6 +59,6 @@ export function buildPack({ role, stage, slug, seat = "", handbook = ".ai-org-ha
 if (isMain(import.meta.url)) {
   const arg = (n, d = "") => { const i = process.argv.indexOf(`--${n}`); return i > -1 ? process.argv[i + 1] : d; };
   const pack = buildPack({ role: arg("role"), stage: arg("stage"), slug: arg("slug"), seat: arg("seat"), feature: arg("feature"), attempt: arg("attempt"),
-    task: arg("task"), handbook: arg("handbook", ".ai-org-handbook"), product: arg("product", "."), max: Number(arg("max", "8000")) });
+    task: arg("task"), handbook: arg("handbook", ".ai-org-handbook"), product: arg("product", "."), max: Number(arg("max", "8000")), readOnly: process.argv.includes("--read-only") });
   if (arg("out")) writeFileSync(arg("out"), pack + "\n"); else console.log(pack);
 }
