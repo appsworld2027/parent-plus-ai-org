@@ -2486,7 +2486,7 @@ jobs:
           PLAYWRIGHT_BROWSERS_PATH=/srv/trial/browsers npx playwright install --with-deps chromium
           chmod -R a+rX /srv/trial/browsers
           bash /srv/trial/judge/scripts/safe-trial/isolate.sh
-      - name: Exact agent artifact against clean, six mutants, flag-off, and actual untouched product
+      - name: Exact agent artifact against clean, eleven mutants, flag-off, and actual untouched product
         run: |
           set -euo pipefail
           . /srv/trial/judge/scripts/safe-trial/lib.sh
@@ -2513,6 +2513,11 @@ jobs:
             trial overwrite-history "$ref" mutant-004 CRS-01-SC-004
             trial dirty-bypass "$ref" mutant-005 CRS-01-SC-005
             trial network-leak "$ref" mutant-006 CRS-01-SC-006
+            trial pilot-mislabel "$ref" extra-001 CRS-01-SC-006
+            trial invalid-persist "$ref" extra-002 CRS-01-SC-002
+            trial duplicate-history "$ref" extra-003 CRS-01-SC-004
+            trial dirty-copy "$ref" extra-004 CRS-01-SC-005
+            trial lost-fields-on-keep "$ref" extra-005 CRS-01-SC-005
           fi
           trial flag-off "$guard" guard-clean ''
           trial flag-off-leak "$guard" guard-mutant ''
@@ -2528,13 +2533,13 @@ jobs:
           import {createHash} from 'node:crypto';
           const d='/srv/trial/out',sha=x=>createHash('sha256').update(x).digest('hex');
           function load(label){const p=d+'/'+label+'.json';if(!existsSync(p))return null;const b=readFileSync(p),r=JSON.parse(b),out=[];const walk=s=>{for(const spec of s.specs||[])for(const t of spec.tests||[])out.push({title:spec.title,status:t.status,error:t.results.find(x=>x.error)?.error?.message?.slice(0,600)??null});for(const q of s.suites||[])walk(q)};for(const s of r.suites||[])walk(s);return {label,sha256:sha(b),exit:Number(readFileSync(d+'/'+label+'.exit')),cases:out}}
-          const clean=load('author-clean'),mutants=Array.from({length:6},(_,n)=>load('mutant-00'+(n+1))),g=load('guard-clean'),gm=load('guard-mutant'),red=load('actual-red'),ag=load('actual-guard');
+          const clean=load('author-clean'),mutants=[...Array.from({length:6},(_,n)=>load('mutant-00'+(n+1))),...Array.from({length:5},(_,n)=>load('extra-00'+(n+1)))],g=load('guard-clean'),gm=load('guard-mutant'),red=load('actual-red'),ag=load('actual-guard');
           const cleanPass=clean?.exit===0&&clean.cases.length===6&&clean.cases.every(x=>x.status==='expected');
           const mutationRecall=mutants.filter(x=>x?.exit!==0&&x?.cases?.length===1&&x.cases[0].status==='unexpected'&&!!x.cases[0].error).length;
           const guardPass=g?.exit===0&&g.cases.length===1&&g.cases[0].status==='expected'&&gm?.exit!==0&&gm.cases.length===1&&gm.cases[0].status==='unexpected';
           const intendedRed=red?.exit!==0&&red.cases.length===6&&red.cases.every(x=>x.status==='unexpected'&&x.error?.includes('Courses')&&x.error?.includes('toBeVisible'));
           const actualGuard=ag?.exit===0&&ag.cases.length===1&&ag.cases[0].status==='expected';
-          const receipt={schema:'course-declarative-author-verification/v1',roleAdmission:false,lockApproved:false,cleanPass,mutationRecall,guardPass,intendedRed,actualGuard,criticalMutationControlsPassed:cleanPass&&mutationRecall===6&&guardPass&&intendedRed&&actualGuard,clean,mutants,g,gm,red,ag};
+          const receipt={schema:'course-declarative-revision-verification/v2',mutationTotal:11,roleAdmission:false,lockApproved:false,cleanPass,mutationRecall,guardPass,intendedRed,actualGuard,criticalMutationControlsPassed:cleanPass&&mutationRecall===11&&guardPass&&intendedRed&&actualGuard,clean,mutants,g,gm,red,ag};
           writeFileSync(d+'/indexed-verification-receipt.json',JSON.stringify(receipt,null,2));console.log(JSON.stringify(receipt,null,2));
           if(!receipt.criticalMutationControlsPassed)process.exitCode=1;
           NODE
