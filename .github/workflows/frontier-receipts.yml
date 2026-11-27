@@ -5,13 +5,14 @@ on:
       - 'scripts/frontier-*.mjs'
       - 'tests/frontier-*.test.mjs'
       - 'governance/FRONTIER*'
+      - 'fixtures/frontier/**'
       - '.github/workflows/frontier-receipts.yml'
 permissions:
   contents: read
 jobs:
   receipt-regression:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -19,3 +20,12 @@ jobs:
           node-version: '22'
       - name: Run deterministic admission and receipt regressions
         run: node --test tests/frontier-admission.test.mjs tests/frontier-receipts.test.mjs tests/frontier-casebook.test.mjs
+      - name: Verify isolated behavioral runner against clean and defective controls
+        run: |
+          set -euo pipefail
+          docker pull node:22-alpine
+          FRONTIER_TEST_NODE_IMAGE="$(docker image inspect --format '{{index .RepoDigests 0}}' node:22-alpine)"
+          test -n "$FRONTIER_TEST_NODE_IMAGE"
+          echo "Controller-selected CI Node image digest: $FRONTIER_TEST_NODE_IMAGE"
+          export FRONTIER_TEST_NODE_IMAGE
+          node --test tests/frontier-board-evaluator.test.mjs
