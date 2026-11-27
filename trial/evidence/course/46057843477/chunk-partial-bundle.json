@@ -1,0 +1,51 @@
+{
+  "runId": 46057843477,
+  "purpose": "Two exact restored packets and provider quota refusal",
+  "files": [
+    {
+      "file": "publish-first/artifact.json",
+      "sha256": "e89fbc577d8e975a71c923633c8dabc14fa06ec9cdc7c5674299981c96786965",
+      "utf8": "{\n  \"operations\": [\n    [\n      \"H\",\n      \"Courses\"\n    ],\n    [\n      \"VB\",\n      \"Publish version\"\n    ],\n    [\n      \"B\",\n      \"Publish version\"\n    ],\n    [\n      \"VB\",\n      \"Confirm publish\"\n    ],\n    [\n      \"B\",\n      \"Confirm publish\"\n    ],\n    [\n      \"X\",\n      \"Version 1\"\n    ]\n  ],\n  \"limitations\": \"Assumes the 'Publish version' button is directly visible on the course list row for Course Alpha without requiring a hover or menu expansion. Assumes the confirmation dialog appears immediately after clicking 'Publish version' and contains the 'Confirm publish' button. Assumes 'Version 1' text appears on the list after confirmation.\"\n}"
+    },
+    {
+      "file": "publish-first/raw.txt",
+      "sha256": "a1356b52316f3dabc3529319727e75c595ca67a5b0cc7c44c67f38770045c03e",
+      "utf8": "{\n  \"operations\": [\n    [\n      \"assertHeading\",\n      \"Courses\"\n    ],\n    [\n      \"assertButtonVisible\",\n      \"Publish version\"\n    ],\n    [\n      \"clickButton\",\n      \"Publish version\"\n    ],\n    [\n      \"assertButtonVisible\",\n      \"Confirm publish\"\n    ],\n    [\n      \"clickButton\",\n      \"Confirm publish\"\n    ],\n    [\n      \"assertText\",\n      \"Version 1\"\n    ]\n  ],\n  \"limitations\": \"Assumes the 'Publish version' button is directly visible on the course list row for Course Alpha without requiring a hover or menu expansion. Assumes the confirmation dialog appears immediately after clicking 'Publish version' and contains the 'Confirm publish' button. Assumes 'Version 1' text appears on the list after confirmation.\"\n}\n"
+    },
+    {
+      "file": "publish-first/receipt.json",
+      "sha256": "4728116cf83c573a20c915275f8d1e5d9fbe828401ddec7058d93f787282d2ed",
+      "utf8": "{\n  \"schema\": \"course-author-chunk/v1\",\n  \"key\": \"publish-first\",\n  \"id\": \"CRS-01-SC-004\",\n  \"source\": \"710082b2d8cf3c1007086df31f87b34ae8e02573\",\n  \"contractHash\": \"6695ab62149003b833c1afa04a2f6e674db3494efe7048864357095de07176aa\",\n  \"contextSha256\": \"e367edc3301ad225cdf7d50b75aa568a86f340b2e4bdc543b877d80bdbcefe2f\",\n  \"artifactSha256\": \"26782aa85f115568920212335c22c4678facd6c0064d04bc01c85f675b9b4305\",\n  \"rawSha256\": \"a1356b52316f3dabc3529319727e75c595ca67a5b0cc7c44c67f38770045c03e\",\n  \"provider\": \"groq\",\n  \"actualModel\": \"qwen/qwen3.8-27b\",\n  \"usage\": {\n    \"queue_time\": 0.036506283,\n    \"prompt_tokens\": 495,\n    \"prompt_time\": 0.046622669,\n    \"completion_tokens\": 191,\n    \"completion_time\": 0.423012687,\n    \"total_tokens\": 686,\n    \"total_time\": 0.469635356\n  },\n  \"limits\": {\n    \"retry-after\": null,\n    \"x-ratelimit-reset-requests\": \"1m26.4s\",\n    \"x-ratelimit-reset-tokens\": \"4.11s\",\n    \"x-ratelimit-remaining-requests\": \"999\",\n    \"x-ratelimit-remaining-tokens\": \"7452\"\n  },\n  \"ms\": 653\n}"
+    },
+    {
+      "file": "publish-first/resume-origin.json",
+      "sha256": "83515ce55bbd3c94d0b751680e741b66649f65ec67a113ee8fffbaa89b04a010",
+      "utf8": "{\"runId\":46057609726,\"blob\":\"d83a348753385f2be5e898a6d25cda40c2104eab\",\"file\":\"trial/evidence/course/46057609726/chunk-partial-bundle.json\",\"receiptSha256\":\"4728116cf83c573a20c915275f8d1e5d9fbe828401ddec7058d93f787282d2ed\"}"
+    },
+    {
+      "file": "publish-second/provider-status.json",
+      "sha256": "75215a4b1e2f4ad8c22015fa8bb874c9d6bbc78ce9077802058e0f47339fc8b5",
+      "utf8": "{\"provider\":\"groq\",\"model\":\"qwen/qwen3.8-27b\",\"status\":429,\"limits\":{\"retry-after\":\"151\",\"x-ratelimit-reset-requests\":\"1m26.4s\",\"x-ratelimit-reset-tokens\":\"1ms\",\"x-ratelimit-remaining-requests\":\"999\",\"x-ratelimit-remaining-tokens\":\"8000\"},\"attempt\":1,\"retried\":false}"
+    },
+    {
+      "file": "saved-draft/artifact.json",
+      "sha256": "c026e5ab3c105369956643228918e1986d953ab2b50651ddabc30a50090dbd86",
+      "utf8": "{\n  \"operations\": [\n    [\n      \"B\",\n      \"Courses\"\n    ],\n    [\n      \"H\",\n      \"Courses\"\n    ],\n    [\n      \"B\",\n      \"Create course\"\n    ],\n    [\n      \"F\",\n      \"Course title\",\n      \"Course Alpha\"\n    ],\n    [\n      \"F\",\n      \"Stage 1 title\",\n      \"Stage One\"\n    ],\n    [\n      \"F\",\n      \"Stage 1 objective 1\",\n      \"Learn basics\"\n    ],\n    [\n      \"B\",\n      \"Save draft\"\n    ],\n    [\n      \"H\",\n      \"Courses\"\n    ],\n    [\n      \"X\",\n      \"Course Alpha\"\n    ]\n  ],\n  \"limitations\": \"Assumes 'Create course' and 'Save draft' buttons are visible and enabled in the respective views. Assumes 'Course Alpha' text is rendered in the course list after saving.\"\n}"
+    },
+    {
+      "file": "saved-draft/raw.txt",
+      "sha256": "1a26da5669845e386e22af841d0b67649ea828c31cc9ec5cd770bbac45016b6e",
+      "utf8": "{\n  \"operations\": [\n    [\n      \"clickButton\",\n      \"Courses\"\n    ],\n    [\n      \"assertHeading\",\n      \"Courses\"\n    ],\n    [\n      \"clickButton\",\n      \"Create course\"\n    ],\n    [\n      \"fillInput\",\n      \"Course title\",\n      \"Course Alpha\"\n    ],\n    [\n      \"fillInput\",\n      \"Stage 1 title\",\n      \"Stage One\"\n    ],\n    [\n      \"fillInput\",\n      \"Stage 1 objective 1\",\n      \"Learn basics\"\n    ],\n    [\n      \"clickButton\",\n      \"Save draft\"\n    ],\n    [\n      \"assertHeading\",\n      \"Courses\"\n    ],\n    [\n      \"assertText\",\n      \"Course Alpha\"\n    ]\n  ],\n  \"limitations\": \"Assumes 'Create course' and 'Save draft' buttons are visible and enabled in the respective views. Assumes 'Course Alpha' text is rendered in the course list after saving.\"\n}\n"
+    },
+    {
+      "file": "saved-draft/receipt.json",
+      "sha256": "3891b5c38f7b60c2d501302b9796d5a004e11980f5f74bff1075a958bf6f1e01",
+      "utf8": "{\n  \"schema\": \"course-author-chunk/v1\",\n  \"key\": \"saved-draft\",\n  \"id\": \"CRS-01-SC-004\",\n  \"source\": \"710082b2d8cf3c1007086df31f87b34ae8e02573\",\n  \"contractHash\": \"6695ab62149003b833c1afa04a2f6e674db3494efe7048864357095de07176aa\",\n  \"contextSha256\": \"2e5bd3a99cec2aa5912b29904cfcb896f5fb367522fbfdc26b9c7c011b6f6591\",\n  \"artifactSha256\": \"7d1c9d4e0f7b9a17bf4cd6c53db7bd4380986572ec265446b6f58448043eb758\",\n  \"rawSha256\": \"1a26da5669845e386e22af841d0b67649ea828c31cc9ec5cd770bbac45016b6e\",\n  \"provider\": \"groq\",\n  \"actualModel\": \"qwen/qwen3.8-27b\",\n  \"usage\": {\n    \"queue_time\": 0.02168748,\n    \"prompt_tokens\": 509,\n    \"prompt_time\": 0.036273449,\n    \"completion_tokens\": 238,\n    \"completion_time\": 0.453451583,\n    \"total_tokens\": 747,\n    \"total_time\": 0.489725032\n  },\n  \"limits\": {\n    \"retry-after\": null,\n    \"x-ratelimit-reset-requests\": \"1m26.4s\",\n    \"x-ratelimit-reset-tokens\": \"9.765s\",\n    \"x-ratelimit-remaining-requests\": \"999\",\n    \"x-ratelimit-remaining-tokens\": \"6698\"\n  },\n  \"ms\": 16727\n}"
+    },
+    {
+      "file": "saved-draft/resume-origin.json",
+      "sha256": "893b061b3a588225aaa6066cd6fcf058e1f71c0275acbae53b92cc40ae04be0b",
+      "utf8": "{\"runId\":46057609726,\"blob\":\"d83a348753385f2be5e898a6d25cda40c2104eab\",\"file\":\"trial/evidence/course/46057609726/chunk-partial-bundle.json\",\"receiptSha256\":\"3891b5c38f7b60c2d501302b9796d5a004e11980f5f74bff1075a958bf6f1e01\"}"
+    }
+  ]
+}
