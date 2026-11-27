@@ -70,6 +70,7 @@ test('course workflow is owner-only for inference, read-only GitHub, isolated; P
   for(const stage of ['course-build','course-grade','course-review','course-release-simulation'])assert.ok(flow.includes(stage));
   assert.match(read('scripts/course-pilot/engine.sh'),/groq\/openai\/gpt-oss-120b\|groq\/qwen\/qwen3\.8-27b/);
   assert.match(read('scripts/course-pilot/engine.sh'),/free-claude-code==6\.19\.56/);
+  assert.match(read('scripts/course-pilot/engine.sh'),/REASONING_POLICY=medium/);
   assert.match(read('scripts/course-pilot/engine.sh'),/as_proxy/);
   assert.match(read('scripts/course-pilot/scan.sh'),/GROQ_API_KEY/);
   assert.match(read('scripts/safe-trial/lib.sh'),/EXPO_PUBLIC_COURSE_PILOT/);
