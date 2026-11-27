@@ -117,18 +117,17 @@ test("autonomy rule keeps its escalation limits; role models are routed and the 
   for (const a of registry) assert.doesNotMatch(read(`.claude/agents/${a.agentId}.md`), /^model: inherit$/m);
 });
 
-test("cross-repository private handbook checkout uses a read-only deploy key without persisting it", () => {
+test("cross-repository public handbook checkout uses the caller token without requiring a deploy key", () => {
   for (const path of [".github/workflows/agent-worker.yml", ".github/workflows/ai-loop.yml", ".github/workflows/handbook-connectivity.yml", ".github/workflows/contract-lock.yml"]) {
     const workflow = read(path);
-    assert.match(workflow, /AI_ORG_HANDBOOK_SSH_KEY:\n\s+required: false/);
-    assert.match(workflow, /HANDBOOK_ACCESS:.*secrets\.AI_ORG_HANDBOOK_SSH_KEY != ''/);
-    assert.match(workflow, /ssh-key:.*secrets\.AI_ORG_HANDBOOK_SSH_KEY/);
-    assert.match(workflow, /token:.*github\.token/);
+    assert.match(workflow, /repository: appsworld2027\\/parent-plus-ai-org/);
+    assert.match(workflow, /token:.*github\\.token/);
     assert.match(workflow, /persist-credentials: false/);
+    assert.doesNotMatch(workflow, /HANDBOOK_ACCESS|ssh-key:/);
     assert.doesNotMatch(workflow, /AI_ORG_HANDBOOK_TOKEN/);
   }
   const smoke = read(".github/workflows/handbook-connectivity.yml");
   assert.match(smoke, /contents: read/);
   assert.doesNotMatch(smoke, /NVIDIA_NIM_API_KEY|CODEX_AUTH_JSON|CLAUDE_CODE_OAUTH_TOKEN/);
   assert.match(smoke, /git rev-parse HEAD/);
-});
+});;
