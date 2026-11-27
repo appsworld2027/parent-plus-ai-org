@@ -6,6 +6,7 @@ const authority=load('AUTONOMY_POLICY.json');
 const required=['lockedAcceptance','independentReview','regressionTests','securityChecks','evidenceBoundCheckpoint','founderReleaseGate','noPaidFallback'];
 const packetKeys={inputTokenTarget:[1,100000],completionTokenLimit:[1,32000],maxFiles:[1,30],maxToolCalls:[1,100],maxWallSeconds:[1,3600],repairRounds:[0,10]};
 const workerKeys={maxTurns:[1,150],wallSeconds:[1,5400],outputTokenCap:[1,16000],embeddedReviewOutputTokenCap:[1,16000]};
+const loopKeys={maxFixRounds:[1,10],maxAcceptanceGateRetries:[0,5]};
 const quotaKeys={maxInlineRetrySeconds:[0,120],maxTransientRetries:[0,3],interPacketDelaySeconds:[0,120]};
 const validNum=(v,[min,max])=>Number.isSafeInteger(v)&&v>=min&&v<=max;
 function validateNums(obj,keys,label,partial=false){
@@ -19,12 +20,13 @@ export function validateExecutionStrategies(config){
  const F=config.profiles?.['free-packeted'],P=config.profiles?.['frontier-loop'];
  if(!F||!P||F.enabled!==true||typeof P.enabled!=='boolean'||F.engines?.join()!=='free'||P.engines?.join()!=='claude,codex'||F.mode!=='bounded-packets'||P.mode!=='iterative-product-loop'||F.contextMode!=='fresh-per-packet'||P.contextMode!=='persistent-with-compaction'||F.requiresExplicitSpendApproval!==false||P.requiresExplicitSpendApproval!==true)throw Error('Invalid engine strategy profile');
  for(const [name,p] of Object.entries(config.profiles)){
-  validateNums(p.packet,packetKeys,name+'.packet');validateNums(p.worker,workerKeys,name+'.worker');validateNums(p.quota,quotaKeys,name+'.quota');
+  validateNums(p.packet,packetKeys,name+'.packet');validateNums(p.worker,workerKeys,name+'.worker');validateNums(p.quota,quotaKeys,name+'.quota');validateNums(p.featureLoop,loopKeys,name+'.featureLoop');
+  if(!['packet','feature-diff'].includes(p.featureLoop.checkpointMode)||!['fresh-context','persistent-context'].includes(p.featureLoop.compaction))throw Error('Invalid feature loop checkpoint mode');
   if(p.quota.pauseOnExhaustion!==true||p.quota.retryAfterRequired!==true)throw Error('Quota exhaustion must pause and respect provider');
   for(const [task,over] of Object.entries(p.taskOverrides??{})){if(!['planning','authoring','review','integration'].includes(task)||Object.keys(over).some(k=>!Object.hasOwn(packetKeys,k)))throw Error('Unknown task override');validateNums(over,packetKeys,'task override',true);}
   for(const [model,over] of Object.entries(p.modelAdjustments??{})){if(!model||Object.keys(over).some(k=>!['completionTokenLimit','reasoningEffort'].includes(k))||!validNum(over.completionTokenLimit,packetKeys.completionTokenLimit)||!['low','medium','high','provider-default'].includes(over.reasoningEffort))throw Error('Invalid model tuning');}
  }
- if(F.worker.outputTokenCap>=1000||F.worker.embeddedReviewOutputTokenCap>=1000||F.packet.inputTokenTarget>8000||F.packet.completionTokenLimit>3000||F.quota.maxTransientRetries>1)throw Error('Free limits exceed bounded policy');
+ if(F.worker.outputTokenCap>=1000||F.worker.embeddedReviewOutputTokenCap>=1000||F.packet.inputTokenTarget>8000||F.packet.completionTokenLimit>3000||F.quota.maxTransientRetries>1||F.featureLoop.maxFixRounds>5||F.featureLoop.maxAcceptanceGateRetries>2)throw Error('Free limits exceed bounded policy');
  if(!config.stageClasses||Object.values(config.stageClasses).some(v=>!['planning','authoring','review','integration'].includes(v)))throw Error('Unknown stage class');
  return true;
 }
@@ -45,7 +47,7 @@ export function selectExecutionStrategy({engine,stage,model='',config=EXECUTION_
  const packet={...profile.packet,...(profile.taskOverrides?.[taskClass]??{}),...(profile.modelAdjustments?.[modelKey]??{})};
  validateNums(packet,packetKeys,'effective packet');
  if(engine==='free'&&(packet.inputTokenTarget>8000||packet.completionTokenLimit>3000))throw Error('Free effective packet exceeds bounds');
- return {id,engine,taskClass,mode:profile.mode,contextMode:profile.contextMode,progressMode:profile.progressMode,packet,worker:{...profile.worker},quota:{...profile.quota},quality:{...config.sharedQuality},requiresExplicitSpendApproval:profile.requiresExplicitSpendApproval};
+ return {id,engine,taskClass,mode:profile.mode,contextMode:profile.contextMode,progressMode:profile.progressMode,packet,worker:{...profile.worker},quota:{...profile.quota},featureLoop:{...profile.featureLoop},quality:{...config.sharedQuality},requiresExplicitSpendApproval:profile.requiresExplicitSpendApproval};
 }
 export function strategyPrompt(s){
  if(!s)throw Error('Missing strategy');
@@ -56,4 +58,11 @@ export function strategyPrompt(s){
  return ['## Selected execution strategy: '+s.id+' ('+s.taskClass+')',method,
  'Packet targets (not measured usage): '+p.inputTokenTarget+' input tokens; '+p.completionTokenLimit+' completion tokens; '+p.maxFiles+' relevant files; '+p.maxToolCalls+' tool calls; '+p.maxWallSeconds+' seconds; '+p.repairRounds+' bounded repair rounds.',
  'All profiles: preserve the locked contract and evidence, run regression/security checks, insist on independent review and founder release gates. Never enable a paid fallback.'].join('\n');
+}
+
+// Existing outer-loop quality gates remain authoritative. Product overrides may lower, never widen, the trusted limits.
+export function resolveFeatureLoop(strategy,product={}){
+ const f=strategy?.featureLoop;validateNums(f,loopKeys,'selected feature loop');
+ const cap=(key,provided)=>provided===undefined?f[key]:!validNum(provided,loopKeys[key])?(()=>{throw Error('Invalid product loop limit '+key)})():Math.min(f[key],provided);
+ return {maxFixRounds:cap('maxFixRounds',product.maxFixRounds),maxAcceptanceGateRetries:cap('maxAcceptanceGateRetries',product.maxAcceptanceGateRetries),checkpointMode:f.checkpointMode,compaction:f.compaction};
 }

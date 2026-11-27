@@ -81,6 +81,12 @@
           "completionTokenLimit": 1600,
           "reasoningEffort": "provider-default"
         }
+      },
+      "featureLoop": {
+        "maxFixRounds": 5,
+        "maxAcceptanceGateRetries": 2,
+        "checkpointMode": "packet",
+        "compaction": "fresh-context"
       }
     },
     "frontier-loop": {
@@ -136,7 +142,13 @@
           "maxToolCalls": 35
         }
       },
-      "modelAdjustments": {}
+      "modelAdjustments": {},
+      "featureLoop": {
+        "maxFixRounds": 8,
+        "maxAcceptanceGateRetries": 3,
+        "checkpointMode": "feature-diff",
+        "compaction": "persistent-context"
+      }
     }
   },
   "stageClasses": {

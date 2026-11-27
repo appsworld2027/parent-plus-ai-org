@@ -8,6 +8,7 @@
 // Everything else (contract tests, build, QA, review, merge into the feature branch, release checks) is automatic.
 import { execFileSync } from "node:child_process";
 import { selectDeliveryItems, verifyScopedChanges } from "./delivery-lanes.mjs";
+import {selectExecutionStrategy,resolveFeatureLoop} from "./execution-strategy.mjs";
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { realpathSync } from "node:fs";
@@ -197,7 +198,7 @@ const apiItems = (path, query) => gh("api", "--paginate", `repos/${REPO}/${path}
 const log = (...a) => console.log(...a);
 function act(desc, fn) { log(`${DRY ? "[dry-run] would" : "→"} ${desc}`); if (!DRY) return fn(); }
 const manifest = () => existsSync(".ai-org/manifest.json") ? JSON.parse(readFileSync(".ai-org/manifest.json", "utf8")) : {};
-const cfg = () => { const m = manifest(); return { founders: m.governance?.founders || [], raci: m.raci || null, loop: { backlog: "docs/product/BACKLOG.md", maxFixRounds: 5, agentsWorkflow: "ai-agents.yml", checksWorkflow: "checks.yml", qaWorkflow: "qa-lab.yml", requiredChecks: ["foundation"], lockedPaths: "e2e/acceptance/", ...(m.loop || {}) } }; };
+const cfg = () => { const m = manifest(); const strategy=selectExecutionStrategy({engine:"free",stage:"ai:build"}); const limits=resolveFeatureLoop(strategy,m.loop||{}); return { founders: m.governance?.founders || [], raci: m.raci || null, loop: { backlog: "docs/product/BACKLOG.md", agentsWorkflow: "ai-agents.yml", checksWorkflow: "checks.yml", qaWorkflow: "qa-lab.yml", requiredChecks: ["foundation"], lockedPaths: "e2e/acceptance/", ...(m.loop || {}), ...limits, executionStrategy:strategy.id } }; };
 const comments = (n) => api(`issues/${n}/comments?per_page=100`) || [];
 const comment = (n, body) => act(`comment on #${n}: ${body.split("\n").find((l) => l && !l.startsWith("<!--")).slice(0, 90)}`, () => gh("api", "-X", "POST", `repos/${REPO}/issues/${n}/comments`, "-f", `body=${body}`));
 const label = (n, add = [], remove = []) => act(`#${n} labels +[${add}] -[${remove}]`, () => {
@@ -333,7 +334,7 @@ function advanceContract(pr) {
     } catch { /* fall back to the head */ }
     const statuses = gateStatusSince(commits.slice(0, 30), (sha) => api(`commits/${sha}/status`)?.statuses || []);
     const fails = prComments.filter((c) => (c.body || "").includes(MARK.gateFail)).length;
-    const d = gateDecision(statuses, fails);
+    const d = gateDecision(statuses, fails, cfg().loop.maxAcceptanceGateRetries);
     const issue = referencedIssues(pr.body)[0];
     if (d === "wait") return log(`#${pr.number}: waiting for the acceptance-test gate on ${pr.headRefOid.slice(0, 7)}`);
     if (d === "retry" || d === "block") {

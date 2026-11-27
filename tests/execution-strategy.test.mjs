@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {EXECUTION_STRATEGIES,validateExecutionStrategies,selectExecutionStrategy,strategyPrompt} from '../scripts/execution-strategy.mjs';
+import {EXECUTION_STRATEGIES,validateExecutionStrategies,selectExecutionStrategy,strategyPrompt,resolveFeatureLoop} from '../scripts/execution-strategy.mjs';
 import {route} from '../scripts/agent-router.mjs';
 const clone=x=>structuredClone(x);
 test('free profile selects stage and exact model-specific budget without authorizing routes',()=>{
@@ -26,4 +26,9 @@ test('route emits machine-enforced worker ceilings and selects independent revie
 });
 test('future frontier design can be inspected but never selected under current policy',()=>{
  const p=EXECUTION_STRATEGIES.profiles['frontier-loop'];assert.equal(p.mode,'iterative-product-loop');assert.equal(p.contextMode,'persistent-with-compaction');assert.equal(p.requiresExplicitSpendApproval,true);assert.ok(p.packet.inputTokenTarget>EXECUTION_STRATEGIES.profiles['free-packeted'].packet.inputTokenTarget);assert.equal(p.enabled,false);
+});
+
+test('outer controller uses strategy fix-round ceilings; products cannot widen them',()=>{
+ const free=selectExecutionStrategy({engine:'free',stage:'ai:build'});assert.deepEqual(resolveFeatureLoop(free),{maxFixRounds:5,maxAcceptanceGateRetries:2,checkpointMode:'packet',compaction:'fresh-context'});assert.equal(resolveFeatureLoop(free,{maxFixRounds:9,maxAcceptanceGateRetries:4}).maxFixRounds,5);assert.equal(resolveFeatureLoop(free,{maxFixRounds:3,maxAcceptanceGateRetries:1}).maxAcceptanceGateRetries,1);assert.throws(()=>resolveFeatureLoop(free,{maxFixRounds:'5'}),/Invalid product/);
+ assert.equal(EXECUTION_STRATEGIES.profiles['frontier-loop'].featureLoop.checkpointMode,'feature-diff');
 });
