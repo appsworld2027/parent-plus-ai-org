@@ -12,21 +12,23 @@ test("cross-repository handbook consumers do not require a deploy key", () => {
     "../.github/workflows/handbook-connectivity.yml"
   ]) {
     const workflow = read(path);
-    assert.doesNotMatch(workflow, /Check handbook access/);
-    assert.doesNotMatch(workflow, /^\s+ssh-key:/m);
-    assert.match(workflow, /repository: appsworld2027\/parent-plus-ai-org/);
+    assert.ok(!workflow.includes("Check handbook access"));
+    assert.ok(!workflow.includes("ssh-key:"));
+    assert.ok(workflow.includes("repository: appsworld2027/parent-plus-ai-org"));
   }
 });
 
 test("the canonical background worker accepts Groq and has no NVIDIA inference secret", () => {
   const worker = read("../.github/workflows/agent-worker.yml");
-  assert.match(worker, /GROQ_API_KEY:\s*\n\s+required: false/);
-  assert.doesNotMatch(worker, /NVIDIA_NIM_API_KEY/);
-  assert.match(worker, /api\.groq\.com/);
+  assert.ok(worker.includes("GROQ_API_KEY:\n        required: false"));
+  assert.ok(!worker.includes("NVIDIA_NIM_API_KEY"));
+  assert.ok(worker.includes("api.groq.com"));
 });
 
 test("the canonical organization workflow delegates only the free Groq engine", () => {
   const workflow = read("../.github/workflows/ai-agents.yml");
-  assert.match(workflow, /GROQ_API_KEY:\s*\$\{\{ secrets\.GROQ_API_KEY \}\}/);
-  assert.doesNotMatch(workflow, /NVIDIA_NIM_API_KEY|ANTHROPIC_API_KEY|OPENAI_API_KEY/);
+  assert.ok(workflow.includes("GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}"));
+  assert.ok(!workflow.includes("NVIDIA_NIM_API_KEY"));
+  assert.ok(!workflow.includes("ANTHROPIC_API_KEY"));
+  assert.ok(!workflow.includes("OPENAI_API_KEY"));
 });
