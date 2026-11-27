@@ -38,13 +38,12 @@ export const ENGINES = ["claude", "codex", "free"];
 export const ALLOWED_ENGINES = Object.freeze([...AUTONOMY_POLICY.execution.allowedEngines]);
 
 // Free engine = Claude Code CLI through the pinned Free Claude Code adapter, backed by Groq's free tier.
-// Measured 2026-11-20 from GitHub runners: Nemotron 3 Ultra and Mistral Large 4 answer in ~1s and pass
-// Claude Code tool use; Kimi K3.1 Pro passes but queues 20-90s per call.
+// Builder and reviewer are distinct Groq free-tier model families; model quality is tracked by regression evidence.
 export const FREE_MODELS = {
   builder: "groq/openai/gpt-oss-120b",
   reviewer: "groq/qwen/qwen3.8-27b",
 };
-// One line, NVIDIA only, optional effort suffix: the worker writes this value into the proxy's .env file.
+// Groq free-tier model override with an optional reasoning-effort suffix.
 const FREE_OVERRIDE = /^groq\/(openai\/gpt-oss-120b|qwen\/qwen3\.8-27b)(@(off|low|medium|high|xhigh|max))?$/;
 const REVIEW_ROLES = ["quinn-qa", "rex-reviewer"];
 
@@ -79,8 +78,7 @@ export function route({ labels = [], body = "", isPR = false, engines = { claude
   const engine = engines[preferred] ? preferred : ENGINES.find((e) => engines[e]) || null;
 
   if (!engine) return { action: "pause", stage, role, reason: "no allowed engine is connected (free models only)" };
-  // Testing only (founder decision 2026-11-26): the free endpoints run only in a supervised trial on synthetic data.
-  // No workflow sets this flag today, so background, chained and resumed runs pause.
+  // Enforce the machine-readable autonomy gate. If background execution is disabled, only an explicit supervised trial may run.
   if (AUTONOMY_POLICY.execution.backgroundEnabled !== true && !supervisedTrial) return { action: "pause", stage, role, reason: "background execution is disabled pending security prerequisites" };
   if (engine === "free" && !supervisedTrial && AUTONOMY_POLICY.execution.requireApprovedProviderForConfidentialCode) return { action: "pause", stage, role, reason: "free provider is not approved for confidential-code background execution" };
   const out = { action: "run", stage, role, engine, fallback: engine !== preferred, seat: STAGE_SEAT[stage] || "" };
@@ -88,7 +86,7 @@ export function route({ labels = [], body = "", isPR = false, engines = { claude
   // so the code is still judged by a different model than the one that wrote it. (2026-11-23: Quinn on the reviewer model
   // made 52 tool calls in 50 minutes and timed out on #42; the builder model averaged ~10 s per call on #37.)
   if (engine === "free") out.free_model = REVIEW_ROLES.includes(role) && stage !== "ai:tests" ? FREE_MODELS.reviewer : FREE_MODELS.builder;
-  // Overrides are limited to the NVIDIA free endpoints, so a product setting cannot route to a billed provider.
+  // Overrides are limited to approved Groq free-tier endpoints; a product setting cannot route to a billed provider.
   if (engine === "free" && FREE_OVERRIDE.test(freeModel)) out.free_model = freeModel; // explicit override (model trials, manifest choice)
   return out;
 }
@@ -129,11 +127,11 @@ export function buildBrief(number) {
 export function onboardingRules(number) {
   return [
     "## Onboarding and handover (every run)",
-    "- Before acting, read `.ai-org-handbook/FOUNDER_OPERATING_CHARTER.md`, `.ai-org-handbook/governance/PERSONAL_OPERATING_STANDARD.md`, and `.ai-org-handbook/governance/FOUNDER_DASHBOARD.md`, then this handbook and your role file. If any required source is absent in the selected handbook revision, stop dependent work and report the missing source.",
-    "- Use the Founder Dashboard standard only for substantive operating reviews, scheduled reports, milestone summaries, and readiness assessments. Use the Parent Plus FOUNDER_RESPONSE_REFERENCE.md from main as the universal communication and teaching-style exemplar when available; if unavailable, state that limitation. Select concise answers, milestone overviews, technical explanations, or evidence-led blocker reports to fit the task. Assess lifecycle at session milestones without forcing a health section into routine output.",
-    "- Persist substantial scheduled reports in the authorized project record under the existing notification cadence. Record actual outcomes and evidence. Do not claim delivery to a founder conversation.",
+    "- Read the onboarding pack first; it already contains your role card, RACI, role lessons, relevant product memory, current feature context and task. Do not reread those files or load unrelated handovers.",
+    "- Consult only the relevant section of the AI Org Founder Operating Charter when a policy decision requires it. Read the Founder Dashboard only for substantive milestone/reporting work, and the Personal Operating Standard only when session lifecycle or reporting is relevant.",
+    "- Use the Parent Plus founder-response reference only when writing a founder-facing report; do not load it for routine engineering work.",
     "- At onboarding, meaningful milestones, repeated failures, environment or model changes, and before ending, assess context only from available measurements, progress, repeated work, decisions, dependencies, and risks. Record CONTINUE / COMPACT / SWITCH / ESCALATE; never claim unsupported context metrics or actions.",
-    "- FIRST read `/tmp/onboarding.md` completely: your role, RACI seat, role lessons, product memory, the contract, every earlier handover and (on a retry) why the last attempt failed. Do not rediscover what it already tells you.",
+    "- FIRST read `/tmp/onboarding.md` completely. It contains the current task context and at most the two latest handovers for this feature. Do not rediscover what it already tells you.",
     "- Your first message is the 5-line Understanding: goal · constraints · known traps · what you must not touch · how you will prove it is done.",
     `- LAST, write your handover to \`docs/product/<slug>/handoffs/NN-<stage>-<role>-<seat>.md\` (NN = next free number) using \`node .ai-org-handbook/scripts/handoff.mjs template <stage> <role>\`; fill every section; check it with \`node .ai-org-handbook/scripts/handoff.mjs validate <file>\`; commit and push it with your work. An invalid or missing handover fails the run.`,
     "- Put lessons that would help future features under `## Memory proposals` (fact + evidence). Never edit `docs/ai-memory/` directly; Arjun merges approved memory.",
@@ -167,7 +165,7 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "" }) {
   const extra = agent.slug === "maya-ai-pm" ? " and `.ai-org-handbook/playbooks/ai-pm.md` and `.ai-org-handbook/playbooks/feature-contract.md`" : agent.slug === "quinn-qa" ? " and `.ai-org-handbook/playbooks/qa-charter.md`" : "";
   return [
     `You are ${agent.name}, the ${agent.role} of the AppsWorld AI Organization, running as a background worker in GitHub Actions on ${repo}.`,
-    `1. Read \`.ai-org-handbook/FOUNDER_OPERATING_CHARTER.md\`, \`.ai-org-handbook/governance/PERSONAL_OPERATING_STANDARD.md\`, \`.ai-org-handbook/governance/FOUNDER_DASHBOARD.md\`, \`.ai-org-handbook/AGENTS.md\`, then \`.ai-org-handbook/org/agents/${agent.slug}.md\`${extra}. The Charter governs AI Org decisions; the standard governs communication, lifecycle, evidence, and resources within higher-priority controls and founder decisions.`,
+    "1. Read the onboarding pack first. It contains your role card and RACI. Consult only the relevant policy section of the Founder Operating Charter or your role-specific playbook; do not load entire handbooks or reread the role card.",
     `2. Read ${kind} #${number} and all its comments with \`${cli} view ${number} --comments\`.`,
     `3. Do your role's job for this ${kind} only. Keep changes small and reversible. Run the repo's checks before claiming anything.`,
     `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,
@@ -186,7 +184,7 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "" }) {
 
 export const PAUSE_MARKER = "<!-- ai-org:paused -->";
 export function pauseComment({ agent, stage }) {
-  return `${PAUSE_MARKER}\n**[${agent.name} — ${agent.role}] Paused.** This item is at \`${stage}\`, but background agents are paused. Paid engines are switched off, and the free engine is limited to supervised trials on synthetic data (founder decision).\n\nIt stays paused until the founder records that this use is permitted and the rule is changed. Nothing is lost.`;
+  return `${PAUSE_MARKER}\n**[${agent.name} — ${agent.role}] Paused.** This item is at `${stage}`, but no approved free engine or usable free quota is available. Paid engines and paid fallback are disabled.\n\nThe task remains queued until the free route is available. Nothing is lost.`;
 }
 
 // ---- CLI ----
