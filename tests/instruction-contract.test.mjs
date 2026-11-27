@@ -63,24 +63,28 @@ test("the scheduled GitHub path loads the canonical handbook with compact task-s
   assert.ok(prompt.includes("Do not claim delivery to a founder conversation"));
 });
 
-test("reusable agent workflows enforce free-only Groq execution", () => {
+test("reusable agent workflows enforce free-only multi-provider execution", () => {
   const caller = read(".github/workflows/ai-agents.yml");
   assert.ok(caller.includes("permissions: {}"));
   assert.ok(!caller.includes("secrets: inherit"));
-  assert.doesNotMatch(caller, /(?:CLAUDE_CODE_OAUTH_TOKEN|CODEX_AUTH_JSON|NVIDIA_NIM_API_KEY):/);
+  assert.doesNotMatch(caller, /(?:CLAUDE_CODE_OAUTH_TOKEN|CODEX_AUTH_JSON):/);
   assert.ok(caller.includes("GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}"));
+  assert.ok(caller.includes("NVIDIA_NIM_API_KEY: \${{ secrets.NVIDIA_NIM_API_KEY }}"));
   assert.ok(!caller.includes("id-token: write"));
 
   const routeStart = worker.indexOf("      - name: Route");
   const prepareStart = worker.indexOf("      - name: Prepare the product workspace", routeStart);
   assert.ok(routeStart >= 0 && prepareStart > routeStart);
   const route = worker.slice(routeStart, prepareStart);
-  assert.ok(route.includes("ENGINE_FREE: ${{ secrets.GROQ_API_KEY != '' }}"));
-  assert.doesNotMatch(route, /ENGINE_(?:CLAUDE|CODEX)|NVIDIA_NIM_API_KEY|CLAUDE_CODE_OAUTH_TOKEN|CODEX_AUTH_JSON/);
+  assert.ok(route.includes("ENGINE_FREE: \${{ secrets.GROQ_API_KEY != '' || secrets.NVIDIA_NIM_API_KEY != '' }}"));
+  assert.ok(route.includes("ENGINE_GROQ: \${{ secrets.GROQ_API_KEY != '' }}"));
+  assert.ok(route.includes("ENGINE_NVIDIA: \${{ secrets.NVIDIA_NIM_API_KEY != '' }}"));
+  assert.doesNotMatch(route, /ENGINE_(?:CLAUDE|CODEX)|CLAUDE_CODE_OAUTH_TOKEN|CODEX_AUTH_JSON/);
   assert.ok(worker.includes('GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}'));
+  assert.ok(worker.includes('NVIDIA_NIM_API_KEY: \${{ secrets.NVIDIA_NIM_API_KEY }}'));
   assert.ok(worker.includes('uv tool install "free-claude-code==6.19.56"'));
   assert.ok(worker.includes("MODEL=%s"));
-  assert.ok(worker.includes("Groq free-model tool-call preflight: PASS"));
+  assert.ok(worker.includes("Free provider tool-call preflight: PASS"));
   assert.ok(worker.includes("groq-probe-retryable"));
   assert.ok(worker.includes('MARKER="ai-org:paused"'));
   const resume = read(".github/workflows/agent-resume.yml");
@@ -89,7 +93,7 @@ test("reusable agent workflows enforce free-only Groq execution", () => {
   for (const label of ["ai:lane-a", "ai:lane-b", "ai:design", "ai:database", "ai:integration", "ai:release-ops", "ai:tests-review", "ai:tests-signoff"]) {
     assert.ok(resume.includes(label), `resume must cover ${label}`);
   }
-  assert.doesNotMatch(worker, /Run agent with Claude Code|Run agent with Codex|CODEX_AUTH_JSON|CLAUDE_CODE_OAUTH_TOKEN|NVIDIA_NIM_API_KEY/);
+  assert.doesNotMatch(worker, /Run agent with Claude Code|Run agent with Codex|CODEX_AUTH_JSON|CLAUDE_CODE_OAUTH_TOKEN/);
 });
 
 test("scheduled work does not claim an interactive founder report was delivered", () => {
@@ -142,6 +146,7 @@ test("cross-repository private handbook checkout uses a read-only deploy key wit
   }
   const smoke = read(".github/workflows/handbook-connectivity.yml");
   assert.match(smoke, /contents: read/);
-  assert.doesNotMatch(smoke, /NVIDIA_NIM_API_KEY|CODEX_AUTH_JSON|CLAUDE_CODE_OAUTH_TOKEN/);
+  assert.ok(smoke.includes("NVIDIA_NIM_API_KEY: \${{ secrets.NVIDIA_NIM_API_KEY }}"));
+  assert.doesNotMatch(smoke, /CODEX_AUTH_JSON|CLAUDE_CODE_OAUTH_TOKEN/);
   assert.match(smoke, /git rev-parse HEAD/);
 });
