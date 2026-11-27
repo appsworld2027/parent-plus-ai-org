@@ -4,6 +4,7 @@ set -euo pipefail
 HB=$(realpath "$1"); ROOT=${TRIAL_ROOT:-/srv/trial}; SOURCE=${TRIAL_SOURCE:-https://github.com/appsworld2027/Parent-plus-.git}
 eval "$(node "$HB/scripts/safe-trial.mjs" env | sed -E 's/^([A-Z_]+)=(.*)$/export \1="\2"/')"
 sudo mkdir -p "$ROOT" && sudo chown "$(id -un):" "$ROOT"; chmod 755 "$ROOT"
+[[ "$TRIAL_BASE" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::Source pin must be a full 40-character commit SHA"; exit 1; }
 git init -q "$ROOT/product" && cd "$ROOT/product"
 if [ "${TRIAL_PROFILE:-}" = "course-pilot" ]; then
   # Some Git transports reject a raw SHA request. Fetch the named MM ref, never substitute its revision.
@@ -14,7 +15,7 @@ else
   git fetch -q --depth 1 "$SOURCE" "$TRIAL_BASE"
 fi
 git checkout -q FETCH_HEAD
-[ "$(git rev-parse HEAD)" = "$TRIAL_BASE" ] || { echo "Unexpected source revision"; exit 1; }
+[ "$(git rev-parse HEAD)" = "$TRIAL_BASE" ] || { echo "::error::Unexpected source revision: expected $TRIAL_BASE, observed $(git rev-parse HEAD)"; exit 1; }
 rm -rf $TRIAL_STRIP
 find founders -mindepth 1 -maxdepth 1 ! -name prototypes -exec rm -rf {} +
 printf '{\n  "supabaseUrl": "https://example.supabase.co",\n  "supabasePublishableKey": "sb_publishable_example_public_test_key"\n}\n' > config/public-client.json

@@ -20,7 +20,7 @@ const LEGACY_TRIAL = {
 
 const COURSE_TRIAL = {
   slug: "coach-course-management",
-  base: "7100828dcf3c1007086df31f87b34ae8e02573", // exact MM/development revision; evaluation only
+  base: "710082b2d8cf3c1007086df31f87b34ae8e02573", // exact MM/development revision; evaluation only
   spec: "trial/controls/coach-course-management.spec.ts.txt",
   acceptanceCount: 6,
   builder: FREE_MODELS.builder,

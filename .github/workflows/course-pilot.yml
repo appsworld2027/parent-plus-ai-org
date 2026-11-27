@@ -282,7 +282,7 @@ jobs:
           mkdir -p /srv/trial/out
           {
             echo "Candidate SHA256: $D"
-            echo "Parent Plus base: 7100828dcf3c1007086df31f87b34ae8e02573"
+            echo "Parent Plus base: 710082b2d8cf3c1007086df31f87b34ae8e02573"
             head -1 in/grade/grade.txt
             echo "Quinn and Rex: APPROVE (candidate only)"
             echo "No live deployment, no public release, no database activation permitted."

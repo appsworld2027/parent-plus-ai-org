@@ -10,7 +10,8 @@ const { extractReview }=await import('../scripts/course-pilot/review.mjs');
 const { checkEligibility }=await import('../scripts/course-pilot/eligibility.mjs');
 const M=(path,status='M')=>({status,path});
 test('course profile is pinned to exact MM revision; six locked cases and approved independent models',()=>{
-  assert.equal(TRIAL.base,'7100828dcf3c1007086df31f87b34ae8e02573');
+  assert.match(TRIAL.base,/^[0-9a-f]{40}$/);
+  assert.equal(TRIAL.base,'710082b2d8cf3c1007086df31f87b34ae8e02573');
   assert.equal(TRIAL.acceptanceCount,6);
   assert.equal(TRIAL.builder,'groq/openai/gpt-oss-120b');
   assert.equal(TRIAL.reviewer,'groq/qwen/qwen3.8-27b');
