@@ -1,0 +1,156 @@
+[
+  {
+    "id": "maya-v1",
+    "version": 1,
+    "role": "maya-ai-pm",
+    "stage": "ai:discovery",
+    "task": "A fictional team misses 30 of 100 due reminders. Users say unclear due status causes misses; color preferences are anecdotal. Two-week experiment can address due status or cosmetic colors, not both. Choose the outcome to prioritize, metric denominator (100 due reminders), baseline missed reminders, experiment duration in days, and whether founder escalation is necessary for this reversible experiment. Keys: priority (due_status|colors), denominator (number), missed (number), days (number), escalate (boolean).",
+    "expected": {
+      "priority": "due_status",
+      "denominator": 100,
+      "missed": 30,
+      "days": 14,
+      "escalate": false
+    }
+  },
+  {
+    "id": "arjun-v1",
+    "version": 1,
+    "role": "arjun-cpto",
+    "stage": "ai:plan",
+    "task": "A fictional reminder API must isolate tenants, accept duplicate client retry IDs, and reject concurrent stale edits. Existing clients cannot migrate atomically. Choose unique scope (tenant_request|request_only), concurrency protection (compare_version|last_write_wins), migration approach (expand_contract|breaking_replace), whether retries may create duplicates, and rollback strategy (compatible_forward|destructive_drop).",
+    "expected": {
+      "uniqueScope": "tenant_request",
+      "concurrency": "compare_version",
+      "migration": "expand_contract",
+      "duplicates": false,
+      "rollback": "compatible_forward"
+    }
+  },
+  {
+    "id": "kiran-v1",
+    "version": 1,
+    "role": "kiran-pjm-a",
+    "stage": "ai:lane-a",
+    "task": "Lane A has one free owner; task api is blocked on an external credential, ui depends on api, docs has no dependencies, and duplicate docs dispatch already has a live lease. Task accessibility has no dependencies and no active lease. Choose first start (api|ui|docs|accessibility), defer API and UI (boolean), reuse existing docs lease (boolean), active additional tasks (number), and whether to prompt founder about routine scheduling (boolean).",
+    "expected": {
+      "start": "accessibility",
+      "defer": true,
+      "reuseLease": true,
+      "additional": 1,
+      "escalate": false
+    }
+  },
+  {
+    "id": "leela-v1",
+    "version": 1,
+    "role": "leela-pjm-b",
+    "stage": "ai:lane-b",
+    "task": "Lane A owns /api/reminders and shared schema R. Lane B tasks api_change modifies that interface; local_help edits unrelated static help; a stopped task recovery has checkpoint C7 and no active lease. Select start (api_change|local_help), conflict (api_change|local_help), checkpoint (C7|restart), duplicate task issue (boolean), and shared schema change concurrently (boolean).",
+    "expected": {
+      "start": "local_help",
+      "conflict": "api_change",
+      "checkpoint": "C7",
+      "duplicateIssue": false,
+      "concurrentSchema": false
+    }
+  },
+  {
+    "id": "iris-v1",
+    "version": 1,
+    "role": "iris-design",
+    "stage": "ai:design",
+    "task": "Design the fictional creation flow: save fails offline after user enters title and date; no reminders exist; keyboard-only user submits invalid date; user lacks delete permission. Choose failure recovery (preserve_retry|clear_form), empty affordance (create|blank), validation focus (invalid_date|page_top), delete treatment (disabled_explained|silent_delete), and whether success can be indicated before server acknowledgement (boolean).",
+    "expected": {
+      "recovery": "preserve_retry",
+      "empty": "create",
+      "focus": "invalid_date",
+      "delete": "disabled_explained",
+      "optimisticSuccess": false
+    }
+  },
+  {
+    "id": "dev-v1",
+    "version": 1,
+    "role": "dev-coder",
+    "stage": "ai:build",
+    "task": "Implement mentally: due reminder is true iff active, dueAt <= now, and not completed. At now=100, A active due100 incomplete; B active due101 incomplete; C inactive due90 incomplete; D active due90 complete; E active due99 incomplete. Output keys A,B,C,D,E with boolean due values. No actual writes.",
+    "expected": {
+      "A": true,
+      "B": false,
+      "C": false,
+      "D": false,
+      "E": true
+    }
+  },
+  {
+    "id": "tara-v1",
+    "version": 1,
+    "role": "tara-database",
+    "stage": "ai:database",
+    "task": "Synthetic relational db: tenant t1 and t2 can share client request id r1. Within a tenant duplicate r1 returns existing row, and reading a different tenant is forbidden. Old app must keep working during migration. Choose uniqueness (tenant_request|request), simultaneous same tenant inserts created rows (number), cross tenant same id allowed (boolean), read isolation (tenant_rls|none), migration (expand_contract|drop_first).",
+    "expected": {
+      "unique": "tenant_request",
+      "rows": 1,
+      "crossTenantId": true,
+      "isolation": "tenant_rls",
+      "migration": "expand_contract"
+    }
+  },
+  {
+    "id": "ravi-v1",
+    "version": 1,
+    "role": "ravi-integration",
+    "stage": "ai:integration",
+    "task": "A synthetic provider returns 429 Retry-After: 8 seconds; a POST timed out after possibly committing; response schema is malformed; max attempts=3. Choose delay seconds (number), same idempotency key on retry (boolean), accept malformed result (boolean), max attempts (number), and retry after attempts exhausted (boolean).",
+    "expected": {
+      "delay": 8,
+      "sameKey": true,
+      "acceptMalformed": false,
+      "maxAttempts": 3,
+      "retryAfterExhaustion": false
+    }
+  },
+  {
+    "id": "quinn-v1",
+    "version": 1,
+    "role": "quinn-qa",
+    "stage": "ai:qa",
+    "task": "Locked acceptance IDs T1 create valid reminder, T2 deny other tenant, T3 duplicate does not create another row, T4 offline preserves form, T5 invalid date rejected. Observed T1 pass T2 fail T3 pass T4 skipped T5 pass. Output number passed, failed, skipped; acceptance release gate (pass|block); whether to change locked tests to make green (boolean).",
+    "expected": {
+      "passed": 3,
+      "failed": 1,
+      "skipped": 1,
+      "gate": "block",
+      "changeTests": false
+    }
+  },
+  {
+    "id": "rex-v1",
+    "version": 1,
+    "role": "rex-reviewer",
+    "stage": "ai:review",
+    "task": "Review fictional change: accepts registration if email contains @, even empty password or duplicate email. Determine verdict (APPROVE|REJECT), malformed email accepted (boolean), empty passwords accepted (boolean), duplicate accounts accepted (boolean), and can merge before repair (boolean).",
+    "expected": {
+      "verdict": "REJECT",
+      "malformed": true,
+      "emptyPassword": true,
+      "duplicate": true,
+      "merge": false
+    }
+  },
+  {
+    "id": "sam-v1",
+    "version": 1,
+    "role": "sam-release",
+    "stage": "ai:release-ops",
+    "task": "Verified SHA abc123, artifact SHA def456, founders-only mode available; production smoke fails. Choose deploy (block|promote), flag for general users (off|on), response to failed smoke (disable_rollback|ignore), required SHA (abc123|def456), public rollout approval required (boolean).",
+    "expected": {
+      "deploy": "block",
+      "publicFlag": "off",
+      "smoke": "disable_rollback",
+      "requiredSha": "abc123",
+      "publicApproval": true
+    }
+  }
+]
