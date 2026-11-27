@@ -166,3 +166,10 @@ test("a decision-only result, missing attempt ledger or replayed receipt cannot 
   const a=assessFrontierAdmission(x,verifier(x));
   assert.notEqual(a.status,"eligible-for-independent-review");
 });
+
+test("importing clients cannot mutate the rubric after its digest is pinned",()=>{
+  assert.throws(()=>{rubric.minScore=0;},TypeError);
+  assert.throws(()=>{rubric.roles[0].checks[0].points=100;},TypeError);
+  assert.throws(()=>{rubric.hardGates.pop();},TypeError);
+  assert.equal(canonicalHash(rubric),rubricHash);
+});
