@@ -37,7 +37,7 @@ test("mock integration contract explicitly has bounded attempts, status reconcil
 test("actual isolated Ravi reference handles every fault/control in all three cases",{skip:!image},async()=>{
  for(const variant of ["normal","edge","adversarial"]){
   const r=await evaluateRaviArtifact(fixture(variant),candidate(),{image});
-  assert.equal(r.status,"integration-screen-pass",JSON.stringify(r));assert.equal(r.behavior.counts.pass,12);
+  assert.equal(r.status,"integration-screen-pass",JSON.stringify(r));assert.equal(r.behavior.counts.pass,13);
   assert.equal(r.liveProviderCalled,false);assert.equal(r.qualified,false);
  }
 });
