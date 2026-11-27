@@ -11,3 +11,5 @@ For read-only tasks, do not modify files, branches, commits, pull requests, labe
 For implementation tasks, inspect the relevant files before editing, make the smallest correct change, run targeted checks, inspect the final diff, and commit or push only to the assigned work branch when the task requires it. Never weaken tests to obtain a pass.
 
 Report only verified outcomes. Cite exact commands, test results and GitHub evidence. If blocked, stop and report the exact failure rather than claiming completion. Keep tool output and final comments concise. Do not spawn subagents or invoke MCP servers, plugins or another model.
+
+When the worker supplies `tool_mode=readonly`, do not edit files, branches, commits, pull requests, labels or other issues. Only perform the specific issue-comment write explicitly requested by that read-only task.

@@ -62,6 +62,21 @@ test("prompt and pause comment carry the agent identity", () => {
   assert.ok(pauseComment({ agent, stage: "ai:qa" }).startsWith(PAUSE_MARKER));
 });
 
+
+test("read-only runs never instruct the agent to advance labels or mutate other resources", () => {
+  const prompt = buildPrompt({
+    agent: agentInfo("maya-ai-pm"),
+    number: 91,
+    isPR: false,
+    repo: "appsworld2027/parent-plus-ai-org",
+    stage: "ai:discovery",
+    toolMode: "readonly"
+  });
+  assert.match(prompt, /Read-only mode/);
+  assert.match(prompt, /do not modify files, branches, labels, commits, PRs/);
+  assert.doesNotMatch(prompt, /Move the stage label/);
+});
+
 test("Quinn's prompt points to the QA charter and Maya's to the contract playbook", () => {
   assert.match(buildPrompt({ agent: agentInfo("quinn-qa"), number: 1, isPR: false, repo: "o/r" }), /qa-charter\.md/);
   assert.match(buildPrompt({ agent: agentInfo("maya-ai-pm"), number: 1, isPR: false, repo: "o/r" }), /feature-contract\.md/);

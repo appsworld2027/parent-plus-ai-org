@@ -31,6 +31,9 @@ test("the canonical background worker is Groq free-tier only with bounded output
   assert.ok(worker.includes("claude --bare -p"));
   assert.ok(worker.includes("--system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md"));
   assert.ok(worker.includes("TOOL_MODE: ${{ inputs.tool_mode }}"));
+  assert.ok(worker.includes("STAGE_OVERRIDE: ${{ inputs.stage_override }}"));
+  assert.ok(worker.includes("--tool-mode \"$TOOL_MODE\""));
+  assert.ok(worker.includes("Stage override is restricted to read-only AI Org smoke-test issues."));
   assert.ok(worker.includes('case "$TOOL_MODE" in'));
   assert.ok(worker.includes("readonly)"));
   assert.ok(worker.includes('TOOLS="Bash,Read"'));
@@ -49,6 +52,7 @@ test("the synthetic free-model smoke test is manual, private-only and read-only"
   assert.ok(smoke.includes("workflow_dispatch:"));
   assert.ok(smoke.includes("github.event.repository.private == true"));
   assert.ok(smoke.includes("tool_mode: readonly"));
+  assert.ok(smoke.includes("stage_override: ai:discovery"));
 });
 
 test("the canonical organization workflow delegates only the free Groq engine", () => {

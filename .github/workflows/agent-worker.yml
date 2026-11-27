@@ -25,6 +25,11 @@ on:
         required: false
         type: string
         default: standard
+      stage_override:
+        description: Restricted synthetic-stage override for read-only AI Org smoke tests only
+        required: false
+        type: string
+        default: ""
     secrets:
       AI_ORG_HANDBOOK_SSH_KEY:
         required: false
@@ -73,19 +78,33 @@ jobs:
 
       - name: Read item
         id: item
+        env:
+          TOOL_MODE: ${{ inputs.tool_mode }}
+          STAGE_OVERRIDE: ${{ inputs.stage_override }}
         run: |
           set -euo pipefail
           gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER" > /tmp/item.json
           jq -r '.body // ""' /tmp/item.json > /tmp/body.md
-          echo "labels=$(jq -r '[.labels[].name] | join(",")' /tmp/item.json)" >> "$GITHUB_OUTPUT"
+          LABELS=$(jq -r '[.labels[].name] | join(",")' /tmp/item.json)
+          STAGE=$(jq -r '[.labels[].name | select(startswith("ai:"))] | first // ""' /tmp/item.json)
+          if [ -n "$STAGE_OVERRIDE" ]; then
+            if [ "$TOOL_MODE" != "readonly" ] || [ "$GITHUB_REPOSITORY" != "appsworld2027/parent-plus-ai-org" ] || [ "$STAGE_OVERRIDE" != "ai:discovery" ] || ! jq -e '.title | startswith("[SMOKE TEST]")' /tmp/item.json >/dev/null; then
+              echo "::error::Stage override is restricted to read-only AI Org smoke-test issues."
+              exit 1
+            fi
+            LABELS="$STAGE_OVERRIDE"
+            STAGE="$STAGE_OVERRIDE"
+          fi
+          echo "labels=$LABELS" >> "$GITHUB_OUTPUT"
           echo "is_pr=$(jq -r 'has("pull_request")' /tmp/item.json)" >> "$GITHUB_OUTPUT"
-          echo "stage=$(jq -r '[.labels[].name | select(startswith("ai:"))] | first // ""' /tmp/item.json)" >> "$GITHUB_OUTPUT"
+          echo "stage=$STAGE" >> "$GITHUB_OUTPUT"
 
       - name: Route
         id: router
         env:
           LABELS: ${{ steps.item.outputs.labels }}
           IS_PR: ${{ steps.item.outputs.is_pr }}
+          TOOL_MODE: ${{ inputs.tool_mode }}
           ENGINE_FREE: ${{ secrets.GROQ_API_KEY != '' }}
         run: |
           set -euo pipefail
@@ -95,7 +114,7 @@ jobs:
           SEAT=$(case "$STAGE" in ai:tests) echo author;; ai:tests-review) echo challenger;; ai:tests-signoff) echo accountable;; *) echo "";; esac)
           FREE_MODEL_OVERRIDE=$(jq -r --arg s "$STAGE" --arg seat "$SEAT" '(.raci["ai:tests"].models[$seat] // .ai.freeModels[$s]) // ""' .ai-org/manifest.json 2>/dev/null || true)
           export FREE_MODEL_OVERRIDE; [ -n "$FREE_MODEL_OVERRIDE" ] && echo "free model for $STAGE from manifest: $FREE_MODEL_OVERRIDE"
-          node .ai-org-handbook/scripts/agent-router.mjs --labels "$LABELS" $PRFLAG --body-file /tmp/body.md --number "$NUMBER" --repo "$GITHUB_REPOSITORY" | tee /tmp/route.json
+          node .ai-org-handbook/scripts/agent-router.mjs --labels "$LABELS" $PRFLAG --body-file /tmp/body.md --number "$NUMBER" --repo "$GITHUB_REPOSITORY" --tool-mode "$TOOL_MODE" | tee /tmp/route.json
           {
             echo "### AI Org router — #$NUMBER"
             echo '```json'; cat /tmp/route.json; echo '```'

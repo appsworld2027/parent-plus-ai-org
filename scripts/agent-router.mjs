@@ -162,7 +162,7 @@ export function signoffBrief(number) {
   ].join("\n");
 }
 
-export function buildPrompt({ agent, number, isPR, repo, stage = "" }) {
+export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = "standard" }) {
   const kind = isPR ? "pull request" : "issue";
   const cli = isPR ? "gh pr" : "gh issue";
   const extra = agent.slug === "maya-ai-pm" ? " and `.ai-org-handbook/playbooks/ai-pm.md` and `.ai-org-handbook/playbooks/feature-contract.md`" : agent.slug === "quinn-qa" ? " and `.ai-org-handbook/playbooks/qa-charter.md`" : "";
@@ -172,7 +172,9 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "" }) {
     `2. Read ${kind} #${number} metadata and body only using ${cli} view ${number} --json title,body,labels,assignees. Read comments only when a retry or explicit task requires history.`,
     `3. Do your role's job for this ${kind} only. Keep changes small and reversible. Run the repo's checks before claiming anything.`,
     `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,
-    `5. Move the stage label as your role file says (\`${cli} edit ${number} --add-label … --remove-label …\`).`,
+    ...(toolMode === "readonly"
+      ? ["5. Read-only mode: do not modify files, branches, labels, commits, PRs or any other issue. Only perform the specific issue comment explicitly requested by the task."]
+      : [`5. Move the stage label as your role file says (\`${cli} edit ${number} --add-label … --remove-label …\`).`]),
     `6. Never print secrets. Never contact the founder except through ai:founder-decision or ai:founder-test issues.`,
     "", onboardingRules(number),
     ...(["ai:review", "ai:tests-review", "ai:tests-signoff"].includes(stage) ? [
@@ -196,6 +198,7 @@ if (isMain(import.meta.url)) {
   const labels = (arg("labels") || "").split(",").map((s) => s.trim()).filter(Boolean);
   const bodyFile = arg("body-file");
   const isPR = process.argv.includes("--pr");
+  const toolMode = arg("tool-mode") || "standard";
   const r = route({
     labels, isPR, body: bodyFile && existsSync(bodyFile) ? readFileSync(bodyFile, "utf8") : "",
     freeModel: process.env.FREE_MODEL_OVERRIDE || "", supervisedTrial: process.env.SUPERVISED_SYNTHETIC_TRIAL === "1", engines: { claude: process.env.ENGINE_CLAUDE === "true", codex: process.env.ENGINE_CODEX === "true", free: process.env.ENGINE_FREE === "true" },
@@ -204,7 +207,7 @@ if (isMain(import.meta.url)) {
   if (r.role) {
     const agent = agentInfo(r.role);
     Object.assign(out, { agent_name: agent.name, agent_role: agent.role, model: agent.model });
-    if (r.action === "run") out.prompt = buildPrompt({ agent, number: arg("number"), isPR, repo: arg("repo"), stage: r.stage });
+    if (r.action === "run") out.prompt = buildPrompt({ agent, number: arg("number"), isPR, repo: arg("repo"), stage: r.stage, toolMode });
     if (r.action === "pause") out.pause_comment = pauseComment({ agent, stage: r.stage });
   }
   console.log(JSON.stringify({ ...out, prompt: out.prompt ? "(set)" : undefined, pause_comment: out.pause_comment ? "(set)" : undefined }));
