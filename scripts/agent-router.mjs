@@ -17,6 +17,11 @@ const AGENTS_DIR = fileURLToPath(new URL("../org/agents/", import.meta.url));
 export const STAGE_ROLE = {
   "ai:discovery": "maya-ai-pm",
   "ai:plan": "arjun-cpto",
+  "ai:lane-a": "kiran-pjm-a",
+  "ai:lane-b": "leela-pjm-b",
+  "ai:design": "iris-design",
+  "ai:database": "tara-database",
+  "ai:integration": "ravi-integration",
   "ai:tests": "quinn-qa",
   "ai:tests-review": "quinn-qa",
   "ai:tests-signoff": "arjun-cpto",
@@ -24,6 +29,7 @@ export const STAGE_ROLE = {
   "ai:qa": "quinn-qa",
   "ai:review": "rex-reviewer",
   "ai:fix": "dev-coder",
+  "ai:release-ops": "sam-release",
 };
 // Seat per stage (AI Org v3 RACI): the same role can sit in different seats on different models.
 export const STAGE_SEAT = { "ai:tests": "author", "ai:tests-review": "challenger", "ai:tests-signoff": "accountable" };
