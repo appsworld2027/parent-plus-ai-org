@@ -123,8 +123,20 @@ test("autonomy rule keeps its escalation limits; role models are routed and the 
   for (const a of registry) assert.doesNotMatch(read(`.claude/agents/${a.agentId}.md`), /^model: inherit$/m);
 });
 
-test("cross-repository private handbook checkout uses a read-only deploy key without persisting it", () => {
-  for (const path of [".github/workflows/agent-worker.yml", ".github/workflows/ai-loop.yml", ".github/workflows/handbook-connectivity.yml", ".github/workflows/contract-lock.yml"]) {
+test("cross-repository handbook checkout prefers public caller-token access and securely falls back for private handbooks", () => {
+  const worker = read(".github/workflows/agent-worker.yml");
+  assert.ok(worker.includes("AI_ORG_HANDBOOK_SSH_KEY:") && worker.includes("required: false"));
+  assert.ok(worker.includes("Load AI Org handbook using the caller token"));
+  assert.ok(worker.includes("id: public_handbook"));
+  assert.ok(worker.includes("continue-on-error: true"));
+  assert.ok(worker.includes("steps.public_handbook.outcome == 'failure'"));
+  assert.ok(worker.includes("Check private handbook access"));
+  assert.ok(worker.includes("HANDBOOK_ACCESS: ${{ secrets.AI_ORG_HANDBOOK_SSH_KEY != '' }}"));
+  assert.ok(worker.includes("ssh-key: ${{ secrets.AI_ORG_HANDBOOK_SSH_KEY }}"));
+  assert.ok(worker.includes("token: ${{ github.token }}"));
+  assert.ok(worker.includes("persist-credentials: false"));
+  assert.ok(!worker.includes("AI_ORG_HANDBOOK_TOKEN"));
+  for (const path of [".github/workflows/ai-loop.yml", ".github/workflows/handbook-connectivity.yml", ".github/workflows/contract-lock.yml"]) {
     const workflow = read(path);
     assert.ok(workflow.includes("AI_ORG_HANDBOOK_SSH_KEY:") && workflow.includes("required: false"));
     assert.ok(workflow.includes("Detect AI Org handbook visibility"));
