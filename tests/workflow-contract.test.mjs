@@ -14,9 +14,10 @@ test("cross-repository private handbook consumers require the read-only deploy k
   }
 });
 
-test("background agent execution fails closed unless explicitly enabled on a private caller repository", () => {
+test("AI Org may run in its own public repo; external callers require private repos and explicit enablement", () => {
   const worker = read("../.github/workflows/agent-worker.yml");
   assert.ok(worker.includes("vars.UNATTENDED_AGENTS == 'on'"));
+  assert.ok(worker.includes("github.repository == 'appsworld2027/parent-plus-ai-org'"));
   assert.ok(worker.includes("github.event.repository.private == true"));
 });
 
@@ -56,17 +57,20 @@ test("the canonical background worker is Groq free-tier only with bounded output
   assert.ok(systemPrompt.includes("Never call another provider"));
 });
 
-test("the synthetic free-model smoke test is manual, private-only and read-only", () => {
+test("the synthetic free-model smoke is manual and read-only; public access is limited to AI Org itself", () => {
   const smoke = read("../.github/workflows/free-agent-smoke.yml");
   assert.ok(!smoke.includes("pull_request:"));
   assert.ok(smoke.includes("workflow_dispatch:"));
+  assert.ok(smoke.includes("vars.UNATTENDED_AGENTS == 'on'"));
+  assert.ok(smoke.includes("github.repository == 'appsworld2027/parent-plus-ai-org'"));
   assert.ok(smoke.includes("github.event.repository.private == true"));
   assert.ok(smoke.includes("tool_mode: readonly"));
   assert.ok(smoke.includes("stage_override: ai:discovery"));
 });
 
-test("resume covers every routed role and autonomous paths fail closed on public repositories", () => {
+test("resume covers every routed role; only AI Org self-work may run in a public repository", () => {
   const resume = read("../.github/workflows/agent-resume.yml");
+  assert.ok(resume.includes("github.repository == 'appsworld2027/parent-plus-ai-org'"));
   assert.ok(resume.includes("github.event.repository.private == true"));
   assert.ok(resume.includes("vars.UNATTENDED_AGENTS == 'on'"));
   for (const label of ["ai:discovery", "ai:plan", "ai:lane-a", "ai:lane-b", "ai:design", "ai:tests", "ai:tests-review", "ai:tests-signoff", "ai:build", "ai:database", "ai:integration", "ai:qa", "ai:review", "ai:release-ops", "ai:fix"]) {
@@ -74,9 +78,11 @@ test("resume covers every routed role and autonomous paths fail closed on public
   }
   const caller = read("../.github/workflows/ai-agents.yml");
   assert.ok(caller.includes("vars.UNATTENDED_AGENTS == 'on'"));
+  assert.ok(caller.includes("github.repository == 'appsworld2027/parent-plus-ai-org'"));
   assert.ok(caller.includes("github.event.repository.private == true"));
   const loop = read("../.github/workflows/ai-loop.yml");
-  assert.ok(loop.includes("if: github.event.repository.private == true"));
+  assert.ok(loop.includes("github.repository == 'appsworld2027/parent-plus-ai-org'"));
+  assert.ok(loop.includes("github.event.repository.private == true"));
 });
 
 test("the canonical organization workflow delegates only the free Groq engine", () => {

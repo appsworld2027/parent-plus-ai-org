@@ -161,15 +161,15 @@ test("gate forwards model calls only", () => {
   for (const [m, u] of [["GET", "/admin"], ["GET", "/v1/../admin"], ["POST", "/admin?x=/v1/messages"], ["DELETE", "/v1/messages"]]) assert.equal(allowed(m, u), false, u);
 });
 
-test("hourly resume is private-only and requires explicit free-agent enablement", () => {
+test("hourly resume is enabled only for approved repos; AI Org self-work is the public exception", () => {
   const resume = read(".github/workflows/agent-resume.yml");
-  assert.match(resume, /github\.event\.repository\.private == true/);
-  assert.match(resume, /vars\.UNATTENDED_AGENTS == 'on'/);
+  assert.ok(resume.includes("github.repository == 'appsworld2027/parent-plus-ai-org'"));
+  assert.ok(resume.includes("github.event.repository.private == true"));
+  assert.ok(resume.includes("vars.UNATTENDED_AGENTS == 'on'"));
   for (const label of ["ai:lane-a", "ai:lane-b", "ai:design", "ai:database", "ai:integration", "ai:release-ops"]) assert.ok(resume.includes(label), `resume covers ${label}`);
   assert.match(resume, /GROQ_API_KEY/);
   assert.doesNotMatch(resume, /CLAUDE_CODE_OAUTH_TOKEN|CODEX_AUTH_JSON|NVIDIA_NIM_API_KEY/);
 });
-
 test("engine commands run with a clean environment, never inheriting runner settings", () => {
   assert.doesNotMatch(read("scripts/safe-trial/engine.sh"), /sudo -u trialproxy/);
   assert.match(read("scripts/safe-trial/lib.sh"), /as_proxy\(\) \{ sudo -u trialproxy env -i HOME=\/home\/trialproxy /);
