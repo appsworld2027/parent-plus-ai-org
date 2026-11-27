@@ -130,4 +130,4 @@ test("cross-repository public handbook checkout uses the caller token without re
   assert.match(smoke, /contents: read/);
   assert.doesNotMatch(smoke, /NVIDIA_NIM_API_KEY|CODEX_AUTH_JSON|CLAUDE_CODE_OAUTH_TOKEN/);
   assert.match(smoke, /git rev-parse HEAD/);
-});;
+});
