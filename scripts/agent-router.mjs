@@ -96,11 +96,16 @@ export function route({ labels = [], body = "", isPR = false, engines = { free: 
   if (engine === "free") {
     const reviewerSeat = REVIEW_ROLES.includes(role) && stage !== "ai:tests";
     const available = (model) => freeProviders[model.split("/")[0]] === true;
-    const override = FREE_OVERRIDE.test(freeModel) && available(freeModel) ? freeModel : "";
     const candidates = reviewerSeat
       ? [FREE_MODELS.reviewer]
       : [FREE_MODELS.nvidiaBuilder, FREE_MODELS.builder];
+    // "Free" is necessary but not sufficient: an override cannot exchange author and
+    // reviewer families. Reasoning-effort variants keep their underlying model identity.
+    const requestedModel = typeof freeModel === "string" ? freeModel : "";
+    const baseModel = requestedModel.split("@")[0];
+    const override = FREE_OVERRIDE.test(requestedModel) && candidates.includes(baseModel) && available(requestedModel) ? requestedModel : "";
     const selected = override || candidates.find(available) || "";
+    out.free_model_override_rejected = !!requestedModel && !override;
     if (!selected) {
       return {
         action: "pause",
