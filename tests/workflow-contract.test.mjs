@@ -55,6 +55,12 @@ test("the canonical background worker is Groq free-tier only with bounded output
   const systemPrompt = read("../governance/FREE_AGENT_SYSTEM_PROMPT.md");
   assert.ok(systemPrompt.includes("Groq free-tier"));
   assert.ok(systemPrompt.includes("Never call another provider"));
+  assert.ok(systemPrompt.includes("single-quoted"));
+  assert.ok(systemPrompt.includes("unescaped backticks"));
+  assert.ok(worker.includes("Verify read-only completion comment"));
+  assert.ok(worker.includes("started-at"));
+  assert.ok(worker.includes("github-actions[bot]"));
+  assert.ok(worker.includes("process exit alone is not completion"));
 });
 
 test("the synthetic free-model smoke is manual and read-only; public access is limited to AI Org itself", () => {
