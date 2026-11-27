@@ -218,3 +218,24 @@ test("a reviewer may choose supported reasoning effort on its own model", () => 
   assert.equal(r.free_model, FREE_MODELS.reviewer + "@high");
   assert.equal(r.free_model_override_rejected, false);
 });
+
+// Every named role has an actionable quality method, not just a label and model.
+test("all 11 roles get a focused quality method on an actual free route", () => {
+  const roles = new Set();
+  for (const [stage, slug] of Object.entries(STAGE_ROLE)) {
+    const routed = route({ labels: [stage], engines: freeOnly });
+    assert.equal(routed.action, "run", stage);
+    assert.equal(routed.role, slug);
+    const prompt = buildPrompt({ agent: agentInfo(slug), number: 19, isPR: false, repo: "example/synthetic", stage });
+    assert.match(prompt, /Role quality method:/, slug);
+    roles.add(slug);
+  }
+  assert.equal(roles.size, 11);
+});
+test("readonly reviewer prompts do not ask the agent to post, push or advance state", () => {
+  for (const stage of ["ai:review", "ai:tests-review", "ai:tests-signoff", "ai:tests", "ai:build"]) {
+    const prompt = buildPrompt({ agent: agentInfo(STAGE_ROLE[stage]), number: 7, isPR: true, repo: "example/synthetic", stage, toolMode: "readonly", featureSlug: "synthetic" });
+    assert.match(prompt, /workflow.*publish/i);
+    assert.doesNotMatch(prompt, /Finish by commenting|Post the verdict directly|Comment on the contract PR|commit and push|Open the contract PR|handoff\\.mjs template/);
+  }
+});
