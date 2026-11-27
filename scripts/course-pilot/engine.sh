@@ -5,6 +5,8 @@ MODEL=$1
 . "$(dirname "$(realpath "$0")")/../safe-trial/lib.sh"
 J=$(realpath "$ROOT")/judge
 cd /
+# Owner-controlled current eligibility record; never infer plan from presence of an API key.
+node "$J/scripts/course-pilot/eligibility.mjs"
 case "$MODEL" in groq/openai/gpt-oss-120b|groq/qwen/qwen3.8-27b) ;; *) echo "::error::Unapproved course pilot route"; exit 1;; esac
 [ -n "${GROQ_API_KEY:-}" ] || { echo "::error::Approved free Groq key unavailable; no fallback"; exit 1; }
 as_proxy bash -c 'curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null && "$HOME/.local/bin/uv" tool install "free-claude-code==6.19.56" >/dev/null && mkdir -p "$HOME/.fcc" && chmod 700 "$HOME/.fcc"'
@@ -24,4 +26,4 @@ done
 (umask 022; npm install -g @anthropic-ai/claude-code >/dev/null)
 harden_system
 assert_system_readonly
-echo "Course pilot free route: $MODEL (provider billing tier not independently measured)"
+echo "Course pilot allowed route configuration: $MODEL (runtime identity and usage must be independently verified)"

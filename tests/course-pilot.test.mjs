@@ -63,7 +63,7 @@ test('course workflow is owner-only for inference, read-only GitHub, isolated; P
   assert.match(flow,/persist-credentials: false/);
   assert.doesNotMatch(flow,/NVIDIA_NIM_API_KEY|OPENAI_API_KEY|ANTHROPIC_API_KEY|CODEX_AUTH|git push|gh pr merge|gh workflow run/);
   assert.doesNotMatch(flow.slice(flow.indexOf('\n  grade:'),flow.indexOf('\n  review:')),/secrets\.|engine\.sh|agent\.sh/);
-  assert.match(flow,/needs: baseline/);
+  assert.match(flow,/needs: \[baseline, eligibility\]/);
   assert.match(flow,/needs: \[build, grade, review\]/);
   for(const stage of ['course-build','course-grade','course-review','course-release-simulation'])assert.ok(flow.includes(stage));
   assert.match(read('scripts/course-pilot/engine.sh'),/groq\/openai\/gpt-oss-120b\|groq\/qwen\/qwen3\.8-27b/);
@@ -76,4 +76,19 @@ test('course workflow is owner-only for inference, read-only GitHub, isolated; P
 });
 test('all course shell scripts parse; no onboarding/install work performed here',()=>{
   for(const path of ['scripts/course-pilot/engine.sh','scripts/course-pilot/scan.sh','scripts/course-pilot/plan.sh','scripts/safe-trial/prepare.sh','scripts/safe-trial/agent.sh','scripts/safe-trial/lib.sh'])assert.equal(spawnSync('bash',['-n',new URL('../'+path,import.meta.url).pathname]).status,0,path);
+});
+
+test('PRD free-only gate rejects missing, unknown, expired or unqualified routes before inference',()=>{
+  const now=Date.parse('2026-11-27T00:00:00Z');
+  const link='https://github.com/appsworld2027/parent-plus-ai-org/actions/runs/1';
+  const x={schema:'course-provider-eligibility/v1',provider:'groq',adapter:'free-claude-code@6.19.56',billingGuard:'provider-enforced-no-charge',paidFallback:false,dataClass:'public-source-and-synthetic-only',privateOrCustomerData:false,verifiedAt:'2026-11-26T00:00:00Z',expiresAt:'2026-12-01T00:00:00Z',billingEvidence:link,termsEvidence:link,routes:['groq/openai/gpt-oss-120b','groq/qwen/qwen3.8-27b'].map(id=>({id,observedIdentity:id.slice(5),toolArtifactVerified:true,syntheticQualificationPassed:true,receiptSha256:'a'.repeat(64),run:link}))};
+  assert.throws(()=>checkEligibility('',now));
+  assert.throws(()=>checkEligibility('not JSON',now));
+  assert.equal(checkEligibility(JSON.stringify(x),now).routeIds.length,2);
+  for(const ch of [{billingGuard:'unknown'},{paidFallback:true},{dataClass:'private'},{privateOrCustomerData:true},{expiresAt:'2026-11-26T23:00:00Z'},{billingEvidence:''},{routes:x.routes.slice(1)},{routes:[{...x.routes[0],observedIdentity:'different'},x.routes[1]]},{routes:[{...x.routes[0],toolArtifactVerified:false},x.routes[1]]}])assert.throws(()=>checkEligibility(JSON.stringify({...x,...ch}),now));
+  const flow=read('.github/workflows/course-pilot.yml');
+  assert.match(flow,/course-provider-eligibility/);
+  assert.match(flow,/needs: \[baseline, eligibility\]/);
+  assert.equal((flow.match(/COURSE_PILOT_PROVIDER_ELIGIBILITY: /g)||[]).length,4);
+  assert.match(read('scripts/course-pilot/engine.sh'),/node "\$J\/scripts\/course-pilot\/eligibility\.mjs"/);
 });

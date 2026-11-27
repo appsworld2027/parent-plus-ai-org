@@ -89,8 +89,34 @@ jobs:
           path: /srv/trial/out/
           retention-days: 14
 
+  eligibility:
+    needs: contract
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE PILOT ONLY' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' && github.ref == 'refs/heads/main' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner &&
+      vars.UNATTENDED_AGENTS == 'on'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Validate current provider eligibility (no model or credentials)
+        env:
+          COURSE_PILOT_PROVIDER_ELIGIBILITY: ${{ vars.COURSE_PILOT_PROVIDER_ELIGIBILITY }}
+        run: node scripts/course-pilot/eligibility.mjs eligibility.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: course-provider-eligibility
+          path: eligibility.json
+          retention-days: 14
+
   build:
-    needs: baseline
+    needs: [baseline, eligibility]
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
@@ -101,6 +127,7 @@ jobs:
       - name: Start approved FREE Groq builder using isolated credential holder
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          COURSE_PILOT_PROVIDER_ELIGIBILITY: ${{ vars.COURSE_PILOT_PROVIDER_ELIGIBILITY }}
         run: bash /srv/trial/judge/scripts/course-pilot/engine.sh "$TRIAL_BUILDER"
       - uses: actions/download-artifact@v4
         with:
@@ -193,6 +220,7 @@ jobs:
       - name: Start distinct approved FREE Groq reviewer family
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          COURSE_PILOT_PROVIDER_ELIGIBILITY: ${{ vars.COURSE_PILOT_PROVIDER_ELIGIBILITY }}
         run: bash /srv/trial/judge/scripts/course-pilot/engine.sh "$TRIAL_REVIEWER"
       - name: Quinn independently challenges acceptance and regression evidence
         run: |
@@ -264,6 +292,7 @@ jobs:
       - name: Start isolated free builder family for Sam
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          COURSE_PILOT_PROVIDER_ELIGIBILITY: ${{ vars.COURSE_PILOT_PROVIDER_ELIGIBILITY }}
         run: bash /srv/trial/judge/scripts/course-pilot/engine.sh "$TRIAL_BUILDER"
       - name: Sam release simulation and founder-facing readiness report
         run: |
