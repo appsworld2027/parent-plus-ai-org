@@ -5,7 +5,7 @@ import { parseDocument } from "yaml";
 const workflow = parseDocument(readFileSync(new URL("../.github/workflows/agent-resume.yml",import.meta.url),"utf8")).toJS();
 const script = workflow.jobs.resume.steps[0].run;
 const policy = script.split("// BEGIN RECOVERY POLICY\n")[1].split("// END RECOVERY POLICY")[0];
-const { planResume,parseReceipt,stageOf,STAGES } = await import("data:text/javascript;base64,"+Buffer.from(policy).toString("base64"));
+const { planResume,parseReceipt,stageOf,STAGES,recoveryCapacity,MAX_DISPATCHES_PER_SWEEP } = await import("data:text/javascript;base64,"+Buffer.from(policy).toString("base64"));
 const t = Date.parse("2026-11-27T00:00:00Z");
 const issue = {number:1,state:"open",labels:[{name:"ai:build"}]};
 const receipt = (state,id=1,options={}) => ({
@@ -55,7 +55,17 @@ test("workflow serializes recovery and supports every routed stage",()=>{
   assert.equal(workflow.jobs.resume.concurrency["cancel-in-progress"],false);
   assert.ok(workflow.jobs.resume.concurrency.group.includes("ai-resume-"));
   assert.ok(script.indexOf('receipt("claimed")') < script.indexOf('gh("workflow","run"'));
-  assert.ok(script.includes("dispatched>=8"));
+  assert.equal(MAX_DISPATCHES_PER_SWEEP,1);
+  assert.ok(script.includes("attempted>=MAX_DISPATCHES_PER_SWEEP"));
+  assert.ok(script.indexOf("attempted++") < script.indexOf('receipt("claimed")'));
+  assert.ok(script.indexOf("recoveryCapacity({hasGroq:true") < script.indexOf('receipt("claimed")'));
+  assert.ok(script.includes("sort=updated&direction=asc"));
+  assert.ok(workflow.jobs.resume.env.HAS_GROQ.includes("secrets.GROQ_API_KEY"));
+  assert.ok(!workflow.jobs.resume.env.HAS_GROQ.includes("NVIDIA"));
+  const caller=parseDocument(readFileSync(new URL("../.github/workflows/ai-agents.yml",import.meta.url),"utf8")).toJS();
+  assert.equal(caller.jobs.resume.permissions.issues,"write");
+  assert.equal(caller.jobs.resume.permissions["pull-requests"],"read");
+  assert.equal(caller.jobs.resume.permissions.actions,"write");
 });
 
 test("worker receipts bracket model execution and verification",()=>{
@@ -69,4 +79,22 @@ test("worker receipts bracket model execution and verification",()=>{
   assert.ok(pos("Record completed attempt")>pos("Handover check"));
   assert.ok(steps[pos("Report a failed run")].run.includes("state=%s stage=%s run=%s attempt=%s mode=%s"));
   assert.ok(steps[pos("Pause (no engine connected)")].run.includes("state=blocked"));
+});
+
+test("standard recovery requires a Groq credential, not an NVIDIA evaluation credential",()=>{
+  assert.equal(recoveryCapacity({hasGroq:false,runs:[],currentRunId:"123"}).allow,false);
+  assert.equal(recoveryCapacity({hasGroq:true,runs:[],currentRunId:"123"}).allow,true);
+});
+test("active, queued or waiting worker blocks recovery; the current sweep is not a worker",()=>{
+  for(const status of ["requested","waiting","pending","queued","in_progress"]){
+    assert.equal(recoveryCapacity({hasGroq:true,runs:[{id:123,status}],currentRunId:"123"}).allow,true);
+    assert.equal(recoveryCapacity({hasGroq:true,runs:[{id:456,status}],currentRunId:"123"}).allow,false);
+  }
+  assert.equal(recoveryCapacity({hasGroq:true,runs:[{id:456,status:"completed"}],currentRunId:"123"}).allow,true);
+});
+test("missing, malformed or unfamiliar run evidence closes the gate",()=>{
+  for(const runs of [null,{},[{}],[{id:"456",status:"queued"}],[{id:456,status:"unknown"}]]){
+    assert.equal(recoveryCapacity({hasGroq:true,runs,currentRunId:"123"}).allow,false);
+  }
+  assert.equal(recoveryCapacity({hasGroq:true,runs:[],currentRunId:"not-a-run"}).allow,false);
 });
