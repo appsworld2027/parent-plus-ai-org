@@ -73,10 +73,16 @@ test("read-only runs never instruct the agent to advance labels or mutate other 
     toolMode: "readonly"
   });
   assert.match(prompt, /Read-only mode/);
-  assert.match(prompt, /do not modify files, branches, labels, commits, PRs/);
+  assert.match(prompt, /do not modify files, branches, labels, commits, PRs/i);
+  assert.doesNotMatch(prompt, /handoff\\.mjs (?:template|validate)/);
   assert.doesNotMatch(prompt, /Move the stage label/);
 });
 
+test("standard QA stages receive the exact handover template and validation commands", () => {
+  const prompt = buildPrompt({ agent: agentInfo("quinn-qa"), number: 42, isPR: false, repo: "o/r", stage: "ai:tests" });
+  assert.match(prompt, /handoff\\.mjs template/);
+  assert.match(prompt, /handoff\\.mjs validate/);
+});
 test("Quinn's prompt points to the QA charter and Maya's to the contract playbook", () => {
   assert.match(buildPrompt({ agent: agentInfo("quinn-qa"), number: 1, isPR: false, repo: "o/r" }), /qa-charter\.md/);
   assert.match(buildPrompt({ agent: agentInfo("maya-ai-pm"), number: 1, isPR: false, repo: "o/r" }), /feature-contract\.md/);
