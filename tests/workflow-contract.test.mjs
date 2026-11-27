@@ -149,3 +149,9 @@ test("all GitHub workflow YAML parses without errors", () => {
     assert.ok(document.get("on"), file);
   }
 });
+
+test("read-only completion uses the declared issue input instead of a nonexistent item output", () => {
+  const workflow = parseDocument(read("../.github/workflows/agent-worker.yml")).toJS();
+  const step = workflow.jobs.agent.steps.find(s => s.name === "Publish and verify read-only completion report");
+  assert.equal(step.env.NUMBER, "${{ inputs.number }}");
+});
