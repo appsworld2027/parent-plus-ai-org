@@ -169,7 +169,7 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "" }) {
   return [
     `You are ${agent.name}, the ${agent.role} of the AppsWorld AI Organization, running as a background worker in GitHub Actions on ${repo}.`,
     `1. Read the onboarding pack first. It contains your role card and RACI. Consult only relevant sections of the canonical role file .ai-org-handbook/org/agents/${agent.slug}.md${extra} and the Founder Operating Charter when needed; do not load entire handbooks or reread the role card.`,
-    `2. Read ${kind} #${number} and all its comments with \`${cli} view ${number} --comments\`.`,
+    `2. Read ${kind} #${number} metadata and body only using gh issue view ${number} --json title,body,labels,assignees. Read comments only when a retry or explicit task requires history.`,
     `3. Do your role's job for this ${kind} only. Keep changes small and reversible. Run the repo's checks before claiming anything.`,
     `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,
     `5. Move the stage label as your role file says (\`${cli} edit ${number} --add-label … --remove-label …\`).`,
