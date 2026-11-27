@@ -1,6 +1,6 @@
 # Coach Course Management — locked pilot contract (CRS-01)
  
-Baseline: Parent Plus MM/development at 7100828dcf3c1007086df31f87b34ae8e02573. This is a real product candidate, not a separate reminder app. The pilot scope is the existing Coach journey and LRN-01 curriculum-version foundation. The founder asked for a Course feature; the proposed first slice treats a course as a coach-managed curriculum with stages and objectives, not marketplace discovery, payment, child enrollment, automatic mastery, or Parent publication.
+Baseline: Parent Plus MM/development at 710082b2d8cf3c1007086df31f87b34ae8e02573. This is a real product candidate, not a separate reminder app. The pilot scope is the existing Coach journey and LRN-01 curriculum-version foundation. The founder asked for a Course feature; the proposed first slice treats a course as a coach-managed curriculum with stages and objectives, not marketplace discovery, payment, child enrollment, automatic mastery, or Parent publication.
  
 ## Product goal
 An academy owner can prepare a structured course, review a draft, and create an immutable version before using it for teaching. The UI fits the existing Coach workspace and Aurora design; no new commercial journey or navigation overhaul.
