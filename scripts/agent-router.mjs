@@ -136,7 +136,7 @@ export function onboardingRules(number) {
     "- At onboarding, meaningful milestones, repeated failures, environment or model changes, and before ending, assess context only from available measurements, progress, repeated work, decisions, dependencies, and risks. Record CONTINUE / COMPACT / SWITCH / ESCALATE; never claim unsupported context metrics or actions.",
     "- FIRST read `/tmp/onboarding.md` completely. It contains the current task context and at most the two latest handovers for this feature. Do not rediscover what it already tells you.",
     "- Your first message is the 5-line Understanding: goal · constraints · known traps · what you must not touch · how you will prove it is done.",
-    `- LAST, write your handover to \`docs/product/<slug>/handoffs/NN-<stage>-<role>-<seat>.md\` (NN = next free number) using \`node .ai-org-handbook/scripts/handoff.mjs template <stage> <role>\`; fill every section; check it with \`node .ai-org-handbook/scripts/handoff.mjs validate <file>\`; commit and push it with your work. An invalid or missing handover fails the run.`,
+    "- For non-read-only work, write a handover only when a valid feature slug exists. Never use `_none_`; if no feature slug is assigned, report that fact and do not create a handoff folder. Read-only tasks must never create handoffs.",
     "- Put lessons that would help future features under `## Memory proposals` (fact + evidence). Never edit `docs/ai-memory/` directly; Arjun merges approved memory.",
     `- Hand over through the packet and a comment on #${number}; never write prompts for another agent. Include checkpoint persistence evidence or state that persistence was unavailable, measured resources or their unavailability, the lifecycle action, and the exact next action.`,
   ].join("\n");
@@ -168,13 +168,14 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = 
   const extra = agent.slug === "maya-ai-pm" ? " and `.ai-org-handbook/playbooks/ai-pm.md` and `.ai-org-handbook/playbooks/feature-contract.md`" : agent.slug === "quinn-qa" ? " and `.ai-org-handbook/playbooks/qa-charter.md`" : "";
   return [
     `You are ${agent.name}, the ${agent.role} of the AppsWorld AI Organization, running as a background worker in GitHub Actions on ${repo}.`,
-    `1. Read the onboarding pack first. It contains your role card and RACI. Consult only relevant sections of the canonical role file .ai-org-handbook/org/agents/${agent.slug}.md${extra} and the Founder Operating Charter when needed; do not load entire handbooks or reread the role card.`,\n    `1a. Feature slug: ${featureSlug || "not assigned"}. Never use literal "_none_". If no valid feature slug is assigned, do not create a handoff or write under docs/product/_none_.`,
+    `1. Read the onboarding pack first. It contains your role card and RACI. Consult only relevant sections of the canonical role file .ai-org-handbook/org/agents/${agent.slug}.md${extra} and the Founder Operating Charter when needed; do not load entire handbooks or reread the role card.`,
+    `1a. Feature slug: ${featureSlug || "not assigned"}. Never use literal "_none_". If no valid feature slug is assigned, do not create a handoff or write under docs/product/_none_.`,
     `2. Read ${kind} #${number} metadata and body only using ${cli} view ${number} --json title,body,labels,assignees. Read comments only when a retry or explicit task requires history.`,
     `3. Do your role's job for this ${kind} only. Keep changes small and reversible. Run the repo's checks before claiming anything.`,
     `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,
     ...(toolMode === "readonly"
-      ? ["5. Read-only mode: do not modify files, branches, labels, commits, PRs or any other issue. Only perform the specific issue comment explicitly requested by the task."]
-      : [`5. Move the stage label as your role file says (\`${cli} edit ${number} --add-label … --remove-label …\`).`]),
+      ? ["5. Read-only mode: task scope overrides role-card suggestions. Do not modify files, branches, labels, commits, PRs, handoffs or any other issue. The workflow owns stage transitions. Only perform the specific issue comment explicitly requested by the task."]
+      : ["5. Do not change issue stage labels or issue state; the workflow owns stage transitions. Apply only PR labels explicitly required by your role brief." ]),
     `6. Never print secrets. Never contact the founder except through ai:founder-decision or ai:founder-test issues.`,
     "", onboardingRules(number),
     ...(["ai:review", "ai:tests-review", "ai:tests-signoff"].includes(stage) ? [
