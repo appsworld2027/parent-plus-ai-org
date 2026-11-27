@@ -547,3 +547,46 @@ jobs:
           name: course-quinn-red
           path: /srv/trial/out/quinn-red-receipt.json
           retention-days: 14
+
+  deepseek-diagnostic:
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE TEST AUTHOR' &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Diagnose exact free route with one zero-credential minimal call
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          const r=await fetch('https://opencode.ai/inference/v1/models',{redirect:'error',signal:AbortSignal.timeout(20000)});
+          if(!r.ok)throw Error('Catalogue unavailable: '+r.status);
+          const m=(await r.json()).data?.find(x=>x.id==='deepseek-v4.1-flash-free');
+          if(m?.cost?.text?.input?.price!==0||m?.cost?.text?.output?.price!==0)throw Error('Exact zero price not verified');
+          NODE
+          npm install --prefix "$RUNNER_TEMP/oc" --no-audit --no-fund opencode-ai@1.19.6 >/dev/null
+          dir="$RUNNER_TEMP/ocdiag";mkdir -p "$dir/work" "$dir/home" "$dir/config" "$dir/data"
+          cd "$dir/work"
+          cat >opencode.json <<'JSON'
+          {"model":"opencode/deepseek-v4.1-flash-free","small_model":"opencode/deepseek-v4.1-flash-free","enabled_providers":["opencode"],"provider":{"opencode":{"whitelist":["deepseek-v4.1-flash-free"]}},"permission":{"*":"deny"},"autoupdate":false}
+          JSON
+          export HOME="$dir/home" XDG_CONFIG_HOME="$dir/config" XDG_DATA_HOME="$dir/data" OPENCODE_CONFIG="$dir/work/opencode.json" OPENCODE_DISABLE_AUTOUPDATE=1 OPENCODE_DISABLE_TELEMETRY=1
+          BIN="$RUNNER_TEMP/oc/node_modules/.bin/opencode"
+          rc=0
+          timeout 75 "$BIN" run --model opencode/deepseek-v4.1-flash-free --format json --print-logs --log-level DEBUG 'Respond with the single word READY. No tool use.' >"$dir/events" 2>"$dir/stderr" || rc=$?
+          export DIAG_EXIT=$rc
+          node --input-type=module <<'NODE'
+          import {readFileSync} from 'node:fs';
+          const dir=process.env.RUNNER_TEMP+'/ocdiag',s=readFileSync(dir+'/stderr','utf8'),ev=readFileSync(dir+'/events','utf8').split(/\r?\n/).filter(Boolean).flatMap(x=>{try{return [JSON.parse(x)]}catch{return []}});
+          const joined=s+'\n'+JSON.stringify(ev);
+          const labels={timeout:/timeout|timed out|ETIMEDOUT/i.test(joined),rateLimit:/rate.limit|\b429\b/i.test(joined),auth:/unauthori[sz]ed|\b401\b|authentication required|sign.in required|missing api key/i.test(joined),forbidden:/\b403\b|forbidden/i.test(joined),unavailable:/\b50[0234]\b|service unavailable/i.test(joined),network:/fetch failed|ECONN|ENOTFOUND|EAI_AGAIN|network error/i.test(joined),permission:/permission denied|permission request/i.test(joined),providerRequest:/providerID=opencode|providerID.*opencode|modelID=deepseek-v4\.1-flash-free/i.test(joined)};
+          const ready=ev.some(x=>x.type==='text'&&/\bREADY\b/.test(x.part?.text??''));
+          const receipt={configuredRoute:'opencode/deepseek-v4.1-flash-free',exitCode:Number(process.env.DIAG_EXIT),events:ev.map(x=>x.type),diagnostic:labels,ready};
+          console.log(JSON.stringify(receipt,null,2));
+          if(!ready)throw Error('No completed exact free response; route unavailable for current qualification');
+          NODE
