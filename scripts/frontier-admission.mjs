@@ -37,7 +37,10 @@ function assertRubric() {
       rubric.integratedGates.length!==15 || new Set(rubric.integratedGates).size!==15) throw Error("Invalid pinned rubric");
   const scoring=rubric.scoring;
   if (!scoring || scoring.maxScore!==100 || scoring.minimumScope!=="each-role-variant" ||
-      scoring.aggregation!=="all-33-slots-and-all-integrated-gates" || scoring.averagingAllowed!==false ||
+      scoring.aggregation!=="logical-and-of-all-33-slots-and-all-15-integrated-gates" || scoring.averagingAllowed!==false ||
+      scoring.slotFormula!=="sum-fixed-points-for-pass-criteria-only" ||
+      scoring.eligibility!=="each-slot-score-gte-90-out-of-100-and-all-10-hard-gates-pass" ||
+      canonicalHash(rubric.receiptVerification)!==canonicalHash({scope:"isolated-synthetic",exactSource:"frozen-plan-sourceSha",binding:"trusted-verifier-kind-receiptId-canonical-payload-digest",productionReady:false}) ||
       !object(rubric.integratedGateOwners) ||
       !sameSet(Object.keys(rubric.integratedGateOwners),rubric.integratedGates) ||
       !Object.values(rubric.integratedGateOwners).every(owners=>Array.isArray(owners)&&owners.length>0&&
