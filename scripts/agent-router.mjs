@@ -130,6 +130,9 @@ export function onboardingRules(number) {
     "- Read the onboarding pack first; it already contains your role card, RACI, role lessons, relevant product memory, current feature context and task. Do not reread those files or load unrelated handovers.",
     "- Consult only the relevant section of the AI Org Founder Operating Charter when a policy decision requires it. Read the Founder Dashboard only for substantive milestone/reporting work, and the Personal Operating Standard only when session lifecycle or reporting is relevant.",
     "- Use the Parent Plus founder-response reference only when writing a founder-facing report; do not load it for routine engineering work.",
+    "- If a required role or policy source is absent, stop and report the exact missing path; do not invent or silently substitute.",
+    "- Use the Founder Dashboard standard only for substantive operating reviews, scheduled reports, milestone summaries and readiness assessments.",
+    "- Founder-facing reports must use plain English for technical explanations or evidence-led blocker reports. Do not claim delivery to a founder conversation unless the actual artifact or link is verified.",
     "- At onboarding, meaningful milestones, repeated failures, environment or model changes, and before ending, assess context only from available measurements, progress, repeated work, decisions, dependencies, and risks. Record CONTINUE / COMPACT / SWITCH / ESCALATE; never claim unsupported context metrics or actions.",
     "- FIRST read `/tmp/onboarding.md` completely. It contains the current task context and at most the two latest handovers for this feature. Do not rediscover what it already tells you.",
     "- Your first message is the 5-line Understanding: goal · constraints · known traps · what you must not touch · how you will prove it is done.",
@@ -165,7 +168,7 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "" }) {
   const extra = agent.slug === "maya-ai-pm" ? " and `.ai-org-handbook/playbooks/ai-pm.md` and `.ai-org-handbook/playbooks/feature-contract.md`" : agent.slug === "quinn-qa" ? " and `.ai-org-handbook/playbooks/qa-charter.md`" : "";
   return [
     `You are ${agent.name}, the ${agent.role} of the AppsWorld AI Organization, running as a background worker in GitHub Actions on ${repo}.`,
-    "1. Read the onboarding pack first. It contains your role card and RACI. Consult only the relevant policy section of the Founder Operating Charter or your role-specific playbook; do not load entire handbooks or reread the role card.",
+    `1. Read the onboarding pack first. It contains your role card and RACI. Consult only relevant sections of `.ai-org-handbook/org/agents/${agent.slug}.md`${extra} and the Founder Operating Charter when needed; do not load entire handbooks or reread the role card.`,
     `2. Read ${kind} #${number} and all its comments with \`${cli} view ${number} --comments\`.`,
     `3. Do your role's job for this ${kind} only. Keep changes small and reversible. Run the repo's checks before claiming anything.`,
     `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,
