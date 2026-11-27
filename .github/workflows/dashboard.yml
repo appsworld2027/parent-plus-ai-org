@@ -32,7 +32,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           AI_ORG_REPO: ${{ github.repository }}
-          ENGINE_FREE: ${{ secrets.GROQ_API_KEY != '' }}
+          ENGINE_FREE: ${{ secrets.GROQ_API_KEY != '' || secrets.NVIDIA_NIM_API_KEY != '' }}
         run: node scripts/build-dashboard.mjs
       - name: Upload founder dashboard
         uses: actions/upload-artifact@v4
