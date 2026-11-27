@@ -37,6 +37,8 @@ on:
     secrets:
       GROQ_API_KEY:
         required: false
+      NVIDIA_NIM_API_KEY:
+        required: false
       AI_ORG_HANDBOOK_SSH_KEY:
         required: false
 
@@ -144,7 +146,9 @@ jobs:
           LABELS: ${{ steps.item.outputs.labels }}
           IS_PR: ${{ steps.item.outputs.is_pr }}
           FEATURE_SLUG: ${{ steps.item.outputs.feature_slug }}
-          ENGINE_FREE: ${{ secrets.GROQ_API_KEY != '' }}
+          ENGINE_FREE: ${{ secrets.GROQ_API_KEY != '' || secrets.NVIDIA_NIM_API_KEY != '' }}
+          ENGINE_GROQ: ${{ secrets.GROQ_API_KEY != '' }}
+          ENGINE_NVIDIA: ${{ secrets.NVIDIA_NIM_API_KEY != '' }}
           TOOL_MODE: ${{ inputs.tool_mode }}
         run: |
           set -euo pipefail
@@ -230,10 +234,11 @@ jobs:
             gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/pause.md
           fi
 
-      - name: Run agent with the free Groq model (Claude Code CLI via FCC)
+      - name: Run agent with the selected free provider (FCC compatibility adapter)
         if: steps.router.outputs.action == 'run' && steps.router.outputs.engine == 'free'
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
           FREE_MODEL: ${{ steps.router.outputs.free_model }}
           PROMPT: ${{ steps.router.outputs.prompt }}
           AGENT_NAME: ${{ steps.router.outputs.agent_name }}
@@ -246,40 +251,86 @@ jobs:
           cd "$GITHUB_WORKSPACE"
           test -s .ai-org-runtime/onboarding.md || { echo "::error::Workspace onboarding pack is missing; refusing to start the model."; exit 1; }
           mkdir -p /tmp/agent-logs
-          MODEL_ROUTE="$FREE_MODEL"; MODEL_ID="${MODEL_ROUTE#groq/}"; MODEL_ID="${MODEL_ID%%@*}"
-          jq -n --arg model "$MODEL_ID" '{
-            model:$model,
-            messages:[{role:"user",content:"Call the report_ready tool with ready=true now."}],
-            tools:[{type:"function",function:{name:"report_ready",description:"Report that the model can call tools.",parameters:{type:"object",properties:{ready:{type:"boolean"}},required:["ready"],additionalProperties:false}}}],
-            tool_choice:"required",
-            max_tokens:80
-          }' > /tmp/agent-logs/groq-probe-request.json
-          HTTP_STATUS=$(curl -sS -D /tmp/agent-logs/groq-probe.headers -o /tmp/agent-logs/groq-probe-response.json -w '%{http_code}' \
-            -H "Authorization: Bearer $GROQ_API_KEY" -H "Content-Type: application/json" \
-            --data-binary @/tmp/agent-logs/groq-probe-request.json https://api.groq.com/openai/v1/chat/completions)
-          if [ "$HTTP_STATUS" != "200" ]; then
-            if [ "$HTTP_STATUS" = "429" ] || [[ "$HTTP_STATUS" =~ ^5 ]]; then
-              touch /tmp/agent-logs/groq-probe-retryable
-              RETRY_AFTER=$(awk 'tolower($1)=="retry-after:" {print $2}' /tmp/agent-logs/groq-probe.headers | tr -d '\r' | tail -1)
-              echo "Groq free tier temporarily unavailable (HTTP $HTTP_STATUS, Retry-After=$RETRY_AFTER)."
-            else
-              echo "::error::Groq free model preflight failed (HTTP $HTTP_STATUS); no agent was started."
-              jq -r '.error.message // "Provider request failed."' /tmp/agent-logs/groq-probe-response.json | cut -c1-300
-            fi
-            exit 1
-          fi
-          jq -e '.choices[0].message.tool_calls | length > 0' /tmp/agent-logs/groq-probe-response.json >/dev/null || {
-            echo "::error::Selected Groq model did not return a tool call; no agent was started."
-            exit 1
+          MODEL_ROUTE="$FREE_MODEL"
+          EFFORT=""
+          case "$MODEL_ROUTE" in *@*) EFFORT="${MODEL_ROUTE##*@}"; MODEL_ROUTE="${MODEL_ROUTE%@*}";; esac
+          PROVIDER="${MODEL_ROUTE%%/*}"
+          MODEL_ID="${MODEL_ROUTE#*/}"
+          MODEL_FALLBACK=false
+          PROBE_REASON=""
+          configure_provider() {
+            case "$PROVIDER" in
+              groq)
+                API_KEY="$GROQ_API_KEY"
+                API_URL="https://api.groq.com/openai/v1/chat/completions"
+                FCC_MODEL="$MODEL_ROUTE"
+                ;;
+              nvidia)
+                API_KEY="$NVIDIA_NIM_API_KEY"
+                API_URL="https://integrate.api.nvidia.com/v1/chat/completions"
+                FCC_MODEL="nvidia_nim/$MODEL_ID"
+                ;;
+              *)
+                echo "::error::Unapproved free provider route: $PROVIDER"
+                return 1
+                ;;
+            esac
+            [ -n "$API_KEY" ] || { echo "::error::$PROVIDER free-provider key is unavailable."; return 1; }
           }
-          echo "Groq free-model tool-call preflight: PASS ($MODEL_ID)"
+          probe_provider() {
+            PROBE_REASON=""
+            jq -n --arg model "$MODEL_ID" '{
+              model:$model,
+              messages:[{role:"user",content:"Call the report_ready tool with ready=true now."}],
+              tools:[{type:"function",function:{name:"report_ready",description:"Report that the model can call tools.",parameters:{type:"object",properties:{ready:{type:"boolean"}},required:["ready"],additionalProperties:false}}}],
+              tool_choice:"required",
+              max_tokens:80
+            }' > "/tmp/agent-logs/$PROVIDER-probe-request.json"
+            HTTP_STATUS=$(curl -sS --max-time 120 -D "/tmp/agent-logs/$PROVIDER-probe.headers" -o "/tmp/agent-logs/$PROVIDER-probe-response.json" -w '%{http_code}' \
+              -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
+              --data-binary @"/tmp/agent-logs/$PROVIDER-probe-request.json" "$API_URL")
+            if [ "$HTTP_STATUS" != "200" ]; then
+              if [ "$HTTP_STATUS" = "429" ] || [[ "$HTTP_STATUS" =~ ^5 ]]; then
+                touch "/tmp/agent-logs/$PROVIDER-probe-retryable"
+              fi
+              jq -r '.error.message // "Provider request failed."' "/tmp/agent-logs/$PROVIDER-probe-response.json" 2>/dev/null | cut -c1-300 || true
+              return 1
+            fi
+            if ! jq -e '.choices[0].message.tool_calls | length > 0' "/tmp/agent-logs/$PROVIDER-probe-response.json" >/dev/null; then
+              PROBE_REASON="no-tool-call"
+              return 1
+            fi
+            return 0
+          }
+          configure_provider || exit 1
+          if ! probe_provider; then
+            if [ "$PROVIDER" = "nvidia" ] && [ -n "$GROQ_API_KEY" ] && { [ "$HTTP_STATUS" = "429" ] || [[ "$HTTP_STATUS" =~ ^5 ]] || [ "$PROBE_REASON" = "no-tool-call" ]; }; then
+              echo "NVIDIA free endpoint unavailable for this turn; retrying once on the approved Groq free builder."
+              MODEL_ROUTE="groq/openai/gpt-oss-120b"
+              PROVIDER="groq"
+              MODEL_ID="openai/gpt-oss-120b"
+              MODEL_FALLBACK=true
+              configure_provider || exit 1
+              probe_provider || { echo "::error::Approved Groq free fallback also failed; no paid fallback attempted."; exit 1; }
+            else
+              echo "::error::$PROVIDER free-model preflight failed (HTTP ${HTTP_STATUS:-unknown}); no agent was started and no paid fallback was attempted."
+              exit 1
+            fi
+          fi
+          FREE_MODEL="$MODEL_ROUTE"
+          jq --arg model "$MODEL_ROUTE" --arg provider "$PROVIDER" --argjson fallback "$MODEL_FALLBACK" '.free_model=$model | .free_provider=$provider | .model_fallback=$fallback' /tmp/route.json > /tmp/route.json.tmp
+          mv /tmp/route.json.tmp /tmp/route.json
+          echo "Free provider tool-call preflight: PASS ($PROVIDER/$MODEL_ID)"
           curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null
           export PATH="$HOME/.local/bin:$PATH"
           uv tool install "free-claude-code==6.19.56" >/dev/null
           npm install -g @anthropic-ai/claude-code >/dev/null
           mkdir -p "$HOME/.fcc" "$HOME/.claude"
-          EFFORT=""; case "$FREE_MODEL" in *@*) EFFORT="${FREE_MODEL##*@}"; FREE_MODEL="${FREE_MODEL%@*}";; esac
-          printf 'GROQ_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$GROQ_API_KEY" "$FREE_MODEL" > "$HOME/.fcc/.env"
+          if [ "$PROVIDER" = "groq" ]; then
+            printf 'GROQ_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$GROQ_API_KEY" "$FCC_MODEL" > "$HOME/.fcc/.env"
+          else
+            printf 'NVIDIA_NIM_API_KEY=%s\nMODEL=%s\nHTTP_READ_TIMEOUT=600\nFCC_OPEN_BROWSER=false\n' "$NVIDIA_NIM_API_KEY" "$FCC_MODEL" > "$HOME/.fcc/.env"
+          fi
           [ -n "$EFFORT" ] && printf 'REASONING_POLICY=%s\n' "$EFFORT" >> "$HOME/.fcc/.env" && echo "reasoning effort: $EFFORT"
           chmod 600 "$HOME/.fcc/.env"
           echo '{"includeCoAuthoredBy": false}' > "$HOME/.claude/settings.json"
@@ -290,7 +341,7 @@ jobs:
           # Embed the bounded onboarding pack directly in the initial prompt; the agent sandbox cannot read /tmp paths.
           PROMPT="$(printf '%s\\n\\n## Compact onboarding pack\\n' "$PROMPT"; cat .ai-org-runtime/onboarding.md)"
           PROMPT="$PROMPT
-          7. Engine facts: you are running on the model $FREE_MODEL, served by the Groq free tier through Free Claude Code. You are not a Claude model. Whenever you name the model or engine that did the work (comments, commits, PRs), state exactly this.
+          7. Engine facts: you are running on model $FREE_MODEL, served by the $PROVIDER free endpoint through the Free Claude Code compatibility adapter. This is not Claude inference or a paid model. Whenever you name the model or engine that did the work (comments, commits, PRs), state the exact provider and model.
           8. Normal work: use --body-file for comments and PR bodies. Read-only mode: the only permitted write is the requested issue comment; use gh issue comment --body with a single-quoted plain-text body, never unescaped backticks or \$() shell substitutions; do not create files.
           9. Feature slug: $FEATURE_SLUG. Never use literal _none_. If no feature slug is assigned, do not create a handoff.
           10. Do not change issue stage labels or issue state; the workflow owns stage transitions.
@@ -327,9 +378,9 @@ jobs:
           rc=$?
           # Groq may map free-tier TPM exhaustion to HTTP 413/400 instead of HTTP 429.
           # Treat explicit rate/TPM errors as resumable pauses, never as a reason to use paid fallback.
-          if [ "$rc" -ne 0 ] && grep -Eiq 'rate_limit_exceeded|tokens per minute|HTTP 413|HTTP 429|TPM' /tmp/agent-logs/agent.stderr /tmp/agent-logs/agent.jsonl 2>/dev/null; then
-            touch /tmp/agent-logs/groq-probe-retryable
-            echo "Detected Groq free-tier rate/TPM limit; recording a resumable pause." | tee -a "$GITHUB_STEP_SUMMARY"
+          if [ "$rc" -ne 0 ] && grep -Eiq 'rate_limit_exceeded|rate limit|tokens per minute|HTTP 413|HTTP 429|TPM|too many requests' /tmp/agent-logs/agent.stderr /tmp/agent-logs/agent.jsonl 2>/dev/null; then
+            touch "/tmp/agent-logs/$PROVIDER-probe-retryable"
+            echo "Detected $PROVIDER free-tier rate/TPM limit; recording a resumable pause." | tee -a "$GITHUB_STEP_SUMMARY"
           fi
           secs=$(( $(date +%s) - start ))
           stats=$(jq -r 'select(.type=="result") | "turns=\(.num_turns) subtype=\(.subtype) is_error=\(.is_error)"' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -1)
@@ -443,16 +494,18 @@ jobs:
           FREE_MODEL: ${{ steps.router.outputs.free_model }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if [ -f /tmp/agent-logs/groq-probe-retryable ]; then
+          if [ -f /tmp/agent-logs/groq-probe-retryable ] || [ -f /tmp/agent-logs/nvidia-probe-retryable ]; then
             MARKER="ai-org:paused"
-            SUMMARY="Groq free-tier capacity is temporarily unavailable. No coding agent was started and no paid fallback was attempted. The hourly resume workflow will retry."
+            SUMMARY="An approved free-provider endpoint is temporarily unavailable. No paid fallback was attempted. The hourly resume workflow will retry."
           else
             MARKER="ai-org:failed"
             SUMMARY="The run failed after starting the free-model execution path. It is not retried automatically; the next attempt reads this note first."
           fi
           {
             printf '<!-- %s -->\n' "$MARKER"
-            printf '%s\n' "**[$AGENT_NAME — $AGENT_ROLE] Run did not complete on Groq free tier ($FREE_MODEL). Logs: $RUN_URL (artifact agent-logs-$NUMBER-${{ github.run_attempt }})." ""
+            ACTUAL_MODEL=$(jq -r '.free_model // empty' /tmp/route.json 2>/dev/null || true)
+            [ -n "$ACTUAL_MODEL" ] || ACTUAL_MODEL="$FREE_MODEL"
+            printf '%s\n' "**[$AGENT_NAME — $AGENT_ROLE] Run did not complete on approved free route ($ACTUAL_MODEL). Logs: $RUN_URL (artifact agent-logs-$NUMBER-${{ github.run_attempt }})." ""
             echo "$SUMMARY"
             echo "What the next attempt must know (attempt memory):"
             grep -h "AGENT_RESULT\|handover INVALID\|^- " /tmp/agent-logs/*.txt 2>/dev/null | head -10
