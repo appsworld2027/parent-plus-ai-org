@@ -195,6 +195,24 @@ test('declarative QA coverage rejects false approvals and compiles exact stage s
   const reordered=structuredClone(artifact);const secondSave=reordered.cases[d].findLastIndex(o=>o[0]==='B'&&o[1]==='Save draft');reordered.cases[d].splice(secondSave,1);assert.ok(coverageIssues(reordered).some(x=>x.id===d));
   const sameTitle=structuredClone(artifact);sameTitle.cases[d].find(o=>o[0]==='F'&&o[2]==='B')[2]='A';assert.ok(coverageIssues(sameTitle).some(x=>x.id===d));
   const badGuard=structuredClone(artifact);delete badGuard.cases[g];assert.throws(()=>assertCourseCoverage(badGuard));
+
+  const {checkCourseChallenge}=await import('../scripts/course-pilot/declarative-challenge-gate.mjs');
+  const {createHash}=await import('node:crypto');
+  const mk=(ar,changed=[])=>{
+    const artifactSha256=createHash('sha256').update(JSON.stringify(ar)).digest('hex');
+    const author={artifactSha256,model:'openai/gpt-oss-120b',contextSha256:'1'.repeat(64),receiptSha256:'2'.repeat(64)};
+    const reviewer={schema:'course-challenge/v2',role:'quinn-qa',seat:'challenger',model:'qwen/qwen3.8-27b',contextSha256:'3'.repeat(64),receiptSha256:'4'.repeat(64),artifactSha256,verdict:changed.length?'CHANGES':'APPROVE',reviews:COURSE_IDS.map(id=>({id,verdict:changed.includes(id)?'CHANGES':'APPROVE',defects:changed.includes(id)?['Known contract requirement missing']:[],evidence:[0,1].map(index=>({index,operation:ar.cases[id][index],rationale:'Exact operation evidence for gate unit test'}))}))};
+    return {author,reviewer};
+  };
+  const good=mk(artifact);assert.equal(checkCourseChallenge(artifact,good.author,good.reviewer).eligibleForIndependentExecutableGrade,true);
+  const bad=structuredClone(artifact);bad.cases[a]=bad.cases[a].filter(o=>o[1]!=='Course pilot — not synced');bad.cases[d]=bad.cases[d].filter(o=>o[0]!=='N');
+  const falseApproval=mk(bad);assert.throws(()=>checkCourseChallenge(bad,falseApproval.author,falseApproval.reviewer),/False approval/);
+  const partial=mk(bad,[a]);assert.throws(()=>checkCourseChallenge(bad,partial.author,partial.reviewer,{calibration:true}),/missed known/);
+  const caught=mk(bad,[a,d]);assert.equal(checkCourseChallenge(bad,caught.author,caught.reviewer,{calibration:true}).eligibleForIndependentExecutableGrade,false);
+  const fabricated=structuredClone(good.reviewer);fabricated.reviews[0].evidence[0].operation=['X','I made this up'];assert.throws(()=>checkCourseChallenge(artifact,good.author,fabricated),/Fabricated/);
+  assert.throws(()=>checkCourseChallenge(artifact,good.author,{...good.reviewer,model:good.author.model}),/Independent distinct/);
+  assert.throws(()=>checkCourseChallenge(artifact,good.author,{...good.reviewer,artifactSha256:'0'.repeat(64)}),/provenance mismatch/);
+  assert.throws(()=>checkCourseChallenge(artifact,good.author,good.reviewer,{calibration:true}),/genuinely deficient/);
 });
 
 test('native controller binds exact model, actual Read/Replace hashes, and no fallback',async()=>{
