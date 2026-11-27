@@ -9,7 +9,7 @@ export function checkCourseChallenge(artifact,author,challenger,{calibration=fal
  if(!artifact?.cases||!author||!challenger||!keys(challenger,'artifactSha256,contextSha256,model,receiptSha256,reviews,role,schema,seat,verdict'))throw Error('Missing exact independent challenge receipt');
  if(challenger.schema!=='course-challenge/v2'||challenger.role!=='quinn-qa'||challenger.seat!=='challenger'||!['qwen/qwen3.8-27b','openai/gpt-oss-120b'].includes(challenger.model)||challenger.model===author.model||challenger.contextSha256===author.contextSha256||challenger.receiptSha256===author.receiptSha256)throw Error('Independent distinct model/context/receipt required');
  const sha=x=>typeof x==='string'&&/^[a-f0-9]{64}$/.test(x);
- if(![challenger.contextSha256,challenger.receiptSha256,author.contextSha256].every(sha)||challenger.artifactSha256!==hash(artifact)||author.artifactSha256!==challenger.artifactSha256)throw Error('Artifact or provenance mismatch');
+ if(![challenger.contextSha256,challenger.receiptSha256,author.contextSha256,author.receiptSha256].every(sha)||challenger.artifactSha256!==hash(artifact)||author.artifactSha256!==challenger.artifactSha256)throw Error('Artifact or provenance mismatch');
  if(!allowed.includes(challenger.verdict)||!Array.isArray(challenger.reviews)||challenger.reviews.length!==COURSE_IDS.length||new Set(challenger.reviews.map(r=>r.id)).size!==COURSE_IDS.length)throw Error('Review every exact case');
  for(const r of challenger.reviews){
   if(!keys(r,'defects,evidence,id,verdict')||!COURSE_IDS.includes(r.id)||!allowed.includes(r.verdict)||!Array.isArray(r.evidence)||!Array.isArray(r.defects))throw Error('Invalid case review');
