@@ -3,14 +3,12 @@
 ## Mental model
 
 Founder or GitHub event → AI Org GitHub Actions orchestration → isolated worktree
-→ named role agent on Groq free-tier models through FCC → deterministic checks
+→ named role agent on NVIDIA NIM free builder and Groq free reviewer/fallback models through FCC → deterministic checks
 → independent QA on a different model family → pull request and verified release gate.
 
 ## Installation
 
-Requirements: Node 22+, Git, GitHub Actions access, and a Groq API key kept on
-the free tier. No Codex subscription, Claude subscription or paid inference API
-is required by unattended AI Org agents.
+Requirements: Node 22+, Git, GitHub Actions access, a Groq free-tier key for independent review/fallback, and optionally an NVIDIA NIM free-endpoint key for builder work. Unattended agents use no subscription login, paid inference API or paid fallback.
 
 ```bash
 npm ci --ignore-scripts --no-audit --no-fund
