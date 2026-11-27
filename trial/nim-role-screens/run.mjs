@@ -81,6 +81,18 @@ if(mode==='author'){
   catch(e){receipt.failure=String(e.message).slice(0,100);if(/http-|transport|timeout|unexpected-model/.test(receipt.failure))held='prior-provider-failure-no-retry'}
   save(join(dir,'call.json'),receipt);console.log(JSON.stringify(receipt));
  }
+ }else if(mode==='diagnose'){
+ const pinned=["b8406bd58ce902a822f840377ec3d96ba2a3f3cd75c1407fb19c36209408d638","897af6e37a0fbbed06384e880904e6857db746eddd6da33c40aa5bd458c4c416","96cd0265ad1f5697ed076b9225c82b58bcaeae037e03f210d89bc2b3fced7238","4c2f8c62d2dad32501f66ff56ae6c1e8f346f9e6d60330f77bfa86f271bb71f5"];
+ for(const [i,c] of cases.entries()){
+  const dir=join(other,c.id),receipt=JSON.parse(read(join(dir,'call.json'))),raw=read(join(dir,'raw.txt'));
+  if(hash(raw)!==pinned[i]||hash(raw)!==receipt.rawHash)throw Error('replay original raw hash mismatch');
+  const r={role:c.role,variant:c.variant,rawHash:hash(raw),finish:receipt.finishReason,chars:raw.length,prefix:raw.slice(0,220),suffix:raw.slice(-220)};
+  try{const x=parse(raw);r.shape=Object.keys(x);r.files=Array.isArray(x.files)?x.files.map(f=>({keys:Object.keys(f),path:f.path,contentType:typeof f.content})):typeof x.files;
+   try{r.intake=Boolean(intakeFrontierArtifact(c.original.fixture,x));}catch(e){r.intakeError=String(e.message).slice(0,250);}
+  }catch(e){r.parseError=String(e.message).slice(0,250);}
+  console.log(JSON.stringify(r));
+  save(join(root,c.id+'.json'),r);
+ }
 }else if(mode==='grade'){
  const results=[];
  for(const c of cases){try{results.push(assess(c,other))}catch(e){results.push({role:c.role,variant:c.variant,status:'controller-blocked',failure:String(e.message).slice(0,100),passed:0,expected:null})}}
