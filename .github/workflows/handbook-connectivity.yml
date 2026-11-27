@@ -23,21 +23,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Check handbook access
-        if: github.repository != 'appsworld2027/parent-plus-ai-org'
-        env:
-          HANDBOOK_ACCESS: ${{ secrets.AI_ORG_HANDBOOK_SSH_KEY != '' }}
-        run: |
-          if [ "$HANDBOOK_ACCESS" != true ]; then
-            echo "::error::AI_ORG_HANDBOOK_SSH_KEY is missing from the caller."
-            exit 1
-          fi
       - uses: actions/checkout@v5
         with:
           repository: appsworld2027/parent-plus-ai-org
           ref: ${{ inputs.handbook_ref }}
           token: ${{ github.token }}
-          ssh-key: ${{ github.repository == 'appsworld2027/parent-plus-ai-org' && '' || secrets.AI_ORG_HANDBOOK_SSH_KEY }}
           persist-credentials: false
       - name: Verify exact handbook and role router availability
         env:
