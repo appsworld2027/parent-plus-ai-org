@@ -346,6 +346,10 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Embed the bounded onboarding pack directly in the initial prompt; the agent sandbox cannot read /tmp paths.
           PROMPT="$(printf '%s\\n\\n## Compact onboarding pack\\n' "$PROMPT"; cat .ai-org-runtime/onboarding.md)"
+          if [ "$TOOL_MODE" = "readonly" ]; then
+            [ "$(wc -c < /tmp/body.md)" -le 12000 ] || { echo "::error::Read-only issue body exceeds bounded prompt size."; exit 1; }
+            PROMPT="$(printf '%s\n\n## Authoritative current task: issue #%s\n' "$PROMPT" "$NUMBER"; cat /tmp/body.md; printf '\n\nUse this exact task body as the source of truth. Do not substitute another issue, and report only findings about this task. If reviewing, include a separate Verdict: APPROVE or Verdict: REJECT line.\n')"
+          fi
           PROMPT="$PROMPT
           7. Engine facts: you are running on model $FREE_MODEL, served by the $PROVIDER free endpoint through the Free Claude Code compatibility adapter. This is not Claude inference or a paid model. Whenever you name the model or engine that did the work (comments, commits, PRs), state the exact provider and model.
           8. Normal work: use --body-file for comments and PR bodies. Read-only mode: the only permitted write is the requested issue comment; use gh issue comment --body with a single-quoted plain-text body, never unescaped backticks or \$() shell substitutions; do not create files.
@@ -429,6 +433,14 @@ jobs:
             gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body "$REPORT"
           fi
           has_report || { echo "::error::Workflow could not verify its read-only report comment."; exit 1; }
+          if [ "${{ inputs.stage_override }}" = "ai:review" ]; then
+            REVIEW=$(gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -er --arg marker "$MARKER" --arg receipt "$RECEIPT" '[.[] | select(.user.login == "github-actions[bot]" and (.body | startswith($marker) and contains($receipt)))][-1].body')
+            # Synthetic fixture: a correct rejection must address the actual registration rule.
+            printf '%s' "$REVIEW" | grep -Eiq '^[[:space:]*-]*Verdict:[[:space:]*]*REJECT([[:space:]*.!]|$)' || { echo "::error::Synthetic reviewer did not reject the flawed rule."; exit 1; }
+            for term in registration email password duplicate; do
+              printf '%s' "$REVIEW" | grep -iq "$term" || { echo "::error::Synthetic reviewer omitted fixture term: $term"; exit 1; }
+            done
+          fi
           echo "Published and verified the read-only agent report."
 
       - name: Export free-model worker usage

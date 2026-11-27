@@ -172,3 +172,12 @@ test("free smoke can exercise only synthetic discovery and reviewer seats", () =
   const worker = read("../.github/workflows/agent-worker.yml");
   assert.ok(worker.includes('Reviewer smoke requires a dedicated Reviewer smoke issue.'));
 });
+
+test("read-only work receives bounded authoritative issue body and reviewer fixture is checked", () => {
+  const worker = read("../.github/workflows/agent-worker.yml");
+  assert.ok(worker.includes("Authoritative current task: issue #%s"));
+  assert.ok(worker.includes("cat /tmp/body.md"));
+  assert.ok(worker.includes("Read-only issue body exceeds bounded prompt size."));
+  assert.ok(worker.includes("Synthetic reviewer did not reject the flawed rule."));
+  assert.ok(worker.includes("registration email password duplicate"));
+});
