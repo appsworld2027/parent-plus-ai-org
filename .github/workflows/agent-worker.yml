@@ -354,10 +354,11 @@ jobs:
         run: |
           set -euo pipefail
           STARTED_AT=$(cat /tmp/agent-logs/started-at)
+          STARTED_EPOCH=$(date -d "$STARTED_AT" +%s)
           MARKER="[$AGENT_NAME — $AGENT_ROLE]"
           if ! gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | \
-            jq -e --arg marker "$MARKER" --arg started "$STARTED_AT" \
-              'any(.[]; .user.login == "github-actions[bot]" and (.body | startswith($marker)) and (.created_at >= $started))' >/dev/null; then
+            jq -e --arg marker "$MARKER" --argjson started "$STARTED_EPOCH" \
+              'def epoch: sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601; any(.[]; .user.login == "github-actions[bot]" and (.body | startswith($marker)) and ((.created_at | epoch) >= $started))' >/dev/null; then
             echo "::error::Read-only agent exited without posting its required issue comment; process exit alone is not completion."
             exit 1
           fi
