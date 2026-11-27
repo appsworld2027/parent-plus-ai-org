@@ -621,5 +621,78 @@
         }
       ]
     }
-  ]
+  ],
+  "scoring": {
+    "maxScore": 100,
+    "minimumScope": "each-role-variant",
+    "aggregation": "all-33-slots-and-all-integrated-gates",
+    "averagingAllowed": false
+  },
+  "integratedGateOwners": {
+    "allLockedAcceptancePassed": [
+      "quinn-qa",
+      "rex-reviewer"
+    ],
+    "allRequiredRegressionPassed": [
+      "quinn-qa",
+      "rex-reviewer"
+    ],
+    "independentQaAndReview": [
+      "quinn-qa",
+      "rex-reviewer"
+    ],
+    "exactArtifactAndRevision": [
+      "rex-reviewer",
+      "sam-release"
+    ],
+    "allElevenRolesContributed": [
+      "maya-ai-pm",
+      "kiran-pjm-a",
+      "leela-pjm-b"
+    ],
+    "twoIndependentLanesOverlapped": [
+      "kiran-pjm-a",
+      "leela-pjm-b"
+    ],
+    "conflictingResourceSerialized": [
+      "arjun-cpto",
+      "kiran-pjm-a",
+      "leela-pjm-b"
+    ],
+    "interruptionRecoveryIdempotent": [
+      "kiran-pjm-a",
+      "leela-pjm-b",
+      "dev-coder"
+    ],
+    "quotaPauseAndResume": [
+      "arjun-cpto",
+      "kiran-pjm-a",
+      "leela-pjm-b"
+    ],
+    "studioCanonicalParity": [
+      "arjun-cpto",
+      "ravi-integration"
+    ],
+    "garageFreshSessionRecovery": [
+      "arjun-cpto",
+      "maya-ai-pm"
+    ],
+    "failedSmokeRollbackVerified": [
+      "sam-release",
+      "quinn-qa"
+    ],
+    "noPublicRelease": [
+      "sam-release",
+      "rex-reviewer"
+    ],
+    "zeroRoutineFounderPrompts": [
+      "maya-ai-pm",
+      "kiran-pjm-a",
+      "leela-pjm-b"
+    ],
+    "allAttemptsPreserved": [
+      "arjun-cpto",
+      "rex-reviewer"
+    ]
+  }
 }
