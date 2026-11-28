@@ -1,0 +1,11 @@
+{
+  "hypothesis": "A shared board will reduce reminder loss and version conflicts for tenants.",
+  "validation": "Run an A/B test comparing shared board to chat; track reminder find rate and version mismatch over a 14‑day period.",
+  "targetPercent": 85,
+  "windowDays": 14,
+  "minimumSample": 100,
+  "action": "continue",
+  "conflictSource": null,
+  "feedback": "routine-validation",
+  "nextAction": "Conduct an Arjun architecture review (v1) of the shared‑board design before any build; proceed only if no conflicts are found."
+}

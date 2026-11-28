@@ -1,0 +1,263 @@
+{
+  "fixtureHash": "1cfa3d763f84da3f0797e817a733ba6711afe3e40522aabc864718e5961e858f",
+  "contractVersion": "synthetic-board-v1",
+  "acceptance": [
+    {
+      "id": "AC-create",
+      "sourceIds": [
+        "S1",
+        "S2",
+        "S4"
+      ],
+      "expected": [
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "Pack sports kit",
+            "version": 1
+          }
+        },
+        [
+          {
+            "id": "r1",
+            "title": "Pack sports kit",
+            "version": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "AC-stale",
+      "sourceIds": [
+        "S3",
+        "S4"
+      ],
+      "expected": [
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "Original",
+            "version": 1
+          }
+        },
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "Updated",
+            "version": 2
+          }
+        },
+        {
+          "ok": false,
+          "code": "stale"
+        },
+        [
+          {
+            "id": "r1",
+            "title": "Updated",
+            "version": 2
+          }
+        ]
+      ]
+    },
+    {
+      "id": "AC-replay",
+      "sourceIds": [
+        "S4"
+      ],
+      "expected": [
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "First",
+            "version": 1
+          }
+        },
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "First",
+            "version": 1
+          }
+        },
+        {
+          "ok": false,
+          "code": "conflict"
+        },
+        [
+          {
+            "id": "r1",
+            "title": "First",
+            "version": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "AC-isolation",
+      "sourceIds": [
+        "S1",
+        "S4"
+      ],
+      "expected": [
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "A private",
+            "version": 1
+          }
+        },
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "B private",
+            "version": 1
+          }
+        },
+        [
+          {
+            "id": "r1",
+            "title": "A private",
+            "version": 1
+          }
+        ],
+        [
+          {
+            "id": "r1",
+            "title": "B private",
+            "version": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "AC-invalid",
+      "sourceIds": [
+        "S4"
+      ],
+      "expected": [
+        {
+          "ok": false,
+          "code": "invalid"
+        },
+        {
+          "ok": false,
+          "code": "invalid"
+        },
+        {
+          "ok": false,
+          "code": "invalid"
+        },
+        {
+          "ok": false,
+          "code": "invalid"
+        },
+        {
+          "ok": false,
+          "code": "invalid"
+        },
+        {
+          "throws": "invalid"
+        },
+        []
+      ]
+    },
+    {
+      "id": "AC-boundary",
+      "sourceIds": [
+        "S4",
+        "S5"
+      ],
+      "expected": [
+        {
+          "ok": true,
+          "record": {
+            "id": "r2",
+            "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "version": 1
+          }
+        },
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "Valid",
+            "version": 1
+          }
+        },
+        [
+          {
+            "id": "r1",
+            "title": "Valid",
+            "version": 1
+          },
+          {
+            "id": "r2",
+            "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+            "version": 1
+          }
+        ]
+      ]
+    }
+  ],
+  "states": [
+    {
+      "id": "empty",
+      "effect": "show-empty-create"
+    },
+    {
+      "id": "loading",
+      "effect": "show-pending-no-success"
+    },
+    {
+      "id": "offline",
+      "effect": "cached-read-only-no-save"
+    },
+    {
+      "id": "denied",
+      "effect": "no-write-keep-draft"
+    },
+    {
+      "id": "stale",
+      "effect": "no-write-refresh-keep-draft"
+    },
+    {
+      "id": "invalid",
+      "effect": "no-write-inline-error"
+    },
+    {
+      "id": "saved",
+      "effect": "show-confirmed-record"
+    },
+    {
+      "id": "narrow-320",
+      "effect": "status-and-controls-visible-no-horizontal-scroll"
+    }
+  ],
+  "scope": {
+    "in": [
+      "tenant-view",
+      "tenant-save",
+      "stale-recovery",
+      "duplicate-reconciliation"
+    ],
+    "out": [
+      "cross-tenant",
+      "offline-write",
+      "real-notifications",
+      "public-release"
+    ]
+  },
+  "observed": {
+    "tests": "not-run",
+    "independentReview": "pending",
+    "ci": "unknown"
+  }
+}

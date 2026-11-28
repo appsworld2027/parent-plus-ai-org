@@ -1,0 +1,8 @@
+{
+  "problem": "Tenants struggle to locate and manage reminders because they get buried in group chats, version‑drift creates confusing duplicate texts, and stale edits persist without reliable offline caching.",
+  "sourceIds": ["S2", "S3", "S5"],
+  "preferred": "shared-board",
+  "sharedReason": "A dedicated shared board isolates reminders from chat noise, enforces version control, and offers a clear offline‑read cache for tenants.",
+  "chatReason": "Improving chat would require complex threading and UI changes that still mix reminders with conversation flow, risking further clutter.",
+  "noBuildReason": "Building a new feature would divert resources from core tenant‑view/save work and introduce cross‑tenant data handling risks prohibited by scope."
+}
