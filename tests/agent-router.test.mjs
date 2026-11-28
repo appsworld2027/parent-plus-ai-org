@@ -255,3 +255,28 @@ test("validated read-only synthetic smoke can still use NVIDIA; ordinary readonl
   assert.equal(route({ ...base, syntheticSmoke: true }).free_model, FREE_MODELS.nvidiaBuilder);
   assert.equal(route({ ...base, labels: ["ai:build"], syntheticSmoke: true }).free_model, FREE_MODELS.builder);
 });
+
+test("A-02 model routing derives configured routes from canonical policy without changing seat or entitlement gates", async () => {
+  const { resolveFreeRoutePolicy, choosePolicyModel } = await import("../scripts/agent-router.mjs");
+  const { readFileSync } = await import("node:fs");
+  const p = JSON.parse(readFileSync(new URL("../governance/AUTONOMY_POLICY.json", import.meta.url), "utf8"));
+  const routes = resolveFreeRoutePolicy(p);
+  assert.equal(routes.builderPreference[0], p.execution.freeModels.builder);
+  assert.equal(routes.independentReviewer, p.execution.freeModels.reviewer);
+  const changed = structuredClone(p);
+  changed.execution.freeModels.builder = "groq/fixture/alternate-builder";
+  changed.execution.freeModels.builderPreferred = "groq/fixture/alternate-builder";
+  changed.execution.providerPolicy.builderPreference = ["groq/fixture/alternate-builder"];
+  changed.execution.providerPolicy.evaluationBuilderPreference[1] = "groq/fixture/alternate-builder";
+  const next = resolveFreeRoutePolicy(changed);
+  const input = { policy: next, freeProviders: { groq: true, nvidia: true } };
+  assert.equal(choosePolicyModel(input).selected, "groq/fixture/alternate-builder");
+  assert.equal(choosePolicyModel({ ...input, requestedModel: "groq/fixture/alternate-builder@high" }).selected, "groq/fixture/alternate-builder@high");
+  assert.equal(choosePolicyModel({ ...input, reviewerSeat: true, requestedModel: "groq/fixture/alternate-builder" }).selected, routes.independentReviewer);
+  assert.equal(choosePolicyModel({ ...input, reviewerSeat: true, requestedModel: "groq/fixture/alternate-builder" }).overrideRejected, true);
+  assert.equal(choosePolicyModel({ ...input, freeProviders: { groq: false, nvidia: true } }).selected, "");
+  assert.equal(choosePolicyModel({ ...input, evaluation: true, freeProviders: { groq: false, nvidia: true } }).selected, routes.evaluationBuilderPreference[0]);
+  assert.equal(choosePolicyModel({ ...input, reviewerSeat: true, freeProviders: { groq: false, nvidia: true } }).selected, "");
+  changed.execution.providerPolicy.paidFallback = true;
+  assert.throws(() => resolveFreeRoutePolicy(changed), /free-only/);
+});
