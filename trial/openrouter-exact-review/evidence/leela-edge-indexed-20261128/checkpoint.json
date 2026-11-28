@@ -1,0 +1,56 @@
+{
+  "role": "leela-pjm-b",
+  "variant": "edge",
+  "fixtureHash": "743c6fdf82683b7b6338b5bd11a6031ea235bf822ab354ef3c572cbf2a706a88",
+  "author": "nvidia/nemotron-3-ultra-550b-a55b",
+  "reviewer": "qwen/qwen3.8-27b",
+  "maxRounds": 4,
+  "authorBudget": 2200,
+  "reviewerBudget": 900,
+  "scope": "supervised-synthetic-only",
+  "paidFallback": false,
+  "qualification": false,
+  "status": "synthetic-loop-approved-semantic-audit-required",
+  "rounds": [
+    {
+      "round": 0,
+      "rawHash": "1ab2acdef43f2621442190ac6b264118a964c70c9e79ab7821d457a1a6b6f64e",
+      "artifactHash": "901b8eb7d2d42f8369ccf10d300f35c02d4148a9cbaa87c63bc61f646e8692ed",
+      "screenPassed": 14,
+      "screenExpected": 14,
+      "authorUsage": {
+        "prompt_tokens": 765,
+        "completion_tokens": 1433,
+        "total_tokens": 2198
+      },
+      "reviewRawHash": "aeddc892cf9eb9c9dcb490e4bc064512890992525b44392f4998b375a0b6f5c3",
+      "reviewUsage": {
+        "prompt_tokens": 1646,
+        "completion_tokens": 252,
+        "total_tokens": 1898
+      },
+      "provenance": true,
+      "verdict": "APPROVE",
+      "qaQuoteScreen": {
+        "valid": true,
+        "reason": "minimum-qa-quote-screen-pass",
+        "ids": [
+          "api",
+          "database",
+          "ui",
+          "integration"
+        ],
+        "missing": []
+      },
+      "reconcileQuoteScreen": {
+        "valid": true,
+        "reason": "no-reconciliation-needed"
+      }
+    }
+  ],
+  "unattended": false,
+  "productionReady": false,
+  "reconcileGate": true,
+  "indexedReviewVersion": 2,
+  "indexedAll": true
+}

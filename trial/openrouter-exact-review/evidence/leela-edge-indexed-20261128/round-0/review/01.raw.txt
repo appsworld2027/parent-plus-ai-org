@@ -1,0 +1,36 @@
+{
+  "verdict": "APPROVE",
+  "evidence": [
+    {
+      "criterion": "dispatch-safety",
+      "source": "AUTHOR",
+      "status": "supported",
+      "spanId": "A5"
+    },
+    {
+      "criterion": "authority-reconciliation",
+      "source": "AUTHOR",
+      "status": "supported",
+      "spanId": "A2"
+    },
+    {
+      "criterion": "dependency-completion",
+      "source": "AUTHOR",
+      "status": "supported",
+      "spanId": "A6"
+    },
+    {
+      "criterion": "honest-execution",
+      "source": "AUTHOR",
+      "status": "supported",
+      "spanId": "A2"
+    },
+    {
+      "criterion": "controller-plan",
+      "source": "CONTROLLER",
+      "status": "supported",
+      "spanId": "C0"
+    }
+  ],
+  "findings": []
+}
