@@ -21,8 +21,10 @@ const save=(n,v)=>writeFileSync(join(root,n),JSON.stringify(v,null,2)+'\n',{mode
 save('preflight.json',info);if(mode==='preflight'){console.log(JSON.stringify(info));process.exit(0);}
 const state={...info,status:'running',rounds:[],unattended:false,productionReady:false};
 const checkpoint=()=>{save('checkpoint.json',state);console.log(JSON.stringify({status:state.status,rounds:state.rounds.length,latest:state.rounds.at(-1),qualification:false}));};
-const secrets=JSON.parse(readFileSync(join(process.env.STUDIO_HOME||join(homedir(),'.ai-org-studio'),'keys.json'),'utf8'));
+const REPLAY_ONLY=process.env.AI_ORG_TRIAL_REPLAY_ONLY==='1';
+const secrets=REPLAY_ONLY?{}:JSON.parse(readFileSync(join(process.env.STUDIO_HOME||join(homedir(),'.ai-org-studio'),'keys.json'),'utf8'));
 function freeGroqClear(){
+ if(REPLAY_ONLY)return true;
  for(const status of ['in_progress','queued']){
   const j=JSON.parse(execFileSync('gh',['run','list','--status',status,'--limit','30','--json','workflowName,headBranch'],{encoding:'utf8',timeout:20000}));
   if(j.some(x=>x.workflowName==='AI agents'))return false;
@@ -30,6 +32,7 @@ function freeGroqClear(){
  return true;
 }
 async function invoke(route,{model,prompt,maxTokens}){
+ if(REPLAY_ONLY)return {failure:'offline-replay-no-inference-permitted'};
  const author=route==='author',expected=author?AUTHOR:REVIEWER,ep=author?'https://integrate.api.nvidia.com/v1':'https://api.groq.com/openai/v1';
  const key=author?secrets.nvidia?.key:secrets.groq?.key;if(model!==expected||maxTokens!==(author?2200:900)||!key)return {failure:'route-unavailable'};
  if(!author&&!freeGroqClear())return {failure:'concurrent-agent-hold'};
