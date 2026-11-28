@@ -168,7 +168,7 @@ export function onboardingRules(number, { toolMode = "standard", featureSlug = "
     "## Onboarding and handover (every run)",
     "- Read the onboarding pack first; it already contains your role card, RACI, role lessons, relevant product memory, current feature context and task. Do not reread those files or load unrelated handovers.",
     "- For large handbooks and policy files, use targeted grep/sed excerpts; do not load entire files unless the task explicitly requires a full audit. Consult only the relevant section of the AI Org Founder Operating Charter when a policy decision requires it.",
-    "- Use the Parent Plus founder-response reference only when writing a founder-facing report; do not load it for routine engineering work.",
+    "- Use .ai-org-handbook/standards/FOUNDER_RESPONSE.md only when writing a founder-facing report; do not load it for routine engineering work.",
     "- If a required role or policy source is absent, stop and report the exact missing path; do not invent or silently substitute.",
     "- Use the Founder Dashboard standard only for substantive operating reviews, scheduled reports, milestone summaries and readiness assessments.",
     "- Founder-facing reports must use plain English for technical explanations or evidence-led blocker reports. Do not claim delivery to a founder conversation unless the actual artifact or link is verified.",

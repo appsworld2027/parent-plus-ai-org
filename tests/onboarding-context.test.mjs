@@ -115,3 +115,28 @@ test("every canonical worker stage points to a pinned, existing Superpowers meth
     assert.match(prompt, /locked acceptance gates/);
   }
 });
+
+test("generic router loads the shared founder response standard, not another product's reference", () => {
+  const agent = { slug: "maya-ai-pm", name: "Maya", role: "AI Product Manager" };
+  const prompt = buildPrompt({ agent, number: 21, isPR: false, repo: "example/inventory-app", stage: "ai:discovery" });
+  assert.match(prompt, /standards\/FOUNDER_RESPONSE\.md/);
+  assert.doesNotMatch(prompt, /Parent Plus founder-response/);
+});
+
+test("two independent products with the same feature slug hydrate only their own context", (t) => {
+  const a = fixture(t);
+  const b = fixture(t);
+  for (const [f, marker] of [[a, "PRODUCT_ALPHA_ONLY"], [b, "PRODUCT_BETA_ONLY"]]) {
+    const handoffs = join(f.product, "docs", "product", "same-feature", "handoffs");
+    mkdirSync(handoffs, { recursive: true });
+    writeFileSync(join(handoffs, "01-discovery.md"), marker);
+  }
+  const pack = (f) => buildPack({
+    role: "maya-ai-pm", stage: "ai:discovery", slug: "same-feature",
+    product: f.product, handbook: f.handbook, task: f.task
+  });
+  assert.match(pack(a), /PRODUCT_ALPHA_ONLY/);
+  assert.doesNotMatch(pack(a), /PRODUCT_BETA_ONLY/);
+  assert.match(pack(b), /PRODUCT_BETA_ONLY/);
+  assert.doesNotMatch(pack(b), /PRODUCT_ALPHA_ONLY/);
+});
