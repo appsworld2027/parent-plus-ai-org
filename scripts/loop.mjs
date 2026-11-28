@@ -141,6 +141,37 @@ export function contractState(comments = [], founders = []) {
   }
   return { slug: ready?.slug || null, ready: !!ready && ready.at > changedAt };
 }
+
+/**
+ * Reconcile only the latest direction from each configured founder in the active
+ * contract or demo cycle. Different change requests require human reconciliation;
+ * the controller must not guess whether their meanings are compatible.
+ */
+export function founderDecisionState(comments = [], founders = [], cycle = "contract") {
+  const ordered = [...comments].sort((a, b) =>
+    String(a.created_at || "").localeCompare(String(b.created_at || "")) ||
+    Number(a.id || 0) - Number(b.id || 0));
+  const marker = cycle === "demo" ? MARK.demo : MARK.contractReady;
+  const latest = new Map();
+  for (const c of ordered) {
+    const body = c.body || "";
+    if (body.includes(`<!-- ${marker}`) && !parseCommand(body)) {
+      latest.clear();
+      continue;
+    }
+    if (!isFounder(c.user?.login, c.author_association, founders)) continue;
+    const direction = parseCommand(body);
+    if (!direction || !["approve", "changes", "stop"].includes(direction.cmd)) continue;
+    const login = String(c.user.login).toLowerCase();
+    latest.delete(login);
+    latest.set(login, { id: c.id, login, cmd: direction.cmd, text: direction.text });
+  }
+  const directions = [...latest.values()];
+  const choices = new Set(directions.map(d =>
+    d.cmd === "changes" ? `changes:${d.text.replace(/\s+/g, " ").trim()}` : d.cmd));
+  return { conflict: choices.size > 1, directions };
+}
+
 export const slugOfBranch = (b = "") => (b.match(/^ai\/contract-(.+)$/) || [])[1] || null;
 export function demoPack({ pr, title, why, acs, preview, founders = [], checksUrl = "" }) {
   const rows = acs.map((a) => `| ${a.id} | ${a.when || "—"} | ${a.then} | ✅ |`).join("\n");
@@ -429,6 +460,24 @@ function command() {
   if (!isFounder(c.user.login, c.author_association, cfg().founders)) return log(`command: ignored /${parsed.cmd} from ${c.user.login} (not a founder)`);
   const item = api(`issues/${n}`), L = labelsOf(item), isPR = !!item.pull_request;
   const who = c.user.login;
+
+  // Reconcile known directions before any contract/release transition. Stop remains
+  // immediate and /next remains independent of the affected decision.
+  if (["approve", "changes"].includes(parsed.cmd) &&
+      (isPR ? L.includes("ai:founder-test") : (L.includes("ai:founder-decision") || L.includes("ai:discovery")))) {
+    const history = apiItems(`issues/${n}/comments?per_page=100`, ".[]");
+    if (!history.some(x => String(x.id) === String(id))) history.push(c);
+    const state = founderDecisionState(history, cfg().founders, isPR ? "demo" : "contract");
+    if (!state.directions.some(d => String(d.id) === String(id))) {
+      return log(`#${n}: obsolete founder direction; no action`);
+    }
+    if (state.conflict) {
+      const marker = `<!-- ai-org:founder-conflict ${state.directions.map(d => d.id).join(",")} -->`;
+      if (history.some(x => (x.body || "").includes(marker))) return log(`#${n}: founder conflict already recorded`);
+      return comment(n, `${marker}\n**[Kiran — Project Manager]** Founder directions differ in this decision cycle: ${state.directions.map(d => `@${d.login}: /${d.cmd} (comment ${d.id})`).join("; ")}. The affected transition is paused. Please align the latest directions; unrelated work can continue.`);
+    }
+  }
+
   if (parsed.cmd === "next") return next();
   if (parsed.cmd === "stop") { label(n, ["ai:blocked"]); return comment(n, `**[Kiran — Project Manager]** Stopped by @${who}. Reply \`/changes <direction>\` to resume.`); }
   if (L.includes("ai:blocked") && parsed.cmd === "approve") return log(`#${n}: blocked; resume work before approving`);
