@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {validMayaReview} from './review-gate.mjs';
+const read=(d)=>JSON.parse(readFileSync('trial/openrouter-exact-review/evidence/'+d+'/decision.json','utf8'));
+const approve=read('maya-edge-independent-v2-20261128'),reject=read('maya-edge-independent-20261128');
+test('actual independent approval and rejection validate structurally',()=>{assert.equal(validMayaReview(approve),true);assert.equal(validMayaReview(reject),true)});
+test('false approval and false rejection blocked',()=>{assert.equal(validMayaReview({...reject,verdict:'APPROVE'}),false);assert.equal(validMayaReview({...approve,verdict:'REJECT'}),false)});
+test('missing or duplicate evidence criteria blocked',()=>{assert.equal(validMayaReview({...approve,checks:approve.checks.slice(1)}),false);const x=structuredClone(approve);x.checks[0]=x.checks[1];assert.equal(validMayaReview(x),false)});
+test('wrong evidence index, nonboolean, fabricated extra keys blocked',()=>{for(const p of [{evidence:'E6'},{pass:'true'},{extra:'garbage'}]){const x=structuredClone(approve);Object.assign(x.checks[0],p);assert.equal(validMayaReview(x),false)}});
+test('malformed model payload fails closed',()=>{for(const d of [null,{},[],{...approve,checks:[null,...approve.checks.slice(1)]}])assert.equal(validMayaReview(d),false)});

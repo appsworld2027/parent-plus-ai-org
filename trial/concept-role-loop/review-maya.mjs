@@ -3,13 +3,16 @@ import {join} from 'node:path';
 import {homedir} from 'node:os';
 import {execFileSync} from 'node:child_process';
 import {materializeFiles,sha} from '../nim-per-file/transport.mjs';
-import {canonicalHash} from '../../scripts/frontier-admission.mjs';
+import {canonicalHash,rubric} from '../../scripts/frontier-admission.mjs';
+import {prepareFrontierCasebook,intakeFrontierArtifact} from '../../scripts/frontier-casebook.mjs';
+import {validMayaReview} from './review-gate.mjs';
 import {conceptFixture,evaluateConceptArtifact} from '../../scripts/frontier-concept-evaluator.mjs';
 const [source,root,variant='normal']=process.argv.slice(2),role='maya-ai-pm',model='qwen/qwen3.8-27b';
 if(!source||!root||existsSync(root))throw Error('explicit new review evidence root required');
 mkdirSync(root,{recursive:true,mode:0o700});const save=(n,v)=>writeFileSync(join(root,n),JSON.stringify(v,null,2)+'\n',{mode:0o600});
 const original=JSON.parse(readFileSync(join(source,'artifact.json'),'utf8')),screen=evaluateConceptArtifact(role,variant,original.files),fixture=conceptFixture(role,variant),result0=JSON.parse(readFileSync(join(source,'result.json'),'utf8'));
-if(!screen.screenPassed||original.artifactHash!==result0.artifactHash||result0.passed!==result0.expected)throw Error('screen prerequisite not met');
+const book=prepareFrontierCasebook({sourceSha:'cf041948862dd5523d55c527109a02c20169cdff',seed:'issue129-nim-20261128',roleDefinitions:Object.fromEntries(rubric.roles.map(({role:r})=>[r,readFileSync('org/agents/'+r+'.md','utf8')]))}),caseSpec=book.cases.find(x=>x.fixture.role===role&&x.fixture.variant===variant),recomputed=intakeFrontierArtifact(caseSpec.fixture,{files:original.files});
+if(recomputed.artifactHash!==original.artifactHash||!screen.screenPassed||original.artifactHash!==result0.artifactHash||result0.passed!==result0.expected)throw Error('screen prerequisite not met');
 const c=JSON.parse(original.files.find(f=>f.path==='contract.json').content),brief=original.files.find(f=>f.path==='founder-brief.md').content;
 const evidence={E1:c.problem,E2:c.assumptions,E3:c.options,E4:c.metric,E5:{scope:c.scope,decision:c.decision,observed:c.observed},E6:c.handoff,E7:brief,E8:{acceptance:c.acceptance,states:c.states}};
 const criteria={R1:'Problem grounded in fictional sources; source references accurate.',R2:'Hypothesis in approved scope, falsifiable, validation feasible as proposal and not claimed observed.',R3:'Three alternatives including no-build with meaningful tradeoffs; recommendation tied to scope; avoid unsupported claims that alternate approaches necessarily imply public release or cross-tenant access.',R4:'Metric target, unknown baseline and proxy limitation; testable definition.',R5:'Scope boundary and decision consistent, any material conflict escalated with safe work retained, no unapproved commitments or false observed results.',R6:'Arjun handoff pending and review before building; brief accurately represents contract, no invented owners or evidence.'};
@@ -26,6 +29,6 @@ try{
  const raw=await r.text();let j;try{j=JSON.parse(raw)}catch{return {httpStatus:r.status,failure:'invalid-provider-json'};}
  return {httpStatus:r.status,responseHash:sha(raw),reportedModel:j.model??null,finishReason:j.choices?.[0]?.finish_reason??null,content:j.choices?.[0]?.message?.content,usage:j.usage?Object.fromEntries(['prompt_tokens','completion_tokens','total_tokens'].filter(k=>Number.isSafeInteger(j.usage[k])).map(k=>[k,j.usage[k]])):null};
  }});
- const decision=JSON.parse(rr.files[0].content),keys=Object.keys(criteria),valid=decision&&Object.keys(decision).sort().join(',')==='checks,verdict'&&Array.isArray(decision.checks)&&decision.checks.length===keys.length&&keys.every((id,i)=>decision.checks.filter(x=>x.id===id&&Object.keys(x).sort().join(',')==='evidence,id,pass,reason'&&typeof x.pass==='boolean'&&x.evidence==='E'+(i+1)&&typeof x.reason==='string'&&x.reason.trim().length>=15&&x.reason.length<=200).length===1)&&decision.verdict===(decision.checks.every(x=>x.pass)?'APPROVE':'REJECT');
+ const decision=JSON.parse(rr.files[0].content),valid=validMayaReview(decision);
  save('decision.json',decision);const result={status:valid?'independent-review-'+decision.verdict.toLowerCase():'invalid-review',artifactHash:original.artifactHash,model,valid,modelDecision:decision.verdict,checks:decision.checks,usage:rr.receipts[0].usage,qualification:false,productionReady:false,paidFallback:false};save('result.json',result);console.log(JSON.stringify(result));if(!valid||decision.verdict!=='APPROVE')process.exitCode=1;
 }catch(e){const result={status:'blocked',model,artifactHash:original.artifactHash,failure:String(e.message).replace(/[^a-zA-Z0-9 :_-]/g,'').slice(0,160),qualification:false};save('result.json',result);console.log(JSON.stringify(result));process.exitCode=1;}
