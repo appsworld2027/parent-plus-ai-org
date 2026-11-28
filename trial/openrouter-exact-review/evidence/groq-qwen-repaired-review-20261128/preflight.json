@@ -1,0 +1,11 @@
+{
+  "scope": "synthetic-only-repair-review",
+  "sourceTrial": "nvidia-ultra-repair-20261128",
+  "artifactHash": "c3ca7b01429418d0ba84f6af9f1ae30a3f8ccc28c060f6ed217f65b10e6afcc5",
+  "rawDecisionHash": "e127a102557eb5c66016283f8b63375e468652e6563eae0a63ca84e362deccf2",
+  "model": "qwen/qwen3.8-27b",
+  "promptChars": 5745,
+  "outputBudget": 900,
+  "paidFallback": false,
+  "qualification": false
+}

@@ -1,0 +1,65 @@
+{
+  "scope": "synthetic-only-repair-review",
+  "sourceTrial": "nvidia-ultra-repair-20261128",
+  "artifactHash": "c3ca7b01429418d0ba84f6af9f1ae30a3f8ccc28c060f6ed217f65b10e6afcc5",
+  "rawDecisionHash": "e127a102557eb5c66016283f8b63375e468652e6563eae0a63ca84e362deccf2",
+  "model": "qwen/qwen3.8-27b",
+  "promptChars": 5745,
+  "outputBudget": 900,
+  "paidFallback": false,
+  "qualification": false,
+  "status": "provenance-screen-pass-semantic-review-required",
+  "verdict": {
+    "verdict": "CHANGES",
+    "evidence": [
+      {
+        "criterion": "authority-transfer",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "Safety rationale: the controller issued a new lease at generation 4 with a new base, fencing the old worker by generation increment; the old worker's authority is invalidated because the system only honors the highest generation lease for a task."
+      },
+      {
+        "criterion": "dependency-next-steps",
+        "source": "AUTHOR",
+        "status": "missing",
+        "quote": null
+      },
+      {
+        "criterion": "honest-execution-status",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "Dispatched api (generation 4, new lease to synthetic-controller-api, base aaaa..., expiresAt 1060) and ui (pending, generation 0)."
+      },
+      {
+        "criterion": "actual-lease",
+        "source": "CONTROLLER",
+        "status": "supported",
+        "quote": "{\"taskId\":\"api\",\"worker\":\"synthetic-controller-api\",\"generation\":4,\"base\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"expiresAt\":1060}"
+      }
+    ],
+    "findings": [
+      {
+        "criterion": "dependency-next-steps",
+        "message": "The author lists 'qa' as a next action depending on 'database', but 'database' is currently blocked by 'migration-lock'. The author fails to explicitly state that the blocked dependency (database) must be resolved before QA can proceed, omitting a material safety rationale regarding the dependency chain."
+      }
+    ]
+  },
+  "provenance": {
+    "valid": true,
+    "reason": "provenance-screen-pass",
+    "qualification": false,
+    "semanticJudgmentStillRequired": true
+  },
+  "receipt": {
+    "status": "accepted",
+    "model": "qwen/qwen3.8-27b",
+    "finish": "stop",
+    "usage": {
+      "prompt_tokens": 1441,
+      "completion_tokens": 392,
+      "total_tokens": 1833
+    },
+    "rawHash": "661135fd1a84552e5acb0cb1840cf115efe5e425e8b5e3a46475e387e658bf9c",
+    "failure": null
+  }
+}
