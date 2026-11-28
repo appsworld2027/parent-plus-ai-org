@@ -178,6 +178,8 @@ jobs:
           SEAT=$(case "$STAGE" in ai:tests) echo author;; ai:tests-review) echo challenger;; ai:tests-signoff) echo accountable;; *) echo "";; esac)
           FREE_MODEL_OVERRIDE=$(jq -r --arg s "$STAGE" --arg seat "$SEAT" '(.raci["ai:tests"].models[$seat] // .ai.freeModels[$s]) // ""' .ai-org/manifest.json 2>/dev/null || true)
           export FREE_MODEL_OVERRIDE
+          docs_folder=$(node .ai-org-handbook/scripts/product-docs.mjs)
+          printf "docs_folder=%s\n" "$docs_folder" >> "$GITHUB_ENV"
           node .ai-org-handbook/scripts/agent-router.mjs --labels "$LABELS" $PRFLAG --tool-mode "$TOOL_MODE" --body-file /tmp/body.md --number "$NUMBER" --repo "$GITHUB_REPOSITORY" | tee /tmp/route.json
           {
             echo "### AI Org router — #$NUMBER"
@@ -230,7 +232,7 @@ jobs:
           [ -n "$SLUG" ] || SLUG="$FEATURE_SLUG"
           FEATURE=""
           if [ -n "$SLUG" ] && git ls-remote --exit-code --heads origin "ai/contract-$SLUG" >/dev/null 2>&1; then
-            git fetch -q origin "ai/contract-$SLUG" && git worktree add -q -f --detach /tmp/feature-wt "origin/ai/contract-$SLUG" && FEATURE="/tmp/feature-wt/docs/product/$SLUG"
+            git fetch -q origin "ai/contract-$SLUG" && git worktree add -q -f --detach /tmp/feature-wt "origin/ai/contract-$SLUG" && FEATURE="/tmp/feature-wt/$docs_folder/$SLUG"
           fi
           rm -rf .ai-org-handbook/trial
           SINCE=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
@@ -567,7 +569,7 @@ jobs:
           else
             npx tsc --noEmit >/tmp/agent-logs/gate-tsc.txt 2>&1; tsc=$?
             npx playwright test "$SPEC" --reporter=json --timeout=20000 --workers=2 > /tmp/agent-logs/gate-report.json 2>/tmp/agent-logs/gate-pw.txt || true
-            node .ai-org-handbook/scripts/grade-acceptance.mjs --spec "$SPEC" --report /tmp/agent-logs/gate-report.json --contract "docs/product/$SLUG/ACCEPTANCE.md" --src src --tsc-exit "$tsc" --md /tmp/gate.md >/dev/null; g=$?
+            node .ai-org-handbook/scripts/grade-acceptance.mjs --spec "$SPEC" --report /tmp/agent-logs/gate-report.json --contract "$docs_folder/$SLUG/ACCEPTANCE.md" --src src --tsc-exit "$tsc" --md /tmp/gate.md >/dev/null; g=$?
           fi
           cat /tmp/gate.md | tee -a "$GITHUB_STEP_SUMMARY"
           { echo "<!-- ai-org:gate $SHA -->"; echo "Acceptance-test gate on ${SHA:0:7}"; echo; cat /tmp/gate.md; } > /tmp/gate-comment.md
@@ -586,9 +588,9 @@ jobs:
           [ -n "${slug:-}" ] || { echo "no feature slug - handover check skipped"; exit 0; }
           git fetch -q origin "ai/contract-$slug" 2>/dev/null || { echo "no contract branch - handover check skipped"; exit 0; }
           FROM=${contract_before:-$GITHUB_SHA}
-          NEW=$(git diff --name-only --diff-filter=A "$FROM" "origin/ai/contract-$slug" -- "docs/product/$slug/handoffs/" 2>/dev/null | sort | tail -1)
+          NEW=$(git diff --name-only --diff-filter=A "$FROM" "origin/ai/contract-$slug" -- "$docs_folder/$slug/handoffs/" 2>/dev/null | sort | tail -1)
           ok=1
-          if [ -z "$NEW" ]; then echo "::error::No handover packet was committed to docs/product/$slug/handoffs/ by this run"; ok=0
+          if [ -z "$NEW" ]; then echo "::error::No handover packet was committed to $docs_folder/$slug/handoffs/ by this run"; ok=0
           else
             git show "origin/ai/contract-$slug:$NEW" > /tmp/handoff.md
             node .ai-org-handbook/scripts/handoff.mjs validate /tmp/handoff.md | tee -a "$GITHUB_STEP_SUMMARY" /tmp/agent-logs/handover.txt; [ "${PIPESTATUS[0]}" = 0 ] || ok=0

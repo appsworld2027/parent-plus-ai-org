@@ -3,6 +3,7 @@
 // Pure logic + a small CLI used by .github/workflows/agent-worker.yml.
 // CLI: node agent-router.mjs --labels "ai:build,engine:codex" [--pr] [--body-file f] [--number N] [--repo o/r]
 //      env ENGINE_FREE / ENGINE_GROQ / ENGINE_NVIDIA = "true" when that engine's secret exists.
+import { DEFAULT_PRODUCT_DOCS_FOLDER, normalizeProductDocsFolder, readProductDocsFolder } from "./product-docs.mjs";
 import { readFileSync, appendFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { realpathSync } from "node:fs";
@@ -242,13 +243,15 @@ export const STAGE_SUPERPOWERS = Object.freeze({
   "ai:release-ops": "verification-before-completion"
 });
 
-export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = "standard", featureSlug = "", executionStrategy = null }) {
+export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = "standard", featureSlug = "", executionStrategy = null, docsFolder = DEFAULT_PRODUCT_DOCS_FOLDER }) {
   const kind = isPR ? "pull request" : "issue";
   const cli = isPR ? "gh pr" : "gh issue";
   const extra = agent.slug === "maya-ai-pm" ? " and `.ai-org-handbook/playbooks/ai-pm.md` and `.ai-org-handbook/playbooks/feature-contract.md`" : agent.slug === "quinn-qa" ? " and `.ai-org-handbook/playbooks/qa-charter.md`" : "";
   const skill = STAGE_SUPERPOWERS[stage];
+  docsFolder = normalizeProductDocsFolder(docsFolder);
   return [
     `You are ${agent.name}, the ${agent.role} of the AppsWorld AI Organization, running as a background worker in GitHub Actions on ${repo}.`,
+    `Product contract root for this run: ${docsFolder}. Use this root for contract documents and handovers; shared handbook example paths are defaults.`,
     `1. Read the onboarding pack first. It contains your role card and RACI. Consult only relevant sections of the canonical role file .ai-org-handbook/org/agents/${agent.slug}.md${extra} and the Founder Operating Charter when needed; do not load entire handbooks or reread the role card.`,
     `1a. Feature slug: ${featureSlug || "not assigned"}. Never use literal "_none_". If no valid feature slug is assigned, do not create a handoff or write under docs/product/_none_.`,
     `2. Read ${kind} #${number} metadata and body only using ${cli} view ${number} --json title,body,labels,assignees. Read comments only when a retry or explicit task requires history.`,
@@ -272,7 +275,7 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = 
     ...(toolMode !== "readonly" && stage === "ai:tests-review" ? ["", challengeBrief(number)] : []),
     ...(toolMode !== "readonly" && stage === "ai:tests-signoff" ? ["", signoffBrief(number)] : []),
     ...(toolMode !== "readonly" && (stage === "ai:build" || stage === "ai:fix") && !isPR ? ["", buildBrief(number)] : []),
-  ].join("\n");
+  ].join("\n").replaceAll("docs/product/", `${docsFolder}/`);
 }
 
 export const PAUSE_MARKER = "<!-- ai-org:paused -->";
@@ -304,7 +307,7 @@ if (isMain(import.meta.url)) {
   if (r.role) {
     const agent = agentInfo(r.role);
     Object.assign(out, { agent_name: agent.name, agent_role: agent.role, model: agent.model });
-    if (r.action === "run") out.prompt = buildPrompt({ agent, number: arg("number"), isPR, repo: arg("repo"), stage: r.stage, toolMode, featureSlug: process.env.FEATURE_SLUG || "", executionStrategy: selectExecutionStrategy({engine:r.engine,stage:r.stage,model:r.free_model}) });
+    if (r.action === "run") out.prompt = buildPrompt({ agent, number: arg("number"), isPR, repo: arg("repo"), stage: r.stage, toolMode, featureSlug: process.env.FEATURE_SLUG || "", docsFolder: readProductDocsFolder(), executionStrategy: selectExecutionStrategy({engine:r.engine,stage:r.stage,model:r.free_model}) });
     if (r.action === "pause") out.pause_comment = pauseComment({ agent, stage: r.stage });
   }
   console.log(JSON.stringify({ ...out, prompt: out.prompt ? "(set)" : undefined, pause_comment: out.pause_comment ? "(set)" : undefined }));
