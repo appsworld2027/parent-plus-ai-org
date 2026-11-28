@@ -1,0 +1,1 @@
+SEMANTIC AUDIT: rounds 1–3 author names all QA predecessors; all four reviews selected tests completion, unrelated to QA. Broad author assertion no resource conflicts across four ready tasks needs correction against fixture.
