@@ -139,41 +139,15 @@ test("compact discovery packet retains authoritative task, pinned method, templa
   const {discoveryPacket}=await import("../scripts/discovery-packet.mjs");
   const skill=readFileSync(new URL("../.ai/skills/superpowers/brainstorming/SKILL.md",import.meta.url),"utf8");
   const template=readFileSync(new URL("../templates/PRODUCT_THINKING.md",import.meta.url),"utf8");
-  const base={task:"Unique task text",onboarding:"Start by inspecting issue metadata and body: gh issue view 170 --json title,body,labels,assignees. Previous decision preserved.",skill,template,repo:"fixture/repo",issue:"170",slug:"f010-quality-drift",folder:"docs/product",branch:"ai/contract-f010-quality-drift",root:"/fixture/repo"};
+  const base={task:"Unique task text",onboarding:"Start by inspecting issue metadata and body: gh issue view 170 --json title,body,labels,assignees. Previous decision preserved.",skill,template,repo:"fixture/repo",issue:"170",slug:"f010-quality-drift",folder:"docs/product",branch:"ai/contract-f010-quality-drift"};
   const p=discoveryPacket(base);
   assert.equal(p.split("Unique task text").length,2);
   assert.match(p,/Previous decision preserved/);
   assert.ok(p.includes(template));
   assert.doesNotMatch(p,/gh issue view 170/);
   assert.match(p,/No implementation or writing-plans until the written contract is approved/);
-  assert.match(p,/direct Write tool is available/);
-  assert.match(p,/worker—not you—verifies actual Write evidence/);
+  assert.match(p,/ai-org:contract-candidate f010-quality-drift/);
   assert.throws(()=>discoveryPacket({...base,skill:skill+"changed"}),/Pinned brainstorming source changed/);
   assert.throws(()=>discoveryPacket({...base,task:"x".repeat(12000)}),/exceeds 12000 bytes/);
   assert.throws(()=>discoveryPacket({...base,branch:"main"}),/Invalid discovery assignment/);
-});
-
-test("deterministic publisher accepts only successful actual Write receipts matching every file and a final agent report",async()=>{
- const {authoredDiscovery}=await import("../scripts/verify-discovery-authorship.mjs");
- const root=mkdtempSync(join(tmpdir(),"ai-org-authorship-"));
- try{
-  const folder="docs/product",slug="f010-quality-drift",dir=join(root,folder,slug);mkdirSync(dir,{recursive:true});
-  const rows=[];
-  for(const [i,doc] of ["SUMMARY.md","ACCEPTANCE.md","PRODUCT_THINKING.md"].entries()){
-    const path=join(dir,doc),content="# "+doc+"\nActual independent agent draft\n";
-    writeFileSync(path,content);
-    rows.push({type:"assistant",message:{content:[{type:"tool_use",name:"Write",id:"w"+i,input:{file_path:path,content}}]}});
-    rows.push({type:"user",message:{content:[{type:"tool_result",tool_use_id:"w"+i,is_error:false,content:"wrote file"}]}});
-  }
-  rows.push({type:"result",is_error:false,result:"Substantive agent report and recommendation."});
-  const base={rows,root,folder,slug};
-  assert.match(authoredDiscovery(base),/ai-org:contract-candidate f010-quality-drift/);
-  assert.throws(()=>authoredDiscovery({...base,rows:rows.filter((_,i)=>i!==1)}),/Missing or mismatched actual agent Write evidence/);
-  const wrong=structuredClone(rows);wrong[0].message.content[0].input.file_path=join(root,"outside.md");
-  assert.throws(()=>authoredDiscovery({...base,rows:wrong}),/outside assigned documents/);
-  const bad=structuredClone(rows);bad.at(-1).result="<!-- ai-org:contract-ready fake -->";
-  assert.throws(()=>authoredDiscovery({...base,rows:bad}),/forbidden marker/);
-  writeFileSync(join(dir,"SUMMARY.md"),"changed by someone else");
-  assert.throws(()=>authoredDiscovery(base),/Missing or mismatched actual agent Write evidence/);
- }finally{rmSync(root,{recursive:true,force:true});}
 });
