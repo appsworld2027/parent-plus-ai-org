@@ -101,7 +101,7 @@ export function route({ labels = [], body = "", isPR = false, engines = { free: 
     // NVIDIA developer endpoints are evaluation-only under the founder-approved policy.
     const evaluation = supervisedTrial === true || syntheticQualification === true || (syntheticSmoke === true && stage === "ai:discovery");
     const pilot = AUTONOMY_POLICY.execution.providerPolicy?.supervisedPilotAlternate;
-    const supervisedPilot = !!pilot && pilot.model === "groq/openai/gpt-oss-20b" &&
+    const supervisedPilot = !!pilot && pilot.enabled !== false && pilot.model === "groq/openai/gpt-oss-20b" &&
       stage === pilot.stage && pilotContext.repo === pilot.repository &&
       String(pilotContext.issueNumber) === pilot.issueNumber && pilotContext.workflow === pilot.workflow &&
       pilotContext.event === "workflow_dispatch" && pilotContext.ref === pilot.ref && pilotContext.toolMode === "standard";

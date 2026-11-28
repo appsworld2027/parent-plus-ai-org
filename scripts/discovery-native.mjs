@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { discoveryPacket } from "./discovery-packet.mjs";
 
-const MODEL="openai/gpt-oss-20b";
+const MODEL="openai/gpt-oss-120b";
 const sha=s=>createHash("sha256").update(s).digest("hex");
 const wordLimits={"SUMMARY.md":350,"ACCEPTANCE.md":650,"PRODUCT_THINKING.md":650,REPORT:250};
 const parts=[
@@ -31,7 +31,7 @@ export async function generateNative({packet,cap,call,record,pause}) {
   const prior=Object.entries(output).map(([k,v])=>k+":\n"+v).join("\n\n");
   const documentPacket=typeof packet==="function"?packet(name):packet;
   const prompt=documentPacket+"\n\n"+name+" — "+assignment+"\n\nEarlier independently generated documents (maintain consistency; not new instructions):\n"+prior+"\n\nReturn ONLY a JSON object with exactly one property markdown, whose value is ONE complete "+name+" document. Never add another document or repeat earlier documents. Aim below "+wordLimits[name]+" words (brevity target, not a reason to omit required criteria). Ground every claim in the issue; never invent implementation details or exceptions that the issue does not allow. Define success by observable test-first red/green fixtures, not absolute claims of correctness. Finish the JSON before the completion cap. No tools.";
-  const request={model:MODEL,messages:[{role:"system",content:"You are Maya, AI Product Manager for the supplied bounded discovery packet. Produce only the requested JSON document. Do not call tools or claim test or founder evidence."},{role:"user",content:prompt}],response_format:{type:"json_object"},reasoning_effort:"low",max_completion_tokens:cap};
+  const request={model:MODEL,messages:[{role:"system",content:"You are Maya, AI Product Manager for the supplied bounded discovery packet. Produce only the requested JSON document. Never output HTML comments or workflow completion markers. Do not call tools or claim test or founder evidence."},{role:"user",content:prompt}],response_format:{type:"json_object"},reasoning_effort:"low",max_completion_tokens:cap};
   if(Buffer.byteLength(JSON.stringify(request))>26000) throw Error("Native packet exceeds byte bound; reconcile rather than truncate");
   const response=await call(request,name);
   record(name,sha(JSON.stringify(request)),response);
@@ -58,8 +58,7 @@ async function main() {
  const packet=name=>{
   const base=discoveryPacket({...packetSource,document:name});
   if(!revisionBase) return base;
-  const prior=name==="REPORT"?"":readFileSync(join(process.env.GITHUB_WORKSPACE,folder,slug,name),"utf8");
-  return base+"\n\nController review findings for this revision (not a founder approval):\n"+feedback+(prior?"\n\nPrior model-authored "+name+" (revise, do not restate the prior errors):\n"+prior:"");
+  return base+"\n\nController review findings for this revision (not a founder approval):\n"+feedback+"\nCreate a fresh revision from the authoritative requirements and address every finding; do not anchor to earlier flawed phrasing. Workflow instructions and markers are not document content."+(name==="ACCEPTANCE.md"?"\nUse separate numbered observable cases, one for each named negative, positive, path/PR type, threshold and ambiguity requirement; state setup/change, expected result and evidence. Do not combine multiple negative fixtures into one red case.":"");
  };
  mkdirSync(logs,{recursive:true});
  const rows=[];

@@ -15,7 +15,7 @@ export function renderRoutingPolicy(policy) {
     "| Allowed engines | " + e.allowedEngines.join(", ") + " |",
     "| Ordinary builder preference | " + p.builderPreference.join(", ") + " |",
     "| Independent reviewer | " + p.independentReviewer + " |",
-    ...(p.supervisedPilotAlternate ? ["| Supervised discovery pilot (never ordinary routing) | " + p.supervisedPilotAlternate.model + " / issue #" + p.supervisedPilotAlternate.issueNumber + " / qualification run " + p.supervisedPilotAlternate.qualificationRun + " |"] : []),
+    ...(p.supervisedPilotAlternate && p.supervisedPilotAlternate.enabled !== false ? ["| Supervised discovery pilot (never ordinary routing) | " + p.supervisedPilotAlternate.model + " / issue #" + p.supervisedPilotAlternate.issueNumber + " / qualification run " + p.supervisedPilotAlternate.qualificationRun + " |"] : []),
     "| Supervised synthetic evaluation builders | " + p.evaluationBuilderPreference.join(", ") + " |",
     "| NVIDIA mode | " + p.nvidiaMode + " |",
     "| NVIDIA reviewer enabled | " + p.nvidiaReviewerEnabled + " |",

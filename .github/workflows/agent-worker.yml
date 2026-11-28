@@ -332,7 +332,7 @@ jobs:
             [ -n "$API_KEY" ] || { echo "::error::$PROVIDER free-provider key is unavailable."; return 1; }
           }
           NATIVE_PILOT=false
-          if [ "$FREE_MODEL" = groq/openai/gpt-oss-20b ] && [ "$STAGE" = ai:discovery ] && [ "$TOOL_MODE" = standard ] && [ "$GITHUB_REPOSITORY" = appsworld2027/parent-plus-ai-org ] && [ "$NUMBER" = 170 ] && [ "$FEATURE_SLUG" = f010-quality-drift ] && [ "$GITHUB_REF_NAME" = audit/f010-pilot-20261128 ] && [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+          if [ "$FREE_MODEL" = groq/openai/gpt-oss-120b ] && [ "$STAGE" = ai:discovery ] && [ "$TOOL_MODE" = standard ] && [ "$GITHUB_REPOSITORY" = appsworld2027/parent-plus-ai-org ] && [ "$NUMBER" = 170 ] && [ "$FEATURE_SLUG" = f010-quality-drift ] && [ "$GITHUB_REF_NAME" = audit/f010-pilot-20261128 ] && [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
             NATIVE_PILOT=true
           fi
           probe_provider() {

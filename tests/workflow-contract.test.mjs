@@ -215,9 +215,9 @@ test("native pilot preflight checks exact JSON capability while ordinary routes 
   try {
     const fixture = join(root, "response.json");
     const snippet = worker.slice(begin, end).replaceAll("/tmp/agent-logs", root);
-    const native = { model: "openai/gpt-oss-20b", choices: [{ finish_reason: "stop", message: { content: '{"ready":true}' } }] };
-    const tools = { model: "openai/gpt-oss-20b", choices: [{ finish_reason: "tool_calls", message: { tool_calls: [{ function: { name: "report_ready" } }] } }] };
-    const env = { ...process.env, PROVIDER:"groq", MODEL_ID:"openai/gpt-oss-20b", FREE_MODEL:"groq/openai/gpt-oss-20b", STAGE:"ai:discovery", TOOL_MODE:"standard", GITHUB_REPOSITORY:"appsworld2027/parent-plus-ai-org", NUMBER:"170", FEATURE_SLUG:"f010-quality-drift", GITHUB_REF_NAME:"audit/f010-pilot-20261128", GITHUB_EVENT_NAME:"workflow_dispatch", API_KEY:"synthetic", API_URL:"synthetic", PROBE_LOGS:root, FIXTURE:fixture };
+    const native = { model: "openai/gpt-oss-120b", choices: [{ finish_reason: "stop", message: { content: '{"ready":true}' } }] };
+    const tools = { model: "openai/gpt-oss-120b", choices: [{ finish_reason: "tool_calls", message: { tool_calls: [{ function: { name: "report_ready" } }] } }] };
+    const env = { ...process.env, PROVIDER:"groq", MODEL_ID:"openai/gpt-oss-120b", FREE_MODEL:"groq/openai/gpt-oss-120b", STAGE:"ai:discovery", TOOL_MODE:"standard", GITHUB_REPOSITORY:"appsworld2027/parent-plus-ai-org", NUMBER:"170", FEATURE_SLUG:"f010-quality-drift", GITHUB_REF_NAME:"audit/f010-pilot-20261128", GITHUB_EVENT_NAME:"workflow_dispatch", API_KEY:"synthetic", API_URL:"synthetic", PROBE_LOGS:root, FIXTURE:fixture };
     function run(response, overrides={}) {
       writeFileSync(fixture, JSON.stringify(response));
       const result=spawnSync("bash",["-c",'curl() { cp "$FIXTURE" "$PROBE_LOGS/$PROVIDER-probe-response.json"; printf 200; }\n'+snippet+'\nprobe_provider'],{env:{...env,...overrides},encoding:"utf8"});

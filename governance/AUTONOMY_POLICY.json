@@ -52,6 +52,7 @@
       "nvidiaMode": "supervised-synthetic-evaluation-only",
       "reviewerModelFamilyMustDifferFromBuilder": true,
       "supervisedPilotAlternate": {
+        "enabled": false,
         "repository": "appsworld2027/parent-plus-ai-org",
         "issueNumber": "170",
         "workflow": "AI agents",
