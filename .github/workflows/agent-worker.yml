@@ -446,6 +446,11 @@ jobs:
               fi
             fi
           fi
+          if [ "$TOOL_MODE" = "standard" ] && [ "$STAGE" = "ai:discovery" ]; then
+            gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -s 'add // []' > /tmp/discovery-comments-before.json || { echo "::error::Discovery baseline comments unavailable"; exit 1; }
+            PROMPT="$PROMPT
+          Discovery publication rule (overrides older issue or handbook marker instructions): deliver the complete product contract, commit and push SUMMARY.md, ACCEPTANCE.md, PRODUCT_THINKING.md to ai/contract-<slug>. Publish your substantive report with the footer <!-- ai-org:contract-candidate <slug> --> using the actual slug. Do not publish contract-ready or alter stage labels; the workflow verifies the remote files and publishes readiness. Do not stop at a recap."
+          fi
           date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/agent-logs/started-at
           start=$(date +%s)
           rc=0
@@ -455,10 +460,14 @@ jobs:
             --system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md \
             --tools "$TOOLS" --allowedTools "$ALLOWED_TOOLS" --max-turns "$STRATEGY_MAX_TURNS" \
             --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr || rc=$?
-          RESULT=$(node .ai-org-handbook/scripts/classify-worker-result.mjs "$rc" /tmp/agent-logs/agent.jsonl /tmp/agent-logs/agent.stderr)
+          RESULT=$(node .ai-org-handbook/scripts/classify-worker-result.mjs "$rc" /tmp/agent-logs/agent.jsonl /tmp/agent-logs/agent.stderr "$TOOL_MODE")
           rc=$(jq -er '.exitCode' <<< "$RESULT")
           KIND=$(jq -er '.kind' <<< "$RESULT")
           case "$KIND" in
+            incomplete)
+              touch /tmp/agent-logs/incomplete
+              echo "::error::Standard agent exited without invoking tools; no stage work proven."
+              ;;
             output-limit)
               touch /tmp/agent-logs/output-limit
               echo "Free-provider output ceiling exhausted; revise the bounded report before retrying." | tee -a "$GITHUB_STEP_SUMMARY"
@@ -600,6 +609,17 @@ jobs:
             exit 1
           fi
 
+      - name: Verify and publish discovery output
+        if: success() && steps.router.outputs.action == 'run' && inputs.tool_mode == 'standard' && steps.router.outputs.stage == 'ai:discovery'
+        env:
+          FEATURE_SLUG: ${{ steps.item.outputs.feature_slug }}
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -s 'add // []' > /tmp/discovery-comments-after.json || { touch /tmp/agent-logs/incomplete; exit 1; }
+          node .ai-org-handbook/scripts/verify-discovery-output.mjs /tmp/discovery-comments-before.json /tmp/discovery-comments-after.json "$FEATURE_SLUG" /tmp/discovery-verified-report.md > /tmp/agent-logs/discovery-proof.json || { cat /tmp/agent-logs/discovery-proof.json; touch /tmp/agent-logs/incomplete; exit 1; }
+          cat /tmp/agent-logs/discovery-proof.json | tee -a "$GITHUB_STEP_SUMMARY"
+          gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/discovery-verified-report.md || { touch /tmp/agent-logs/incomplete; exit 1; }
       - name: Save agent logs
         if: always() && steps.router.outputs.action == 'run'
         uses: actions/upload-artifact@v4
@@ -628,7 +648,10 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           STATE="failed"
-          if [ -f /tmp/agent-logs/output-limit ]; then
+          if [ -f /tmp/agent-logs/incomplete ]; then
+            MARKER="ai-org:failed"; STATE="blocked"
+            SUMMARY="The agent did not produce verifiable stage deliverables. Reconcile partial writes and missing evidence; no automatic replay or ready receipt."
+          elif [ -f /tmp/agent-logs/output-limit ]; then
             MARKER="ai-org:failed"; STATE="blocked"
             SUMMARY="The free-model output ceiling was exhausted. Reconcile the attempt and reduce report scope before retrying. No paid fallback was attempted."
           elif [ -f /tmp/agent-logs/request-too-large ]; then
