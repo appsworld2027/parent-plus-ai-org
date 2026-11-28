@@ -1,10 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildPack } from "../scripts/onboarding-pack.mjs";
-import { buildPrompt, pauseComment } from "../scripts/agent-router.mjs";
+import { buildPrompt, pauseComment, STAGE_SUPERPOWERS, STAGE_ROLE } from "../scripts/agent-router.mjs";
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), "ai-org-onboarding-"));
@@ -102,4 +102,16 @@ test("pause reports the actual free-provider/quota condition without suggesting 
   assert.ok(comment.includes("no approved free engine or usable free quota is available"));
   assert.ok(comment.includes("Paid engines and paid fallback are disabled"));
   assert.ok(!comment.includes("supervised trials"));
+});
+
+test("every canonical worker stage points to a pinned, existing Superpowers method without expanding authority", () => {
+  for (const [stage, slug] of Object.entries(STAGE_ROLE)) {
+    const skill = STAGE_SUPERPOWERS[stage];
+    assert.ok(skill, stage);
+    assert.ok(existsSync(new URL("../.ai/skills/superpowers/" + skill + "/SKILL.md", import.meta.url)), skill);
+    const prompt = buildPrompt({agent:{slug,name:"Test role",role:"Test role"}, stage, number:1, isPR:false, repo:"example/synthetic", toolMode:"readonly"});
+    assert.ok(prompt.includes(".ai-org-handbook/.ai/skills/superpowers/" + skill + "/SKILL.md"));
+    assert.match(prompt, /never claim use if not read and applied/);
+    assert.match(prompt, /locked acceptance gates/);
+  }
 });
