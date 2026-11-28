@@ -1,0 +1,29 @@
+# Temporary no-key verification of the exact evaluation controls; never merge.
+name: Course planning document review no-key preflight
+on:
+  pull_request:
+    branches: [review/course-pilot-harness-20261127]
+permissions:
+  contents: read
+jobs:
+  exact-preflight:
+    if: github.event.pull_request.head.repo.full_name == 'appsworld2027/parent-plus-ai-org' && github.head_ref == 'review/course-doc-preflight-20261128' && github.actor == github.repository_owner
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: 69b5c02b7d0fd44392266ed65d04a482f39f701e
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Verify exact seven artifacts, role-specific methods and distinct-model packets without keys
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check trial/controls/course-planning-review.mjs
+          for role in maya-ai-pm arjun-cpto iris-design kiran-pjm-a leela-pjm-b tara-database ravi-integration; do
+            env -u GROQ_API_KEY REVIEW_CONFIRM="COURSE DOC REVIEW $role" node trial/controls/course-planning-review.mjs preflight
+          done
+          echo "Seven packets prepared; zero inference, no independent review or admission."
