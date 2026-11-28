@@ -1,7 +1,16 @@
 {
-  "generatedAt": "2026-11-19T06:15:01.645Z",
-  "featuresIndexed": 1,
-  "scenariosIndexed": 1,
-  "traceabilityRows": 1,
-  "qualityStatus": "NEEDS_REVIEW"
+  "generatedAt": "2026-11-28T08:40:47.233Z",
+  "product": "appsworld2027/parent-plus-ai-org",
+  "featuresIndexed": 0,
+  "scenariosIndexed": 0,
+  "traceabilityRows": 0,
+  "templateRowsExcluded": 3,
+  "recordedPassed": 0,
+  "qualityStatus": "NEEDS_REVIEW",
+  "releaseReadiness": "UNVERIFIED",
+  "reviewReasons": [
+    "No real features are registered.",
+    "No real test scenarios are registered.",
+    "No real traceability links are registered."
+  ]
 }
