@@ -912,7 +912,7 @@ jobs:
 
   course-role-deliverables:
     if: >-
-      github.event_name == 'workflow_dispatch' && (inputs.confirm == 'COURSE ROLE DELIVERABLES' || inputs.confirm == 'COURSE ROLE RETEST') &&
+      false && github.event_name == 'workflow_dispatch' && (inputs.confirm == 'COURSE ROLE DELIVERABLES' || inputs.confirm == 'COURSE ROLE RETEST') &&
       github.repository == 'appsworld2027/parent-plus-ai-org' &&
       github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
       github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
@@ -1103,7 +1103,7 @@ jobs:
   quinn-plain-repair:
     needs: course-role-deliverables
     if: >-
-      always() && github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE ROLE RETEST' &&
+      false && always() && github.event_name == 'workflow_dispatch' && inputs.confirm == 'COURSE ROLE RETEST' &&
       github.repository == 'appsworld2027/parent-plus-ai-org' &&
       github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
       github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
@@ -3061,3 +3061,50 @@ jobs:
           name: course-arjun-signoff
           path: ${{ runner.temp }}/course-arjun-signoff/
           retention-days: 14
+
+  course-doc-review:
+    if: >-
+      github.event_name == 'workflow_dispatch' && startsWith(inputs.confirm, 'COURSE DOC REVIEW ') &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    concurrency:
+      group: course-doc-review-free
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      REVIEW_CONFIRM: ${{ inputs.confirm }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Exact archived artifact and method preflight with no model key
+        run: |
+          node --check trial/controls/course-planning-review.mjs
+          node trial/controls/course-planning-review.mjs preflight
+      - name: Actual AI Org Rex separate-model bounded document review
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: node trial/controls/course-planning-review.mjs review
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: course-doc-review
+          path: ${{ runner.temp }}/course-planning-review/
+          retention-days: 14
+
+  retired-course-role-author:
+    if: >-
+      github.event_name == 'workflow_dispatch' && (inputs.confirm == 'COURSE ROLE DELIVERABLES' || inputs.confirm == 'COURSE ROLE RETEST') &&
+      github.repository == 'appsworld2027/parent-plus-ai-org' &&
+      github.ref == 'refs/heads/review/course-pilot-harness-20261127' &&
+      github.actor == github.repository_owner && github.triggering_actor == github.repository_owner
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::error::Historical role-author route retired; preserve exact evidence. New role artifacts require bounded method packets, independent review and data-safe runtime. Do not repeat prior author work."
+          exit 1
