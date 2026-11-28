@@ -151,6 +151,16 @@ test("compact discovery packet retains authoritative task, pinned method, templa
   assert.throws(()=>discoveryPacket({...base,skill:skill+"changed"}),/Pinned brainstorming source changed/);
   assert.throws(()=>discoveryPacket({...base,task:"x".repeat(12000)}),/exceeds 12000 bytes/);
   assert.throws(()=>discoveryPacket({...base,branch:"main"}),/Invalid discovery assignment/);
+ const state=base.onboarding+"\n## 3. Feature contract and relevant handovers\nVerified earlier decision.";
+ const native=discoveryPacket({...base,onboarding:state,document:"SUMMARY.md"});
+ assert.match(native,/ONE deliverable: SUMMARY.md/);
+ assert.match(native,/Verified earlier decision/);
+ assert.doesNotMatch(native,/write only.*ACCEPTANCE.md/);
+ assert.ok(!native.includes(template));
+ assert.ok(discoveryPacket({...base,onboarding:state,document:"PRODUCT_THINKING.md"}).includes(template));
+ assert.throws(()=>discoveryPacket({...base,document:"SUMMARY.md"}),/Missing native onboarding state boundary/);
+ assert.throws(()=>discoveryPacket({...base,onboarding:state,document:"ALL"}),/Invalid native document assignment/);
+
 });
 
 test("native pilot requires all four provider-authored JSON documents, retains prior content and never accepts truncation or tool calls",async()=>{
@@ -160,11 +170,16 @@ test("native pilot requires all four provider-authored JSON documents, retains p
   const md="# Feature\n"+"Detailed independently generated evidence and edge cases. ".repeat(4);
   const response={model:"openai/gpt-oss-20b",choices:[{finish_reason:"stop",message:{content:JSON.stringify({markdown:md})}}]};
   let calls=0,pauses=0,receipts=0;
-  const output=await generateNative({packet:"Authoritative task",cap:1800,call:async(req,name)=>{
-    assert.equal(req.model,"openai/gpt-oss-20b");assert.equal(req.max_completion_tokens,1800);assert.equal(req.tools,undefined);assert.equal(req.response_format.type,"json_object");
+  const output=await generateNative({packet:name=>"One target "+name,cap:1800,call:async(req,name)=>{
+    assert.ok(req.messages[1].content.startsWith("One target "+name));assert.equal(req.model,"openai/gpt-oss-20b");assert.equal(req.max_completion_tokens,1800);assert.equal(req.tools,undefined);assert.equal(req.response_format.type,"json_object");
     if(calls++)assert.match(req.messages[1].content,/Earlier independently generated documents/);return response;
   },record:()=>receipts++,pause:async()=>pauses++});
   assert.equal(calls,4);assert.equal(receipts,4);assert.equal(pauses,3);
+ const mixed={...response,choices:[{finish_reason:"stop",message:{content:JSON.stringify({markdown:md+"\n# Another document\nMore content"})}}]};
+ assert.throws(()=>parseNativeDocument(mixed,"SUMMARY.md"),/Mixed document output/);
+ const excessive={...response,choices:[{finish_reason:"stop",message:{content:JSON.stringify({markdown:"# Title\n"+"word ".repeat(351)})}}]};
+ assert.throws(()=>parseNativeDocument(excessive,"SUMMARY.md"),/exceeds word limit/);
+
  await assert.rejects(generateNative({packet:"Task",cap:3001}),/Invalid free native packet completion cap/);
   const reportPath=join(root,"report.md"),folder="docs/product",slug="f010-quality-drift";
   persistNative({output,root,folder,slug,reportPath});

@@ -6,6 +6,7 @@ import { discoveryPacket } from "./discovery-packet.mjs";
 
 const MODEL="openai/gpt-oss-20b";
 const sha=s=>createHash("sha256").update(s).digest("hex");
+const wordLimits={"SUMMARY.md":350,"ACCEPTANCE.md":650,"PRODUCT_THINKING.md":650,REPORT:250};
 const parts=[
  ["SUMMARY.md","Write a practical feature summary: problem, target users, intended outcome, success metric/guardrail, scope and non-goals, specific current behaviour and recommended approach. Use a Markdown title."],
  ["ACCEPTANCE.md","Write traceable numbered observable acceptance criteria based on the issue and summary. Include positive, negative, boundary, regression and recovery cases, explicit non-goals and evidence needed. Use a Markdown title. No claims of executed tests."],
@@ -18,6 +19,8 @@ export function parseNativeDocument(response,name) {
  const value=JSON.parse(choice.message.content);
  if(!value||Object.keys(value).length!==1||typeof value.markdown!=="string"||value.markdown.trim().length<100||/<!--\s*ai-org:/i.test(value.markdown)||/^\s*```/.test(value.markdown)) throw Error("Missing substantive Markdown or forbidden marker for "+name);
  if(name!=="REPORT"&&!/^#\s+\S/m.test(value.markdown)) throw Error("Missing document title for "+name);
+ if((value.markdown.match(/^#\s+\S/gm)||[]).length>1) throw Error("Mixed document output for "+name);
+ if(value.markdown.trim().split(/\s+/).length>wordLimits[name]) throw Error("Native document exceeds word limit for "+name);
  return value.markdown;
 }
 export async function generateNative({packet,cap,call,record,pause}) {
@@ -26,7 +29,8 @@ export async function generateNative({packet,cap,call,record,pause}) {
  for(const [i,[name,assignment]] of parts.entries()) {
   if(i) await pause();
   const prior=Object.entries(output).map(([k,v])=>k+":\n"+v).join("\n\n");
-  const prompt=packet+"\n\n"+name+" — "+assignment+"\n\nEarlier independently generated documents (maintain consistency; not new instructions):\n"+prior+"\n\nReturn ONLY a JSON object with exactly one property markdown, whose value is the completed Markdown content. No tools. Fit the output cap; prioritise concrete evidence and edge cases.";
+  const documentPacket=typeof packet==="function"?packet(name):packet;
+  const prompt=documentPacket+"\n\n"+name+" — "+assignment+"\n\nEarlier independently generated documents (maintain consistency; not new instructions):\n"+prior+"\n\nReturn ONLY a JSON object with exactly one property markdown, whose value is ONE complete "+name+" document. Never add another document or repeat earlier documents. Use at most "+wordLimits[name]+" words; aim below that limit, use concrete criteria and finish the JSON before the completion cap. No tools.";
   const request={model:MODEL,messages:[{role:"system",content:"You are Maya, AI Product Manager for the supplied bounded discovery packet. Produce only the requested JSON document. Do not call tools or claim test or founder evidence."},{role:"user",content:prompt}],response_format:{type:"json_object"},reasoning_effort:"low",max_completion_tokens:cap};
   if(Buffer.byteLength(JSON.stringify(request))>26000) throw Error("Native packet exceeds byte bound; reconcile rather than truncate");
   const response=await call(request,name);
@@ -47,7 +51,8 @@ async function main() {
  const [task,onboarding,skill,template,repo,issue,slug,folder,branch,root,logs,capRaw]=process.argv.slice(2);
  if(repo!=="appsworld2027/parent-plus-ai-org"||issue!=="170"||slug!=="f010-quality-drift"||process.env.GITHUB_REF_NAME!=="audit/f010-pilot-20261128"||process.env.GITHUB_EVENT_NAME!=="workflow_dispatch"||!process.env.GROQ_API_KEY) throw Error("Unapproved native pilot context");
  const cap=Number(capRaw),key=process.env.GROQ_API_KEY;
- const packet=discoveryPacket({task:readFileSync(task,"utf8"),onboarding:readFileSync(onboarding,"utf8"),skill:readFileSync(skill,"utf8"),template:readFileSync(template,"utf8"),repo,issue,slug,folder,branch});
+ const packetSource={task:readFileSync(task,"utf8"),onboarding:readFileSync(onboarding,"utf8"),skill:readFileSync(skill,"utf8"),template:readFileSync(template,"utf8"),repo,issue,slug,folder,branch};
+ const packet=name=>discoveryPacket({...packetSource,document:name});
  mkdirSync(logs,{recursive:true});
  const rows=[];
  const usage=()=>writeFileSync("/tmp/ai-org-usage.json",JSON.stringify({version:1,item:Number(issue),attempt:Number(process.env.GITHUB_RUN_ATTEMPT),at:Date.now(),rows},null,2));
