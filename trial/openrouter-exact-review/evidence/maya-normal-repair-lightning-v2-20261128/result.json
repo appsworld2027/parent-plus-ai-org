@@ -1,0 +1,7 @@
+{
+  "status": "blocked",
+  "role": "maya-ai-pm",
+  "variant": "normal",
+  "failure": "provider-or-artifact-blocked:identity-finish-or-format",
+  "qualification": false
+}
