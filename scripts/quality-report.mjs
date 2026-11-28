@@ -1,7 +1,151 @@
 #!/usr/bin/env node
-import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
-import {parse} from 'node:path';
-function csv(p){const lines=readFileSync(p,'utf8').trim().split(/\r?\n/);return lines.slice(1).filter(Boolean);}
-const features=csv('qa/feature-registry.csv'); const scenarios=csv('qa/test-scenario-registry.csv'); const trace=csv('qa/traceability.csv');
-const report={generatedAt:new Date().toISOString(),featuresIndexed:features.length,scenariosIndexed:scenarios.length,traceabilityRows:trace.length,qualityStatus:features.length&&features[0].includes('PENDING_CLARIFICATION')?'NEEDS_REVIEW':'READY'};
-mkdirSync('evidence',{recursive:true});writeFileSync('evidence/quality-report.json',JSON.stringify(report,null,2)+'\n');writeFileSync('evidence/QUALITY-REPORT.md',`# Parent Plus Quality Report\n\n- Features indexed: ${report.featuresIndexed}\n- Scenarios indexed: ${report.scenariosIndexed}\n- Traceability rows: ${report.traceabilityRows}\n- Status: **${report.qualityStatus}**\n\nThis report separates registry coverage from executed test pass rate. Template rows are not passed tests.\n`);console.log(JSON.stringify(report));
+import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+
+// Registry entries are declarations, not verified execution receipts. Never infer
+// release approval from a CSV flag (even if every row reports success).
+function readRegistry(path, required) {
+  const text = readFileSync(path, "utf8").replace(/^\uFEFF/, "");
+  const rows = [];
+  let row = [], field = "", quoted = false, closed = false;
+  const fail = (reason) => { throw new Error("Invalid CSV in " + path + ": " + reason); };
+  const endField = () => { row.push(field.trim()); field = ""; closed = false; };
+  const endRow = () => {
+    endField();
+    if (row.some(Boolean)) rows.push(row);
+    row = [];
+  };
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c !== '"') field += c;
+      else if (text[i + 1] === '"') { field += '"'; i++; }
+      else { quoted = false; closed = true; }
+    } else if (c === ",") endField();
+    else if (c === "\r" || c === "\n") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      endRow();
+    } else if (c === '"') {
+      if (field || closed) fail("quote within an unquoted field");
+      quoted = true;
+    } else {
+      if (closed) fail("unexpected character after closing quote");
+      field += c;
+    }
+  }
+  if (quoted) fail("unterminated quoted field");
+  if (row.length || field || closed) endRow();
+  const header = rows.shift();
+  if (!header || new Set(header).size !== header.length || required.some(key => !header.includes(key))) {
+    fail("missing or duplicate required header");
+  }
+  return rows.map((cells, i) => {
+    if (cells.length !== header.length) fail("row " + (i + 2) + " has " + cells.length + " fields; expected " + header.length);
+    return Object.fromEntries(header.map((key, j) => [key, cells[j]]));
+  });
+}
+
+const upper = value => (value || "").toUpperCase();
+const template = value => /^TEMPLATE-/i.test(value || "");
+const featureRows = readRegistry("qa/feature-registry.csv", [
+  "Feature ID", "Feature Name", "Implementation Status", "Requirement Source", "Acceptance Criteria"
+]);
+const scenarioRows = readRegistry("qa/test-scenario-registry.csv", [
+  "Scenario ID", "Feature ID", "Scenario Description", "Expected Outcome", "Actual Outcome", "Result", "Last Execution", "Evidence"
+]);
+const traceRows = readRegistry("qa/traceability.csv", [
+  "Feature ID", "Scenario ID", "Requirement Evidence", "Implementation Evidence", "Test Evidence", "Independent Review", "Release Gate Status"
+]);
+const features = featureRows.filter(row => !template(row["Feature ID"]));
+const scenarios = scenarioRows.filter(row => !template(row["Scenario ID"]) && !template(row["Feature ID"]));
+const trace = traceRows.filter(row => !template(row["Feature ID"]) && !template(row["Scenario ID"]));
+const reviewReasons = [];
+const reason = text => reviewReasons.push(text);
+const group = (rows, field) => {
+  const map = new Map();
+  for (const row of rows) {
+    const value = row[field];
+    if (!map.has(value)) map.set(value, []);
+    map.get(value).push(row);
+  }
+  return map;
+};
+const featureById = group(features, "Feature ID");
+const scenarioById = group(scenarios, "Scenario ID");
+if (!features.length) reason("No real features are registered.");
+if (!scenarios.length) reason("No real test scenarios are registered.");
+if (!trace.length) reason("No real traceability links are registered.");
+for (const [id, rows] of featureById) {
+  if (!id || rows.length !== 1) reason("Missing or duplicate feature ID: " + (id || "(blank)"));
+}
+for (const [id, rows] of scenarioById) {
+  if (!id || rows.length !== 1) reason("Missing or duplicate scenario ID: " + (id || "(blank)"));
+}
+const scenariosByFeature = group(scenarios, "Feature ID");
+const traceByScenario = group(trace, "Scenario ID");
+for (const feature of features) {
+  const id = feature["Feature ID"];
+  if (!feature["Feature Name"] || !feature["Requirement Source"] || !feature["Acceptance Criteria"] ||
+      upper(feature["Implementation Status"]) !== "IMPLEMENTED") {
+    reason("Feature " + (id || "(blank)") + " is not recorded as implemented with requirements and acceptance criteria.");
+  }
+  if (!scenariosByFeature.has(id)) reason("Feature " + (id || "(blank)") + " has no registered test scenario.");
+}
+
+let recordedPassed = 0;
+for (const scenario of scenarios) {
+  const id = scenario["Scenario ID"], featureId = scenario["Feature ID"];
+  const unique = id && scenarioById.get(id)?.length === 1;
+  const validFeature = featureId && featureById.get(featureId)?.length === 1;
+  if (!validFeature) reason("Scenario " + (id || "(blank)") + " refers to missing or ambiguous feature " + (featureId || "(blank)") + ".");
+  const recordedPass = unique && validFeature && ["PASS", "PASSED"].includes(upper(scenario.Result)) &&
+    ["Scenario Description", "Expected Outcome", "Actual Outcome", "Last Execution", "Evidence"].every(field => scenario[field]);
+  if (recordedPass) recordedPassed++;
+  else reason("Scenario " + (id || "(blank)") + " has no complete, unique recorded pass.");
+  const links = traceByScenario.get(id) || [];
+  if (links.length !== 1 || links[0]["Feature ID"] !== featureId) {
+    reason("Scenario " + (id || "(blank)") + " needs exactly one matching feature-to-test trace.");
+  }
+}
+for (const link of trace) {
+  const featureId = link["Feature ID"], scenarioId = link["Scenario ID"];
+  const referenced = scenarioById.get(scenarioId);
+  if (!featureId || featureById.get(featureId)?.length !== 1 || !scenarioId ||
+      referenced?.length !== 1 || referenced[0]["Feature ID"] !== featureId) {
+    reason("Trace " + (scenarioId || "(blank)") + " refers to a missing or mismatched feature/scenario.");
+  }
+  if (!["Requirement Evidence", "Implementation Evidence", "Test Evidence"].every(field => link[field]) ||
+      upper(link["Independent Review"]) !== "APPROVED" || upper(link["Release Gate Status"]) !== "READY") {
+    reason("Trace " + (scenarioId || "(blank)") + " lacks recorded evidence or review/gate status.");
+  }
+}
+
+const product = (process.env.GITHUB_REPOSITORY || "AppsWorld AI Organization").replace(/[\r\n]/g, " ").trim();
+const report = {
+  generatedAt: new Date().toISOString(),
+  product,
+  featuresIndexed: features.length,
+  scenariosIndexed: scenarios.length,
+  traceabilityRows: trace.length,
+  templateRowsExcluded: featureRows.length + scenarioRows.length + traceRows.length - features.length - scenarios.length - trace.length,
+  recordedPassed,
+  qualityStatus: reviewReasons.length ? "NEEDS_REVIEW" : "RECORDED_EVIDENCE",
+  releaseReadiness: "UNVERIFIED",
+  reviewReasons
+};
+mkdirSync("evidence", { recursive: true });
+writeFileSync("evidence/quality-report.json", JSON.stringify(report, null, 2) + "\n");
+const summary = [
+  "# " + product + " — Quality Report", "",
+  "- Real features indexed: " + report.featuresIndexed,
+  "- Real scenarios indexed: " + report.scenariosIndexed,
+  "- Real traceability rows: " + report.traceabilityRows,
+  "- Template rows excluded: " + report.templateRowsExcluded,
+  "- Recorded passes with evidence references: " + report.recordedPassed,
+  "- Registry status: **" + report.qualityStatus + "**",
+  "- Release readiness: **UNVERIFIED**", "",
+  "Recorded results are not independently verified test outcomes. Registry completeness is not release approval. No unrun, skipped, blocked or template scenario is counted as a recorded pass.",
+  ...reviewReasons.slice(0, 20).map(text => "- " + text.replace(/[\r\n]/g, " ")),
+  ...(reviewReasons.length > 20 ? ["- Remaining review reasons are in quality-report.json."] : []), ""
+].join("\n");
+writeFileSync("evidence/QUALITY-REPORT.md", summary);
+console.log(JSON.stringify(report));

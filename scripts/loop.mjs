@@ -141,6 +141,37 @@ export function contractState(comments = [], founders = []) {
   }
   return { slug: ready?.slug || null, ready: !!ready && ready.at > changedAt };
 }
+
+/**
+ * Reconcile only the latest direction from each configured founder in the active
+ * contract or demo cycle. Different change requests require human reconciliation;
+ * the controller must not guess whether their meanings are compatible.
+ */
+export function founderDecisionState(comments = [], founders = [], cycle = "contract") {
+  const ordered = [...comments].sort((a, b) =>
+    String(a.created_at || "").localeCompare(String(b.created_at || "")) ||
+    Number(a.id || 0) - Number(b.id || 0));
+  const marker = cycle === "demo" ? MARK.demo : MARK.contractReady;
+  const latest = new Map();
+  for (const c of ordered) {
+    const body = c.body || "";
+    if (body.includes(`<!-- ${marker}`) && !parseCommand(body)) {
+      latest.clear();
+      continue;
+    }
+    if (!isFounder(c.user?.login, c.author_association, founders)) continue;
+    const direction = parseCommand(body);
+    if (!direction || !["approve", "changes", "stop"].includes(direction.cmd)) continue;
+    const login = String(c.user.login).toLowerCase();
+    latest.delete(login);
+    latest.set(login, { id: c.id, login, cmd: direction.cmd, text: direction.text });
+  }
+  const directions = [...latest.values()];
+  const choices = new Set(directions.map(d =>
+    d.cmd === "changes" ? `changes:${d.text.replace(/\s+/g, " ").trim()}` : d.cmd));
+  return { conflict: choices.size > 1, directions };
+}
+
 export const slugOfBranch = (b = "") => (b.match(/^ai\/contract-(.+)$/) || [])[1] || null;
 export function demoPack({ pr, title, why, acs, preview, founders = [], checksUrl = "" }) {
   const rows = acs.map((a) => `| ${a.id} | ${a.when || "—"} | ${a.then} | ✅ |`).join("\n");
@@ -206,11 +237,35 @@ const label = (n, add = [], remove = []) => act(`#${n} labels +[${add}] -[${remo
   if (add.length) gh("api", "-X", "POST", `repos/${REPO}/issues/${n}/labels`, ...add.flatMap((l) => ["-f", `labels[]=${l}`]));
 });
 function wake(n) { if (process.env.GITHUB_ACTIONS === "true") act(`wake agents for #${n}`, () => gh("workflow", "run", cfg().loop.agentsWorkflow, "--repo", REPO, "-f", `number=${n}`)); }
+// A routing label must be part of the issue creation transaction. A separate
+// create/edit can strand an unlabeled issue after interruption. Never wake a
+// worker until GitHub confirms the exact issue and label; no blind POST retry.
+export function createRoutedIssue({ repository, title, body, route, post, wakeWorker }) {
+  if (typeof repository !== "string" || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository) ||
+      typeof title !== "string" || !title.trim() || typeof body !== "string" ||
+      typeof route !== "string" || !/^ai:[a-z-]+$/.test(route) ||
+      typeof post !== "function" || typeof wakeWorker !== "function") throw Error("Invalid issue routing request");
+  const receipt = post({ repository, title, body, route });
+  const number = receipt?.number;
+  if (!Number.isSafeInteger(number) || number <= 0 || receipt.pull_request ||
+      receipt.state !== "open" || receipt.title !== title || receipt.body !== body ||
+      typeof receipt.repository_url !== "string" ||
+      receipt.repository_url.toLowerCase() !== ("https://api.github.com/repos/" + repository).toLowerCase() ||
+      typeof receipt.html_url !== "string" ||
+      receipt.html_url.toLowerCase() !== ("https://github.com/" + repository + "/issues/" + number).toLowerCase() ||
+      !Array.isArray(receipt.labels) || !receipt.labels.some(label => label?.name === route)) {
+    throw Error("Issue creation not fully confirmed; reconcile before retry");
+  }
+  wakeWorker(String(number));
+  return String(number);
+}
 function newIssue(title, body, lbl) {
-  return act(`open issue "${title}" (${lbl})`, () => {
-    const url = gh("issue", "create", "--repo", REPO, "--title", title, "--body", body).trim();
-    const n = url.split("/").pop(); gh("issue", "edit", n, "--repo", REPO, "--add-label", lbl); wake(n); return n;
-  });
+  return act(`open issue "${title}" (${lbl})`, () => createRoutedIssue({
+    repository: REPO, title, body, route: lbl,
+    post: ({ repository, title, body, route }) => JSON.parse(gh("api", "-X", "POST",
+      `repos/${repository}/issues`, "-f", `title=${title}`, "-f", `body=${body}`, "-f", `labels[]=${route}`)),
+    wakeWorker: wake
+  }));
 }
 const labelsOf = (x) => (x.labels || []).map((l) => l.name || l);
 const openPRs = () => ghj("pr", "list", "--repo", REPO, "--state", "open", "--limit", "100", "--json", "number,title,baseRefName,headRefName,headRefOid,labels,body,url");
@@ -407,7 +462,10 @@ export function next() {
   const busy = [...open.filter(i => /^Discovery: .* \[/.test(i.title) || labelsOf(i).some(l => [...IN_FLIGHT, "ai:founder-decision", "ai:blocked"].includes(l))),
     ...prs.filter(p => /^ai\/(contract|build|fix)-/.test(p.headRefName) || labelsOf(p).some(l => [...IN_FLIGHT, "ai:blocked"].includes(l)))];
   let md = ""; try { md = readFileSync(cfg().loop.backlog, "utf8"); } catch { return log(`next: no ${cfg().loop.backlog}`); }
-  const titles = ghj("issue", "list", "--repo", REPO, "--state", "all", "--limit", "300", "--search", "Discovery: in:title", "--json", "title").map((i) => i.title);
+  const history = ghj("issue", "list", "--repo", REPO, "--state", "all", "--limit", "300", "--search", "Discovery: in:title", "--json", "title");
+  if (history.length >= 300) return log("next: incomplete discovery history; scheduling paused");
+  // Include current open inventory even if GitHub search indexing has lagged.
+  const titles = [...history, ...open.filter(i => /^Discovery: .* \[/.test(i.title))].map(i => i.title);
   const used = titles.map((t) => (t.match(/\[([a-z0-9-]+)\]$/) || [])[1]).filter(Boolean);
   const items = [];
   for (let item; (item = nextBacklogItem(md, [...used, ...items.map(i => i.slug)]));) items.push(item);
@@ -429,6 +487,24 @@ function command() {
   if (!isFounder(c.user.login, c.author_association, cfg().founders)) return log(`command: ignored /${parsed.cmd} from ${c.user.login} (not a founder)`);
   const item = api(`issues/${n}`), L = labelsOf(item), isPR = !!item.pull_request;
   const who = c.user.login;
+
+  // Reconcile known directions before any contract/release transition. Stop remains
+  // immediate and /next remains independent of the affected decision.
+  if (["approve", "changes"].includes(parsed.cmd) &&
+      (isPR ? L.includes("ai:founder-test") : (L.includes("ai:founder-decision") || L.includes("ai:discovery")))) {
+    const history = apiItems(`issues/${n}/comments?per_page=100`, ".[]");
+    if (!history.some(x => String(x.id) === String(id))) history.push(c);
+    const state = founderDecisionState(history, cfg().founders, isPR ? "demo" : "contract");
+    if (!state.directions.some(d => String(d.id) === String(id))) {
+      return log(`#${n}: obsolete founder direction; no action`);
+    }
+    if (state.conflict) {
+      const marker = `<!-- ai-org:founder-conflict ${state.directions.map(d => d.id).join(",")} -->`;
+      if (history.some(x => (x.body || "").includes(marker))) return log(`#${n}: founder conflict already recorded`);
+      return comment(n, `${marker}\n**[Kiran — Project Manager]** Founder directions differ in this decision cycle: ${state.directions.map(d => `@${d.login}: /${d.cmd} (comment ${d.id})`).join("; ")}. The affected transition is paused. Please align the latest directions; unrelated work can continue.`);
+    }
+  }
+
   if (parsed.cmd === "next") return next();
   if (parsed.cmd === "stop") { label(n, ["ai:blocked"]); return comment(n, `**[Kiran — Project Manager]** Stopped by @${who}. Reply \`/changes <direction>\` to resume.`); }
   if (L.includes("ai:blocked") && parsed.cmd === "approve") return log(`#${n}: blocked; resume work before approving`);

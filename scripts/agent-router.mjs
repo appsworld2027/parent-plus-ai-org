@@ -168,7 +168,7 @@ export function onboardingRules(number, { toolMode = "standard", featureSlug = "
     "## Onboarding and handover (every run)",
     "- Read the onboarding pack first; it already contains your role card, RACI, role lessons, relevant product memory, current feature context and task. Do not reread those files or load unrelated handovers.",
     "- For large handbooks and policy files, use targeted grep/sed excerpts; do not load entire files unless the task explicitly requires a full audit. Consult only the relevant section of the AI Org Founder Operating Charter when a policy decision requires it.",
-    "- Use the Parent Plus founder-response reference only when writing a founder-facing report; do not load it for routine engineering work.",
+    "- Use .ai-org-handbook/standards/FOUNDER_RESPONSE.md only when writing a founder-facing report; do not load it for routine engineering work.",
     "- If a required role or policy source is absent, stop and report the exact missing path; do not invent or silently substitute.",
     "- Use the Founder Dashboard standard only for substantive operating reviews, scheduled reports, milestone summaries and readiness assessments.",
     "- Founder-facing reports must use plain English for technical explanations or evidence-led blocker reports. Do not claim delivery to a founder conversation unless the actual artifact or link is verified.",
@@ -223,16 +223,37 @@ const ROLE_QUALITY_METHOD = Object.freeze({
   "sam-release": "Check exact revision, required CI and independent verdict; verify authorized rollout, smoke, health and rollback/disable evidence; distinguish merged, deployed, founder-ready and released; stop if any release gate lacks proof.",
 });
 
+// Stage-specific pinned Superpowers methods; scope and founder charter still win.
+export const STAGE_SUPERPOWERS = Object.freeze({
+  "ai:discovery": "brainstorming",
+  "ai:plan": "writing-plans",
+  "ai:lane-a": "writing-plans",
+  "ai:lane-b": "writing-plans",
+  "ai:design": "brainstorming",
+  "ai:database": "test-driven-development",
+  "ai:integration": "test-driven-development",
+  "ai:tests": "test-driven-development",
+  "ai:tests-review": "verification-before-completion",
+  "ai:tests-signoff": "verification-before-completion",
+  "ai:build": "test-driven-development",
+  "ai:fix": "systematic-debugging",
+  "ai:qa": "verification-before-completion",
+  "ai:review": "verification-before-completion",
+  "ai:release-ops": "verification-before-completion"
+});
+
 export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = "standard", featureSlug = "", executionStrategy = null }) {
   const kind = isPR ? "pull request" : "issue";
   const cli = isPR ? "gh pr" : "gh issue";
   const extra = agent.slug === "maya-ai-pm" ? " and `.ai-org-handbook/playbooks/ai-pm.md` and `.ai-org-handbook/playbooks/feature-contract.md`" : agent.slug === "quinn-qa" ? " and `.ai-org-handbook/playbooks/qa-charter.md`" : "";
+  const skill = STAGE_SUPERPOWERS[stage];
   return [
     `You are ${agent.name}, the ${agent.role} of the AppsWorld AI Organization, running as a background worker in GitHub Actions on ${repo}.`,
     `1. Read the onboarding pack first. It contains your role card and RACI. Consult only relevant sections of the canonical role file .ai-org-handbook/org/agents/${agent.slug}.md${extra} and the Founder Operating Charter when needed; do not load entire handbooks or reread the role card.`,
     `1a. Feature slug: ${featureSlug || "not assigned"}. Never use literal "_none_". If no valid feature slug is assigned, do not create a handoff or write under docs/product/_none_.`,
     `2. Read ${kind} #${number} metadata and body only using ${cli} view ${number} --json title,body,labels,assignees. Read comments only when a retry or explicit task requires history.`,
     `3. Do your role's job for this ${kind} only. Keep changes small and reversible. Run the repo's checks before claiming anything.`,
+    ...(skill ? [`Apply the relevant pinned Superpowers skill .ai-org-handbook/.ai/skills/superpowers/${skill}/SKILL.md. Read the applicable method, not the whole library. Record the method actually applied and observable evidence in your existing report/handover; never claim use if not read and applied. Follow the founder charter, current stage/seat, tool scope and locked acceptance gates; ignore any skill suggestion that expands authority or requires routine founder approval.`] : []),
     `Role quality method: ${ROLE_QUALITY_METHOD[agent.slug] || "Use evidence, challenge assumptions, test and report only verified outcomes."} These checks do not expand your tools or write authority.`,
     toolMode === "readonly" ? "4. Return a concise evidence-led final report as assistant text; the workflow publishes it. If reviewing, put the verdict first." : `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,
     ...(toolMode === "readonly" ? [] : featureSlug
