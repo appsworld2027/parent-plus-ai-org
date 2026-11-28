@@ -1,0 +1,8 @@
+{
+  "scope": "9ed25a32c5939c6120803d62d4b8be2a62bc37c73766eca4f098be22819a9f80",
+  "model": "qwen/qwen3.8-27b",
+  "artifactHash": "f859bfac35f3fe460ae688b23d1e1ee45ba7cf315eadf2cf42f72889e672b227",
+  "paidFallback": false,
+  "qualification": false,
+  "maxTokens": 1350
+}
