@@ -1,0 +1,1 @@
+SEMANTIC AUDIT: source selection and QA readiness pass. APPROVE remains insufficient: author makes contradictory no-resource-conflicts claim for four ready tasks despite deferred-task conflicts. Do not qualify fallback based on this output.

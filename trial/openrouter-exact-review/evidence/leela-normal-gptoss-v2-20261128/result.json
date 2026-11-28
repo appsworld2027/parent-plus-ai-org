@@ -1,0 +1,66 @@
+{
+  "status": "review-completed-semantic-inspection-required",
+  "model": "openai/gpt-oss-120b",
+  "rawHash": "a3569654c6498e63323ffec593754f9aa0341910dc3c43d31dbe13efe264d368",
+  "reviewRawHash": "cf5d574513219f1c5c1630fe528d0fb70fcadfd5b90251db8ee59ef716f9d07a",
+  "review": {
+    "verdict": "APPROVE",
+    "evidence": [
+      {
+        "criterion": "dispatch-safety",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "Selected api (lane A, resources: api:board, file:board.mjs, product:reminder-visibility) and ui (lane B, resource: file:board.html) for lane balance."
+      },
+      {
+        "criterion": "authority-reconciliation",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "No expired/reconcile/blocked tasks."
+      },
+      {
+        "criterion": "dependency-completion",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "Downstream QA requires actual completion of api, database, ui, and integration before QA can start; they are not yet completed."
+      },
+      {
+        "criterion": "honest-execution",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "No existing PR evidence on pending tasks (evidence null)."
+      },
+      {
+        "criterion": "controller-plan",
+        "source": "CONTROLLER",
+        "status": "supported",
+        "quote": "\"dispatchTaskIds\":[\"api\",\"ui\"]"
+      }
+    ],
+    "findings": []
+  },
+  "gate": {
+    "valid": true,
+    "reason": "provenance-screen-pass",
+    "qualification": false,
+    "semanticJudgmentStillRequired": true
+  },
+  "qa": {
+    "valid": true,
+    "reason": "minimum-qa-quote-screen-pass",
+    "ids": [
+      "api",
+      "database",
+      "ui",
+      "integration"
+    ],
+    "missing": []
+  },
+  "usage": {
+    "prompt_tokens": 1246,
+    "completion_tokens": 416,
+    "total_tokens": 1662
+  },
+  "paidFallback": false,
+  "qualification": false
+}
