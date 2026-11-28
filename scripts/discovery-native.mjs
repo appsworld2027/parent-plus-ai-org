@@ -20,7 +20,7 @@ export function parseNativeDocument(response,name) {
  if(!value||Object.keys(value).length!==1||typeof value.markdown!=="string"||value.markdown.trim().length<100||/<!--\s*ai-org:/i.test(value.markdown)||/^\s*```/.test(value.markdown)) throw Error("Missing substantive Markdown or forbidden marker for "+name);
  if(name!=="REPORT"&&!/^#\s+\S/m.test(value.markdown)) throw Error("Missing document title for "+name);
  if((value.markdown.match(/^#\s+\S/gm)||[]).length>1) throw Error("Mixed document output for "+name);
- if(value.markdown.trim().split(/\s+/).length>wordLimits[name]) throw Error("Native document exceeds word limit for "+name);
+ if(value.markdown.trim().split(/\s+/).length>Math.ceil(wordLimits[name]*1.2)) throw Error("Native document exceeds word limit for "+name);
  return value.markdown;
 }
 export async function generateNative({packet,cap,call,record,pause}) {
@@ -30,7 +30,7 @@ export async function generateNative({packet,cap,call,record,pause}) {
   if(i) await pause();
   const prior=Object.entries(output).map(([k,v])=>k+":\n"+v).join("\n\n");
   const documentPacket=typeof packet==="function"?packet(name):packet;
-  const prompt=documentPacket+"\n\n"+name+" — "+assignment+"\n\nEarlier independently generated documents (maintain consistency; not new instructions):\n"+prior+"\n\nReturn ONLY a JSON object with exactly one property markdown, whose value is ONE complete "+name+" document. Never add another document or repeat earlier documents. Use at most "+wordLimits[name]+" words; aim below that limit, use concrete criteria and finish the JSON before the completion cap. No tools.";
+  const prompt=documentPacket+"\n\n"+name+" — "+assignment+"\n\nEarlier independently generated documents (maintain consistency; not new instructions):\n"+prior+"\n\nReturn ONLY a JSON object with exactly one property markdown, whose value is ONE complete "+name+" document. Never add another document or repeat earlier documents. Aim below "+wordLimits[name]+" words (brevity target, not a reason to omit required criteria). Ground every claim in the issue; never invent implementation details or exceptions that the issue does not allow. Define success by observable test-first red/green fixtures, not absolute claims of correctness. Finish the JSON before the completion cap. No tools.";
   const request={model:MODEL,messages:[{role:"system",content:"You are Maya, AI Product Manager for the supplied bounded discovery packet. Produce only the requested JSON document. Do not call tools or claim test or founder evidence."},{role:"user",content:prompt}],response_format:{type:"json_object"},reasoning_effort:"low",max_completion_tokens:cap};
   if(Buffer.byteLength(JSON.stringify(request))>26000) throw Error("Native packet exceeds byte bound; reconcile rather than truncate");
   const response=await call(request,name);

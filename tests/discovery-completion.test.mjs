@@ -177,8 +177,10 @@ test("native pilot requires all four provider-authored JSON documents, retains p
   assert.equal(calls,4);assert.equal(receipts,4);assert.equal(pauses,3);
  const mixed={...response,choices:[{finish_reason:"stop",message:{content:JSON.stringify({markdown:md+"\n# Another document\nMore content"})}}]};
  assert.throws(()=>parseNativeDocument(mixed,"SUMMARY.md"),/Mixed document output/);
- const excessive={...response,choices:[{finish_reason:"stop",message:{content:JSON.stringify({markdown:"# Title\n"+"word ".repeat(351)})}}]};
+ const excessive={...response,choices:[{finish_reason:"stop",message:{content:JSON.stringify({markdown:"# Title\n"+"word ".repeat(421)})}}]};
  assert.throws(()=>parseNativeDocument(excessive,"SUMMARY.md"),/exceeds word limit/);
+ const slightOver={...response,choices:[{finish_reason:"stop",message:{content:JSON.stringify({markdown:"# Title\n"+"word ".repeat(355)})}}]};
+ assert.equal(parseNativeDocument(slightOver,"SUMMARY.md").split(/\s+/).filter(Boolean).length,357);
 
  await assert.rejects(generateNative({packet:"Task",cap:3001}),/Invalid free native packet completion cap/);
   const reportPath=join(root,"report.md"),folder="docs/product",slug="f010-quality-drift";
