@@ -1,0 +1,35 @@
+{
+  "scope": "2c5e3cb750cdfe1d339cfebd47c368894ab63fe7f26a15ddc2dc6b1a3bc0d50a",
+  "role": "maya-ai-pm",
+  "variant": "normal",
+  "fixtureHash": "6e581a36137fedb766899bd4c109e80289ed0358e842929f4c15c04c49cf5489",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "steps": [
+    {
+      "path": "problem-options.json",
+      "format": "json_object",
+      "maxTokens": 1500
+    },
+    {
+      "path": "measurement-handoff.json",
+      "format": "json_object",
+      "maxTokens": 1500
+    },
+    {
+      "path": "founder-brief.md",
+      "format": "text",
+      "maxTokens": 900
+    }
+  ],
+  "controllerAssembly": true,
+  "toolGeneratedFields": [
+    "fixtureHash",
+    "contractVersion",
+    "acceptance",
+    "states",
+    "scope",
+    "observed"
+  ],
+  "qualification": false,
+  "paidFallback": false
+}

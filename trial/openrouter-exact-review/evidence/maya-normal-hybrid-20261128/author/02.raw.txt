@@ -1,0 +1,23 @@
+{
+  "metric": {
+    "event": "reminder-saved-and-visible",
+    "baseline": null,
+    "targetPercent": 80,
+    "windowDays": 14,
+    "minimumSample": 50,
+    "numerator": "confirmed-visible-saves",
+    "denominator": "eligible-save-attempts"
+  },
+  "decision": {
+    "action": "continue",
+    "conflictSource": null,
+    "recommended": "retain-tenant-isolation",
+    "safeWork": ["tenant-view", "tenant-save"]
+  },
+  "handoff": {
+    "owner": "arjun-cpto",
+    "review": "pending",
+    "feedback": "routine-validation",
+    "nextAction": "v1.0: implement tenant-view and tenant-save endpoints per S4 contract; run 2-week beta per A1 validation"
+  }
+}
