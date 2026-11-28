@@ -8,7 +8,7 @@ Scope: supervised synthetic qualification evidence only; not full role admission
 |---|---|---|---|
 | Kiran project manager | Q-001 PASS 12/12 | Q-002 PASS 12/12 | Q-003 PASS 12/12 |
 | Leela project manager | Q-004 PASS 14/14 (alternate reviewer) | Q-005 PASS 14/14 | Q-006 PASS 14/14 |
-| Maya AI PM | Q-007 PASS 12/12 (tool-assisted, independent 6/6) | Q-008 PENDING | Q-009 PENDING |
+| Maya AI PM | Q-007 PASS 12/12 (tool-assisted, independent 6/6) | Q-008 PASS 12/12 (independent defect repair 6/6) | Q-009 PENDING |
 | Arjun CPTO | Q-010 PENDING | Q-011 PENDING | Q-012 PENDING |
 | Iris design | Q-013 PENDING | Q-014 PENDING | Q-015 PENDING |
 | Dev coder | Q-016 PENDING | Q-017 PENDING | Q-018 PENDING |
@@ -34,7 +34,9 @@ Relative to trial/openrouter-exact-review:
 Use role-appropriate free model routes. Reject rate limits, unknown identities, truncated outputs, unsupported claims, wrong source attribution, contradictory approvals, failed acceptance screens; preserve raw receipts and never synthesize a replacement result. Stop or hold if parallel AI agents occupy reviewer capacity. Use offline accepted receipt replay before paying for more inference. Explicitly separate automated screen, independent model review, semantic inspection, role admission, unattended proof and real deployment.
 
 ## Outstanding acceptance gates
-Complete Q-008–Q-033 and all 15 organization admission gates; integrate a single agent/configuration policy, enforce stage-appropriate Superpowers, validate real product documents, actual independent QA, browser verification and deployment, memory recovery and interruption/laptop-closed execution. Keep security debt separately deferred.
+Complete Q-009–Q-033 and all 15 organization admission gates; integrate a single agent/configuration policy, enforce stage-appropriate Superpowers, validate real product documents, actual independent QA, browser verification and deployment, memory recovery and interruption/laptop-closed execution. Keep security debt separately deferred.
+
+- Q-008: evidence/maya-edge-bounded-20261128, v2, v3 (Groq defects and 429); evidence/maya-edge-bounded-nim-20261128 (12/12 but R3 rejection), evidence/maya-edge-independent-20261128 (Qwen exact REJECT), evidence/maya-edge-option-repair-20261128 (12/12), evidence/maya-edge-independent-v2-20261128 (Qwen APPROVE 6/6). Exact final artifact 9fc7689f022d1b61c3600bf2cb9394fe2da21a7f21229880fb42b7121849e2ca; one rationale repaired, 1,345-char brief. No full role admission.
 
 ## 28 November checkpoint
-7 of 33 supervised synthetic cases passed; 26 remain. All 75 trial unit tests passed; no inference required for offline replays. Q-008 edge Maya next, then Q-009 adversarial Maya. Security remains deferred; no paid route or production merge authorized.
+8 of 33 supervised synthetic cases passed; 25 remain. All 75 trial unit tests passed; no inference required for offline replays. Q-009 adversarial Maya next. Security remains deferred; no paid route or production merge authorized.
