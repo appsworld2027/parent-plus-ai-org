@@ -7,3 +7,4 @@ test('actual Kiran under-evidence quote rejected',()=>assert.equal(screenReconci
 test('actual Leela fencing plus PR current-base requirement accepted',()=>assert.equal(screenReconcileQuote(graph,review('old‑worker fencing required — must verify PR outcomes against current base aaaa...')).valid,true));
 test('current base required',()=>assert.equal(screenReconcileQuote(graph,review('fence old worker, inspect PR against prior base')).valid,false));
 test('normal case with no reconciliation skipped',()=>assert.equal(screenReconcileQuote({reconcile:[]},review('No expired/reconcile/blocked tasks')).valid,true));
+test('actual repair verification noun accepted',()=>assert.equal(screenReconcileQuote(graph,review('require old-worker fencing and verification of existing PR outcomes against current base before any reassignment')).valid,true));
