@@ -255,3 +255,11 @@ test("validated read-only synthetic smoke can still use NVIDIA; ordinary readonl
   assert.equal(route({ ...base, syntheticSmoke: true }).free_model, FREE_MODELS.nvidiaBuilder);
   assert.equal(route({ ...base, labels: ["ai:build"], syntheticSmoke: true }).free_model, FREE_MODELS.builder);
 });
+
+test("isolated alternate builder is Maya synthetic qualification only; ordinary and review routes unchanged", () => {
+  const base={labels:["ai:discovery"],engines:freeOnly,freeProviders:{groq:true,nvidia:true}};
+  assert.equal(route({...base,qualificationAlternateBuilder:true}).free_model,"groq/openai/gpt-oss-120b");
+  assert.equal(route({...base,syntheticQualification:true,qualificationAlternateBuilder:true}).free_model,"groq/openai/gpt-oss-20b");
+  assert.equal(route({...base,syntheticQualification:true,qualificationAlternateBuilder:true,freeProviders:{groq:false,nvidia:true}}).action,"pause");
+  assert.equal(route({...base,labels:["ai:review"],syntheticQualification:true,qualificationAlternateBuilder:true}).free_model,"groq/qwen/qwen3.8-27b");
+});
