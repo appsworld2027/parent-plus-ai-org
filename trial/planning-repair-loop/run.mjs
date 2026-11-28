@@ -1,3 +1,4 @@
+import {screenQaDependencyQuote} from './qa-quote.mjs';
 // Bounded one-command synthetic planning loop. No production state, paid route or automatic provider fallback.
 import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs';
 import {join} from 'node:path';import {homedir} from 'node:os';import {execFileSync} from 'node:child_process';
@@ -57,12 +58,12 @@ try{
   const g=JSON.parse(artifact.files.find(f=>['task-graph.json','lane-plan.json'].includes(f.path)).content);
   const author=JSON.parse(raw).handover,controller=JSON.stringify({fixture,graph:g,dispatchTaskIds:JSON.parse(raw).dispatchTaskIds});
 const prompt='Review the exact synthetic plan independently. Check dispatch readiness, capacity and conflicts; reconciliation and old-worker fencing; all dependencies completed before QA; no invented execution; controller graph. Do not attribute controller text to author. One JSON object only: {"verdict":"APPROVE or CHANGES","evidence":[{"criterion":"criterion id","source":"AUTHOR or CONTROLLER","status":"supported or missing","quote":"verbatim text or null"}],"findings":[{"criterion":"criterion id","message":"specific defect"}]}. Exactly one evidence item per criterion. Use short exact contiguous quotes. Missing or insufficient evidence requires CHANGES. Criteria: '+JSON.stringify(criteria)+'\nAUTHOR:\n'+author+'\nCONTROLLER:\n'+controller;
-  const rr=await materializeFiles({root:join(dir,'review'),requiredPaths:['review.json'],steps:[{path:'review.json',format:'json_object',maxTokens:900}],model:REVIEWER,outputBudget:900,scope:canonicalHash({...info,round:i,kind:'review',rawHash:record.rawHash,artifactHash:record.artifactHash}),buildPrompt:()=>prompt,invoke:x=>invoke('review',x)});
+  const rr=await materializeFiles({root:join(dir,'review'),requiredPaths:['review.json'],steps:[{path:'review.json',format:'json_object',maxTokens:900}],model:REVIEWER,outputBudget:900,scope:canonicalHash({...info,round:i,kind:'review',rawHash:record.rawHash,artifactHash:record.artifactHash}),buildPrompt:()=>prompt+(i>0?' For dependency-completion, quote the exact author sentence naming all incomplete QA predecessors and requiring them to complete before QA.':''),invoke:x=>invoke('review',x)});
   const review=JSON.parse(rr.files[0].content),gate=verifyReviewProvenance({author,controller,criteria,review});
   save(roundDir+'/review-result.json',{review,gate});
   Object.assign(record,{reviewRawHash:sha(rr.files[0].content),reviewUsage:rr.receipts[0].usage,provenance:gate.valid,verdict:review.verdict});
   if(!gate.valid){state.status='review-provenance-failed';checkpoint();break;}
-  if(review.verdict==='APPROVE'){state.status='synthetic-loop-approved-semantic-audit-required';checkpoint();break;}
+  if(review.verdict==='APPROVE'){const qaQuote=screenQaDependencyQuote(g,review);record.qaQuoteScreen=qaQuote;save(roundDir+'/qa-quote-screen.json',qaQuote);if(!qaQuote.valid){record.verdict='SEMANTIC_EVIDENCE_CHANGES';prior=raw;feedback={finding:'The review evidence did not prove every incomplete QA predecessor must complete before QA. Author must explicitly state that '+qaQuote.ids?.join(', ')+' must all complete before QA, not merely unblock. Do not claim they already completed.',review};checkpoint();continue;}state.status='synthetic-loop-approved-semantic-audit-required';checkpoint();break;}
   prior=raw;feedback=review;checkpoint();
  }
  if(state.status==='running')state.status='repair-budget-exhausted';
