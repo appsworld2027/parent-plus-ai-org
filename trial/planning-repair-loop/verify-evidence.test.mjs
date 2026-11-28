@@ -1,0 +1,11 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {cpSync,mkdtempSync,appendFileSync,rmSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {verifySavedLoop} from './verify-evidence.mjs';
+const base='trial/openrouter-exact-review/evidence';
+const normal=join(base,'kiran-normal-loop-20261128'),adversarial=join(base,'leela-adversarial-offline-replay-20261128');
+test('real normal one-command loop replays final hashes with zero inference',()=>assert.deepEqual(verifySavedLoop(normal),{role:'kiran-pjm-a',variant:'normal',rounds:2,finalRawHash:'e2b8448e6d5e3ebb480247384e73c43372fdffe0d30a161e93a7cd9bc44ca5a7',finalReviewHash:'081a2f51239f5804b100adb9455bb081ae71e55b189df8fc00bff97110a4c125',qualification:false,modelCalls:0}));
+test('real adversarial repaired loop replays with zero inference',()=>{const result=verifySavedLoop(adversarial);assert.equal(result.rounds,2);assert.equal(result.role,'leela-pjm-b');assert.equal(result.modelCalls,0);});
+test('tampered real author raw receipt cannot be replayed',()=>{const dir=mkdtempSync(join(tmpdir(),'ai-org-tamper-test-'));try{cpSync(normal,dir,{recursive:true});appendFileSync(join(dir,'round-1','author','01.raw.txt'),' ');assert.throws(()=>verifySavedLoop(dir));}finally{rmSync(dir,{recursive:true,force:true});}});
