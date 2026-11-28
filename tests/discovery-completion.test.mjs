@@ -134,3 +134,20 @@ test("manual pilot chains only the exact candidate revision and never advances u
    assert.doesNotMatch(main,/--ref/);
  }finally{rmSync(root,{recursive:true,force:true});}
 });
+
+test("compact discovery packet retains authoritative task, pinned method, template, evidence and approval gates",async()=>{
+  const {discoveryPacket}=await import("../scripts/discovery-packet.mjs");
+  const skill=readFileSync(new URL("../.ai/skills/superpowers/brainstorming/SKILL.md",import.meta.url),"utf8");
+  const template=readFileSync(new URL("../templates/PRODUCT_THINKING.md",import.meta.url),"utf8");
+  const base={task:"Unique task text",onboarding:"Start by inspecting issue metadata and body: gh issue view 170 --json title,body,labels,assignees. Previous decision preserved.",skill,template,repo:"fixture/repo",issue:"170",slug:"f010-quality-drift",folder:"docs/product",branch:"ai/contract-f010-quality-drift"};
+  const p=discoveryPacket(base);
+  assert.equal(p.split("Unique task text").length,2);
+  assert.match(p,/Previous decision preserved/);
+  assert.ok(p.includes(template));
+  assert.doesNotMatch(p,/gh issue view 170/);
+  assert.match(p,/No implementation or writing-plans until the written contract is approved/);
+  assert.match(p,/ai-org:contract-candidate f010-quality-drift/);
+  assert.throws(()=>discoveryPacket({...base,skill:skill+"changed"}),/Pinned brainstorming source changed/);
+  assert.throws(()=>discoveryPacket({...base,task:"x".repeat(12000)}),/exceeds 12000 bytes/);
+  assert.throws(()=>discoveryPacket({...base,branch:"main"}),/Invalid discovery assignment/);
+});

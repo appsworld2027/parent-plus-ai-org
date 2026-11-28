@@ -468,6 +468,13 @@ jobs:
           The authoritative issue body is embedded above; do not reread unless a specific ambiguity requires it.
           Discovery publication rule (overrides older issue or handbook marker instructions): deliver the complete product contract, commit and push SUMMARY.md, ACCEPTANCE.md, PRODUCT_THINKING.md to ai/contract-<slug>. Publish your substantive report with the footer <!-- ai-org:contract-candidate <slug> --> using the actual slug. Do not publish contract-ready or alter stage labels; the workflow verifies the remote files and publishes readiness. Do not stop at a recap."
           fi
+          # Compact packet only for the admitted F010 alternate route. Ordinary stages unchanged.
+          if [ "$FREE_MODEL" = groq/openai/gpt-oss-20b ] && [ "$STAGE" = ai:discovery ] && [ "$TOOL_MODE" = standard ]; then
+            PROMPT=$(node .ai-org-handbook/scripts/discovery-packet.mjs /tmp/body.md .ai-org-runtime/onboarding.md .ai-org-handbook/.ai/skills/superpowers/brainstorming/SKILL.md .ai-org-handbook/templates/PRODUCT_THINKING.md "$GITHUB_REPOSITORY" "$NUMBER" "$FEATURE_SLUG" "$docs_folder" "$BRANCH") || exit 1
+            TOOLS=Bash
+            ALLOWED_TOOLS=Bash
+            printf 'Compact discovery packet: %s bytes; one tool schema; pinned method and exact template.\n' "$(printf %s "$PROMPT" | wc -c)"
+          fi
           date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/agent-logs/started-at
           start=$(date +%s)
           rc=0
