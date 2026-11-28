@@ -6,6 +6,7 @@
 //   next     - start eligible backlog items under the delivery lane policy
 // Founder touches only two gates: approve the Feature Contract, and approve the Demo Pack (ship to main).
 // Everything else (contract tests, build, QA, review, merge into the feature branch, release checks) is automatic.
+import { DEFAULT_PRODUCT_DOCS_FOLDER, normalizeProductDocsFolder, resolveProductDocsFolder } from "./product-docs.mjs";
 import { execFileSync } from "node:child_process";
 import { selectDeliveryItems, verifyScopedChanges } from "./delivery-lanes.mjs";
 import {selectExecutionStrategy,resolveFeatureLoop} from "./execution-strategy.mjs";
@@ -185,9 +186,9 @@ export function demoPack({ pr, title, why, acs, preview, founders = [], checksUr
     "- \"change: <what to change>\" → it posts `/changes <what to change>`: agents fix it and send a new Demo Pack", "",
     `Evidence: full validation, locked acceptance tests, QA lab and contract-lock passed on the head commit${checksUrl ? ` (${checksUrl})` : ""}.`].join("\n");
 }
-export function buildIssueBody({ pr, branch, slug }) {
+export function buildIssueBody({ pr, branch, slug, docsFolder = DEFAULT_PRODUCT_DOCS_FOLDER }) {
   return [`<!-- ${MARK.buildFor} ${pr} -->`, "Owner: Dev", `Stage: build (stacked on contract PR #${pr})`, "",
-    "## Goal", `Build exactly what the approved Feature Contract says: \`docs/product/${slug}/ACCEPTANCE.md\` on branch \`${branch}\`.`,
+    "## Goal", `Build exactly what the approved Feature Contract says: \`${normalizeProductDocsFolder(docsFolder)}/${slug}/ACCEPTANCE.md\` on branch \`${branch}\`.`,
     `Locked tests: \`e2e/acceptance/\` on that branch. They fail today; make all of them pass.`, "",
     "## Hard rules (AI Org AGENTS.md §7A)",
     `1. \`git fetch origin && git switch -c ai/build-${slug} origin/${branch}\` — never from main.`,
@@ -205,12 +206,12 @@ export function fixIssueBody({ pr, branch, slug, text, author, n }) {
     "3. Done only when the acceptance tests and `npm run check` pass. Quote the result lines.",
     `4. Open the PR with base \`${branch}\`, body starting \`Closes #<this issue>\`, label it \`ai:qa\`. Never merge.`].join("\n");
 }
-export function discoveryIssueBody(item) {
+export function discoveryIssueBody(item, docsFolder = DEFAULT_PRODUCT_DOCS_FOLDER) {
   return [`Owner: Maya`, `Stage: discovery — backlog item \`${item.slug}\`${item.ref ? ` (${item.ref})` : ""}`, "",
     `## Idea`, item.title, "",
     "## What Maya does (AI Org playbooks/ai-pm.md + playbooks/feature-contract.md)",
     `1. Research silently (code, prototype in founders/prototypes/, PRD.md, roadmap). Decide what a good PM decides alone.`,
-    `2. Write \`docs/product/${item.slug}/ACCEPTANCE.md\` (template: AI Org playbooks/feature-contract.md, incl. loading/empty/error/offline/large-data ACs) and \`SUMMARY.md\` (≤2 min).`,
+    `2. Write \`${normalizeProductDocsFolder(docsFolder)}/${item.slug}/ACCEPTANCE.md\` (template: AI Org playbooks/feature-contract.md, incl. loading/empty/error/offline/large-data ACs) and \`SUMMARY.md\` (≤2 min).`,
     `3. Commit both on branch \`ai/contract-${item.slug}\` (create it from main the first time; on later rounds \`git fetch origin && git switch ai/contract-${item.slug}\`) and push that branch. NEVER commit to \`main\`. No app code, no tests.`,
     `4. Comment here: 2-minute summary, the AC table, out-of-scope list, any product question with options + one Recommended; end with \`<!-- ${MARK.contractReady} ${item.slug} -->\`.`,
     "5. Label this issue `ai:founder-decision` and remove `ai:discovery`. The founder decides in their AI chat; it posts `/approve` or `/changes <text>` here."].join("\n");
@@ -229,7 +230,7 @@ const apiItems = (path, query) => gh("api", "--paginate", `repos/${REPO}/${path}
 const log = (...a) => console.log(...a);
 function act(desc, fn) { log(`${DRY ? "[dry-run] would" : "→"} ${desc}`); if (!DRY) return fn(); }
 const manifest = () => existsSync(".ai-org/manifest.json") ? JSON.parse(readFileSync(".ai-org/manifest.json", "utf8")) : {};
-const cfg = () => { const m = manifest(); const strategy=selectExecutionStrategy({engine:"free",stage:"ai:build"}); const limits=resolveFeatureLoop(strategy,m.loop||{}); return { founders: m.governance?.founders || [], raci: m.raci || null, loop: { backlog: "docs/product/BACKLOG.md", agentsWorkflow: "ai-agents.yml", checksWorkflow: "checks.yml", qaWorkflow: "qa-lab.yml", requiredChecks: ["foundation"], lockedPaths: "e2e/acceptance/", ...(m.loop || {}), ...limits, executionStrategy:strategy.id } }; };
+const cfg = () => { const m = manifest(); const strategy=selectExecutionStrategy({engine:"free",stage:"ai:build"}); const limits=resolveFeatureLoop(strategy,m.loop||{}); const docsFolder = resolveProductDocsFolder(m); return { docsFolder, founders: m.governance?.founders || [], raci: m.raci || null, loop: { backlog: `${docsFolder}/BACKLOG.md`, agentsWorkflow: "ai-agents.yml", checksWorkflow: "checks.yml", qaWorkflow: "qa-lab.yml", requiredChecks: ["foundation"], lockedPaths: "e2e/acceptance/", ...(m.loop || {}), ...limits, executionStrategy:strategy.id } }; };
 const comments = (n) => api(`issues/${n}/comments?per_page=100`) || [];
 const comment = (n, body) => act(`comment on #${n}: ${body.split("\n").find((l) => l && !l.startsWith("<!--")).slice(0, 90)}`, () => gh("api", "-X", "POST", `repos/${REPO}/issues/${n}/comments`, "-f", `body=${body}`));
 const label = (n, add = [], remove = []) => act(`#${n} labels +[${add}] -[${remove}]`, () => {
@@ -371,7 +372,7 @@ function advanceRelease(pr) {
   }
   if (!lock("main", pr.headRefName, pr.headRefOid, ["ai:delivery"]).ok) { label(pr.number, ["ai:blocked"], ["ai:release"]); return comment(pr.number, "**[Sam — Release]** Delivery lock failed: locked tests differ from the approved contract. Blocked for review."); }
   const slug = slugOfBranch(pr.headRefName);
-  let md = ""; try { md = run("git", ["show", `origin/${pr.headRefName}:docs/product/${slug}/ACCEPTANCE.md`]); } catch { /* none */ }
+  let md = ""; try { md = run("git", ["show", `origin/${pr.headRefName}:${cfg().docsFolder}/${slug}/ACCEPTANCE.md`]); } catch { /* none */ }
   const a = parseAcceptance(md);
   comment(pr.number, demoPack({ pr: pr.number, title: a.title || pr.title, why: a.why, acs: a.acs, preview: previewUrl(pr.headRefOid), founders: cfg().founders }));
   label(pr.number, ["ai:founder-test"], ["ai:release"]);
@@ -427,8 +428,8 @@ function advanceContract(pr) {
     if (step === "block") { label(issue, ["ai:blocked"]); return comment(pr.number, "**[Kiran — Project Manager]** Sign-off still asks for changes after the fix round. Paused for the founder (`ai:blocked`)."); }
     if (step === "wait") return log(`#${pr.number}: waiting for QA verdicts`);
   }
-  const n = newIssue(`Build: ${pr.title.replace(/^Contract:\s*/i, "")} (stacked on #${pr.number})`, buildIssueBody({ pr: pr.number, branch: pr.headRefName, slug }), "ai:build");
-  comment(pr.number, `<!-- ${MARK.buildFor} ${pr.number} ${pr.headRefOid} -->\n**[Kiran — Project Manager]** Locked tests are in${cfg().raci?.["ai:tests"] ? " and signed off" : ""}. Build issue ${n ? `#${n}` : "(opened)"} assigned to Dev, with the full handover chain in \`docs/product/${slug}/handoffs/\`.`);
+  const n = newIssue(`Build: ${pr.title.replace(/^Contract:\s*/i, "")} (stacked on #${pr.number})`, buildIssueBody({ pr: pr.number, branch: pr.headRefName, slug, docsFolder: cfg().docsFolder }), "ai:build");
+  comment(pr.number, `<!-- ${MARK.buildFor} ${pr.number} ${pr.headRefOid} -->\n**[Kiran — Project Manager]** Locked tests are in${cfg().raci?.["ai:tests"] ? " and signed off" : ""}. Build issue ${n ? `#${n}` : "(opened)"} assigned to Dev, with the full handover chain in \`${cfg().docsFolder}/${slug}/handoffs/\`.`);
 }
 function advanceDiscovery() {
   const open = ghj("issue", "list", "--repo", REPO, "--state", "open", "--label", "ai:discovery", "--limit", "50", "--json", "number,labels");
@@ -438,7 +439,7 @@ function advanceDiscovery() {
     const st = contractState(comments(number), cfg().founders);
     if (!st.ready) { log(`#${number}: Maya still working on the contract`); continue; }
     label(number, ["ai:founder-decision"], ["ai:discovery"]);
-    comment(number, `**[Kiran — Project Manager]** Contract \`${st.slug}\` is ready for the founder's decision (\`docs/product/${st.slug}/\` on branch \`ai/contract-${st.slug}\`).`);
+    comment(number, `**[Kiran — Project Manager]** Contract \`${st.slug}\` is ready for the founder's decision (\`${cfg().docsFolder}/${st.slug}/\` on branch \`ai/contract-${st.slug}\`).`);
   }
 }
 export function advance() {
@@ -477,7 +478,7 @@ export function next() {
   const completed = Object.keys(scopes).length ? ghj("pr", "list", "--repo", REPO, "--state", "merged", "--base", "main", "--limit", "300", "--json", "headRefName").map(p => slugOfBranch(p.headRefName)).filter(Boolean) : [];
   const selected = selectDeliveryItems({items, active:busy, scopes, completed, maxLanes:policy.execution.maxConcurrentDeliveryLanes});
   if (!selected.length) return log("next: capacity, unresolved dependency, unknown scope or overlap; scheduling paused");
-  for (const item of selected) newIssue(`Discovery: ${item.title} [${item.slug}]`, discoveryIssueBody(item), "ai:discovery");
+  for (const item of selected) newIssue(`Discovery: ${item.title} [${item.slug}]`, discoveryIssueBody(item, cfg().docsFolder), "ai:discovery");
 }
 function command() {
   const id = process.env.COMMENT_ID; if (!id) return log("command: no COMMENT_ID");
@@ -547,7 +548,7 @@ function command() {
     }
     if (parsed.cmd === "approve") { label(n, [], ["ai:founder-decision", "ai:discovery"]); return comment(n, `**[Kiran — Project Manager]** Decision recorded: approved by @${who}.`); }
     if (parsed.cmd === "changes") {
-      const slug = ready?.[1], where = slug ? `\n\nMaya: revise \`docs/product/${slug}/\` on branch \`ai/contract-${slug}\` (\`git fetch origin && git switch ai/contract-${slug}\`). Never commit to \`main\`.` : "";
+      const slug = ready?.[1], where = slug ? `\n\nMaya: revise \`${cfg().docsFolder}/${slug}/\` on branch \`ai/contract-${slug}\` (\`git fetch origin && git switch ai/contract-${slug}\`). Never commit to \`main\`.` : "";
       label(n, ["ai:discovery"], ["ai:founder-decision", "ai:blocked"]); comment(n, `**[Kiran — Project Manager]** @${who} asked for changes — back to Maya:\n\n> ${parsed.text.replace(/\n/g, "\n> ")}${where}`); return wake(n);
     }
   }
