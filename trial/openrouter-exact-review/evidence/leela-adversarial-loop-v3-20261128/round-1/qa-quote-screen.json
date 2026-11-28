@@ -1,0 +1,11 @@
+{
+  "valid": false,
+  "reason": "insufficient-qa-completion-quote",
+  "ids": [
+    "api",
+    "database",
+    "ui",
+    "integration"
+  ],
+  "missing": []
+}

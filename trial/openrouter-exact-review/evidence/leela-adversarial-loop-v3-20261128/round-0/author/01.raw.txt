@@ -1,0 +1,4 @@
+{
+  "dispatchTaskIds": ["database"],
+  "handover": "Dispatching database (lane A) as sole immediate safe task per dispatchBudget=1. Dependencies satisfied: tests complete. Resources: schema:reminders (no conflict with other pending tasks). Capacity: 1/2 used. Reconcile tasks api (gen4, priorWorker=worker-old, priorBase=bbbb..., existingPr=synthetic-pr-41) and integration (gen7, priorWorker=worker-stale, priorBase=bbbb..., existingPr=synthetic-pr-42) both lack completionEvidence; old-worker fencing required before reassign — must verify PR outcomes against current base aaaa... and confirm actual completion, not just unblock, before downstream QA can proceed. ui (lane B, file:board.html) also ready but deferred by budget. No CI signals observed; decisions based on observed graph state only."
+}
