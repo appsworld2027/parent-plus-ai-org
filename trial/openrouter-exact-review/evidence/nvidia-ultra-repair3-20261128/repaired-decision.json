@@ -1,0 +1,7 @@
+{
+  "dispatchTaskIds": [
+    "api",
+    "ui"
+  ],
+  "handover": "Proposing dispatch of api (generation 4, new lease to synthetic-controller-api, base aaaa..., expiresAt 1060) and ui (generation 0, pending). Observed facts: api was previously expired at generation 3 (worker-old, base bbbb...); the controller has issued a new lease at generation 4 with a new base, fencing the old worker because the system honors only the highest generation lease for a task. Resources are exclusive: api uses api:board, file:board.mjs, product:reminder-visibility; ui uses file:board.html — no conflict. Capacity 2 and dispatchBudget 2 are fully utilized. Database remains blocked by migration-lock (blocker: migration-lock). Integration is pending, awaiting next cycle. QA depends on api, database, ui, and integration; therefore QA cannot proceed until the database task completes (not merely becomes unblocked). Next dependency-aware steps: after api and ui complete, dispatch integration; once integration completes AND database completes (migration-lock cleared and database work finished), dispatch qa, then review, then release. CI status unknown."
+}
