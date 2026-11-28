@@ -64,7 +64,7 @@ export function agentInfo(slug, dir = AGENTS_DIR) {
   return { slug, name: meta.name, role: meta.role, model: meta.model };
 }
 
-export function route({ labels = [], body = "", isPR = false, engines = { free: false }, freeModel = "", allowed = ALLOWED_ENGINES, supervisedTrial = false, syntheticSmoke = false, syntheticQualification = false, freeProviders = { groq: true, nvidia: false } }) {
+export function route({ labels = [], body = "", isPR = false, engines = { free: false }, freeModel = "", allowed = ALLOWED_ENGINES, supervisedTrial = false, syntheticSmoke = false, syntheticQualification = false, pilotContext = {}, freeProviders = { groq: true, nvidia: false } }) {
   const policyAllowed = new Set(ALLOWED_ENGINES);
   engines = Object.fromEntries(ENGINES.map((e) => [e, policyAllowed.has(e) && allowed.includes(e) && !!engines[e]]));
   freeProviders = { groq: freeProviders?.groq === true, nvidia: freeProviders?.nvidia === true };
@@ -100,9 +100,14 @@ export function route({ labels = [], body = "", isPR = false, engines = { free: 
     const available = (model) => freeProviders[model.split("/")[0]] === true;
     // NVIDIA developer endpoints are evaluation-only under the founder-approved policy.
     const evaluation = supervisedTrial === true || syntheticQualification === true || (syntheticSmoke === true && stage === "ai:discovery");
+    const pilot = AUTONOMY_POLICY.execution.providerPolicy?.supervisedPilotAlternate;
+    const supervisedPilot = !!pilot && pilot.model === "groq/openai/gpt-oss-20b" &&
+      stage === pilot.stage && pilotContext.repo === pilot.repository &&
+      String(pilotContext.issueNumber) === pilot.issueNumber && pilotContext.workflow === pilot.workflow &&
+      pilotContext.event === "workflow_dispatch" && pilotContext.ref === pilot.ref && pilotContext.toolMode === "standard";
     const candidates = reviewerSeat
       ? [FREE_MODELS.reviewer]
-      : evaluation ? [FREE_MODELS.nvidiaBuilder, FREE_MODELS.builder] : [FREE_MODELS.builder];
+      : supervisedPilot ? [pilot.model] : evaluation ? [FREE_MODELS.nvidiaBuilder, FREE_MODELS.builder] : [FREE_MODELS.builder];
     // "Free" is necessary but not sufficient: an override cannot exchange author and
     // reviewer families. Reasoning-effort variants keep their underlying model identity.
     const requestedModel = typeof freeModel === "string" ? freeModel : "";
@@ -300,6 +305,8 @@ if (isMain(import.meta.url)) {
     syntheticQualification: toolMode === "readonly" && arg("repo") === "appsworld2027/parent-plus-ai-org" &&
       process.env.GITHUB_WORKFLOW === "Role qualification (synthetic, read only)" && process.env.GITHUB_EVENT_NAME === "workflow_dispatch" &&
       /^[a-z]+-v[1-9][0-9]*$/.test(process.env.QUALIFICATION_FIXTURE || ""),
+    pilotContext: {repo:arg("repo"), issueNumber:arg("number"), workflow:process.env.GITHUB_WORKFLOW,
+      event:process.env.GITHUB_EVENT_NAME, ref:process.env.GITHUB_REF_NAME, toolMode},
     engines: { free: process.env.ENGINE_FREE === "true" },
     freeProviders: { groq: process.env.ENGINE_GROQ === "true", nvidia: process.env.ENGINE_NVIDIA === "true" },
   });
