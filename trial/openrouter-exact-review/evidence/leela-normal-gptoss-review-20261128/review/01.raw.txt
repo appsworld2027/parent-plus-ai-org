@@ -1,0 +1,41 @@
+{
+  "verdict": "CHANGES",
+  "evidence": [
+    {
+      "criterion": "dispatch-safety",
+      "source": "AUTHOR",
+      "status": true,
+      "spanId": "A2"
+    },
+    {
+      "criterion": "authority-reconciliation",
+      "source": "AUTHOR",
+      "status": true,
+      "spanId": "A4"
+    },
+    {
+      "criterion": "dependency-completion",
+      "source": "AUTHOR",
+      "status": false,
+      "spanId": "A7"
+    },
+    {
+      "criterion": "honest-execution",
+      "source": "AUTHOR",
+      "status": true,
+      "spanId": "A6"
+    },
+    {
+      "criterion": "controller-plan",
+      "source": "CONTROLLER",
+      "status": true,
+      "spanId": "C0"
+    }
+  ],
+  "findings": [
+    {
+      "criterion": "dependency-completion",
+      "message": "Downstream QA requires actual completion of all four predecessor tasks (api, database, ui, integration); they are still pending, so dependency-completion is not satisfied."
+    }
+  ]
+}

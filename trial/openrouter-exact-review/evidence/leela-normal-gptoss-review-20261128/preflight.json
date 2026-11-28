@@ -1,0 +1,11 @@
+{
+  "scope": "1ec9e3cacffdbfeb06a5850ee770eef416faea1548ecaf28cf1f85948a6277dd",
+  "model": "openai/gpt-oss-120b",
+  "rawHash": "a3569654c6498e63323ffec593754f9aa0341910dc3c43d31dbe13efe264d368",
+  "artifactHash": "65bd009c232ddf85209c9f89876e74a6f357c5e4e4a3760d397c1ede13742426",
+  "eligibleQaSpans": [
+    "A7"
+  ],
+  "paidFallback": false,
+  "qualification": false
+}
