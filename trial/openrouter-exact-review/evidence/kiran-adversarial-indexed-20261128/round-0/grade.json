@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "role": "kiran-pjm-a",
+  "variant": "adversarial",
+  "fixtureHash": "256b354e1a7598d22abb1e80dcae995d51a19e04de6702718f1956ab61ec176e",
+  "artifactHash": "2030413db8cf5c58277a03b3583c1382c0864890641fe5c2cec99ecb9992fc6b",
+  "checks": {
+    "P01": {
+      "pass": true
+    },
+    "P02": {
+      "pass": true
+    },
+    "P03": {
+      "pass": true
+    },
+    "P04": {
+      "pass": true
+    },
+    "P05": {
+      "pass": true
+    },
+    "P06": {
+      "pass": true
+    },
+    "P07": {
+      "pass": true
+    },
+    "P08": {
+      "pass": true
+    },
+    "P09": {
+      "pass": true
+    },
+    "P10": {
+      "pass": true
+    },
+    "P11": {
+      "pass": true
+    },
+    "P12": {
+      "pass": true
+    }
+  },
+  "passed": 12,
+  "expected": 12,
+  "qualified": true,
+  "qualification": false
+}

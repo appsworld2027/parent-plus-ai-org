@@ -1,0 +1,44 @@
+{
+  "review": {
+    "verdict": "APPROVE",
+    "evidence": [
+      {
+        "criterion": "dispatch-safety",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "Capacity 2, budget 1 allows one immediate dispatch"
+      },
+      {
+        "criterion": "authority-reconciliation",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "old-worker fencing required before reassign"
+      },
+      {
+        "criterion": "dependency-completion",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "downstream QA needs all four upstream tasks complete"
+      },
+      {
+        "criterion": "honest-execution",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "No CI status known; decisions based on observed graph state only"
+      },
+      {
+        "criterion": "controller-plan",
+        "source": "CONTROLLER",
+        "status": "supported",
+        "quote": "\"dispatchTaskIds\":[\"database\"]"
+      }
+    ],
+    "findings": []
+  },
+  "gate": {
+    "valid": true,
+    "reason": "provenance-screen-pass",
+    "qualification": false,
+    "semanticJudgmentStillRequired": true
+  }
+}
