@@ -240,7 +240,7 @@ jobs:
             gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" --jq "[.[] | select(.created_at > \"$SINCE\") | select(.body | contains(\"ai-org:failed\"))] | last | .body // \"\"" > /tmp/attempt.md 2>/dev/null || true
           fi
           sed -i -E '/^[[:space:]]*total[[:space:]]+used[[:space:]]/d; /^Mem:/d; /^Swap:/d' /tmp/attempt.md
-          printf 'Item #%s, stage %s, seat %s. Read issue metadata and body only: gh issue view %s --json title,body,labels,assignees\n' "$NUMBER" "$STAGE" "${SEAT:-none}" "$NUMBER" > /tmp/task.md
+          printf 'Item #%s, stage %s, seat %s. Start by inspecting issue metadata and body: gh issue view %s --json title,body,labels,assignees. Then follow the role and mode: standard must execute and persist its assigned stage deliverables using authorized tools; readonly returns only the requested report.\n' "$NUMBER" "$STAGE" "${SEAT:-none}" "$NUMBER" > /tmp/task.md
           READONLY_FLAG=""; [ "$TOOL_MODE" = "readonly" ] && READONLY_FLAG="--read-only"
           node .ai-org-handbook/scripts/onboarding-pack.mjs --role "$ROLE" --stage "$STAGE" --slug "$SLUG" --seat "$SEAT" --feature "$FEATURE" --attempt /tmp/attempt.md --task /tmp/task.md --out "$ONBOARDING_FILE" --max 8000 $READONLY_FLAG
           test -s "$ONBOARDING_FILE" || { echo "::error::Onboarding pack was not created."; exit 1; }

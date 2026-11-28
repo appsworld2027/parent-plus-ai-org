@@ -71,7 +71,11 @@ test("onboarding pack: task, role/RACI, contract/handovers, attempt, lessons, me
   const order = ["DO-THE-REVIEW", "ROLE-CARD", "challenger", "quinn-qa@challenger", "CONTRACT-ACS", "HANDOVER-ONE", "LAST-RUN-TIMED-OUT", "LESSON-ONE", "TEST_KNOWLEDGE.md"];
   let at = -1; for (const s of order) { const i = pack.indexOf(s); assert.ok(i > at, `${s} missing or out of order`); at = i; }
   assert.ok(!pack.includes("FIXTURE-TRAP"), "memory contents are not bulk-loaded into the prompt");
-  assert.match(pack, /5-line Understanding/);
+  assert.match(pack, /Plan silently and begin work using tools/);
+  assert.doesNotMatch(pack, /first output must be|5-line Understanding/);
+  const readOnly = buildPack({ role: "quinn-qa", stage: "ai:tests", slug: "fees", handbook: hb, product: p, readOnly: true });
+  assert.match(readOnly, /Return only the requested final report/);
+  assert.doesNotMatch(readOnly, /first output must be|5-line Understanding/);
   assert.ok(buildPack({ role: "quinn-qa", stage: "ai:tests", slug: "fees", handbook: hb, product: p, max: 300 }).length < 420, "whole pack is capped");
 });
 test("RACI text without a row says single-agent", () => assert.match(raciText(null, "ai:build"), /single-agent/));
