@@ -1,0 +1,11 @@
+{
+  "scope": "synthetic-only",
+  "sourceRun": 46104313533,
+  "artifactHash": "22d6152abb88911f73fa821358fdb41548d64884b08fecca548d9f3b93607a34",
+  "rawDecisionHash": "c5115b43163ad3424b121d21d3686a3e34977d039f109f740f85649bb3c1ed83",
+  "model": "qwen/qwen3.8-27b",
+  "promptChars": 5210,
+  "outputBudget": 900,
+  "paidFallback": false,
+  "qualification": false
+}
