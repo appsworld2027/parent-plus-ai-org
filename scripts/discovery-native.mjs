@@ -52,7 +52,15 @@ async function main() {
  if(repo!=="appsworld2027/parent-plus-ai-org"||issue!=="170"||slug!=="f010-quality-drift"||process.env.GITHUB_REF_NAME!=="audit/f010-pilot-20261128"||process.env.GITHUB_EVENT_NAME!=="workflow_dispatch"||!process.env.GROQ_API_KEY) throw Error("Unapproved native pilot context");
  const cap=Number(capRaw),key=process.env.GROQ_API_KEY;
  const packetSource={task:readFileSync(task,"utf8"),onboarding:readFileSync(onboarding,"utf8"),skill:readFileSync(skill,"utf8"),template:readFileSync(template,"utf8"),repo,issue,slug,folder,branch};
- const packet=name=>discoveryPacket({...packetSource,document:name});
+ const revisionBase=process.env.NATIVE_REVISION_BASE||"";
+ if(revisionBase&&revisionBase!=="229d47675217a1f640ef88a41b97c28117988657") throw Error("Unapproved native revision base");
+ const feedback="Prior actual draft failed content review. Correct these gaps from the authoritative issue: distinguish configured supported coverage thresholds from measured coverage; cover lowered AND removed thresholds; clear assertion weakening (changed expected values or weaker matchers) AND deletion; ordinary and delivery PRs; changed/deleted/renamed paths; unrelated config; unchanged/increased thresholds, legitimate additions and app-only changes; preserve existing no-skip/locked-suite protections. Static heuristics cannot guarantee semantic assertion strength; ambiguous refactors require independent review rather than automatic semantic claims. Use individually observable red/green fixtures and candidate-SHA-bound independent review evidence. Do not invent an override, whitelist, coverage metric, research performed, or approval. Preserve scope and no-merge/no-production gates.";
+ const packet=name=>{
+  const base=discoveryPacket({...packetSource,document:name});
+  if(!revisionBase) return base;
+  const prior=name==="REPORT"?"":readFileSync(join(process.env.GITHUB_WORKSPACE,folder,slug,name),"utf8");
+  return base+"\n\nController review findings for this revision (not a founder approval):\n"+feedback+(prior?"\n\nPrior model-authored "+name+" (revise, do not restate the prior errors):\n"+prior:"");
+ };
  mkdirSync(logs,{recursive:true});
  const rows=[];
  const usage=()=>writeFileSync("/tmp/ai-org-usage.json",JSON.stringify({version:1,item:Number(issue),attempt:Number(process.env.GITHUB_RUN_ATTEMPT),at:Date.now(),rows},null,2));

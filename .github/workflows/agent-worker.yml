@@ -393,14 +393,34 @@ jobs:
             [ "$GITHUB_REPOSITORY" = appsworld2027/parent-plus-ai-org ] && [ "$NUMBER" = 170 ] && [ "$FEATURE_SLUG" = f010-quality-drift ] || exit 1
             BRANCH="ai/contract-$FEATURE_SLUG"
             REMOTE_CONTRACT=$(git ls-remote --heads origin "refs/heads/$BRANCH") || exit 1
-            [ -z "$REMOTE_CONTRACT" ] || { echo "::error::Prior contract exists; reconcile before native generation."; exit 1; }
-            git fetch --no-tags origin refs/heads/main && git switch -c "$BRANCH" FETCH_HEAD || exit 1
+            gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -s 'add // []' > /tmp/discovery-comments-before.json || { echo "::error::Discovery baseline comments unavailable"; exit 1; }
+            jq -e 'type == "array"' /tmp/discovery-comments-before.json >/dev/null || exit 1
+            NATIVE_ROOT="$GITHUB_WORKSPACE"
+            NATIVE_REVISION_BASE=""
+            if [ -z "$REMOTE_CONTRACT" ]; then
+              git fetch --no-tags origin refs/heads/main && git switch -c "$BRANCH" FETCH_HEAD || exit 1
+            else
+              NATIVE_REVISION_BASE=229d47675217a1f640ef88a41b97c28117988657
+              [ "$(printf '%s\n' "$REMOTE_CONTRACT" | cut -f1)" = "$NATIVE_REVISION_BASE" ] || { echo "::error::Unreconciled contract branch; manual review required."; exit 1; }
+              git fetch --no-tags origin "refs/heads/$BRANCH" && [ "$(git rev-parse FETCH_HEAD)" = "$NATIVE_REVISION_BASE" ] && git switch -c "$BRANCH" FETCH_HEAD || exit 1
+              NATIVE_ROOT=$(mktemp -d) || exit 1
+            fi
+            export NATIVE_REVISION_BASE
             git config user.name "$AGENT_NAME (AppsWorld AI Org)"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/agent-logs/started-at
             DIRECTORY="$docs_folder/$FEATURE_SLUG"
-            if timeout "$STRATEGY_WALL_SECONDS" node .ai-org-handbook/scripts/discovery-native.mjs /tmp/body.md .ai-org-runtime/onboarding.md .ai-org-handbook/.ai/skills/superpowers/brainstorming/SKILL.md .ai-org-handbook/templates/PRODUCT_THINKING.md "$GITHUB_REPOSITORY" "$NUMBER" "$FEATURE_SLUG" "$docs_folder" "$BRANCH" "$GITHUB_WORKSPACE" /tmp/agent-logs "$STRATEGY_PACKET_COMPLETION_CAP" 2>&1 | tee /tmp/agent-logs/native-run.txt &&
+            native_content_matches() {
+              for doc in SUMMARY.md ACCEPTANCE.md PRODUCT_THINKING.md; do
+                expected=$(jq -er --arg doc "$doc" '.[$doc]' /tmp/agent-logs/native-content-sha.json) || return 1
+                actual=$(sha256sum "$DIRECTORY/$doc" | cut -d" " -f1) || return 1
+                [ "$expected" = "$actual" ] || return 1
+              done
+            }
+            if timeout "$STRATEGY_WALL_SECONDS" node .ai-org-handbook/scripts/discovery-native.mjs /tmp/body.md .ai-org-runtime/onboarding.md .ai-org-handbook/.ai/skills/superpowers/brainstorming/SKILL.md .ai-org-handbook/templates/PRODUCT_THINKING.md "$GITHUB_REPOSITORY" "$NUMBER" "$FEATURE_SLUG" "$docs_folder" "$BRANCH" "$NATIVE_ROOT" /tmp/agent-logs "$STRATEGY_PACKET_COMPLETION_CAP" 2>&1 | tee /tmp/agent-logs/native-run.txt &&
               git diff --cached --quiet &&
+              { [ -z "$NATIVE_REVISION_BASE" ] || { [ "$(git rev-parse HEAD)" = "$NATIVE_REVISION_BASE" ] && git diff --quiet -- "$DIRECTORY" && cp -- "$NATIVE_ROOT/$DIRECTORY/SUMMARY.md" "$NATIVE_ROOT/$DIRECTORY/ACCEPTANCE.md" "$NATIVE_ROOT/$DIRECTORY/PRODUCT_THINKING.md" "$DIRECTORY/"; }; } &&
+              native_content_matches &&
               git add -- "$DIRECTORY/SUMMARY.md" "$DIRECTORY/ACCEPTANCE.md" "$DIRECTORY/PRODUCT_THINKING.md" &&
               git commit -m "docs: Maya native discovery contract for $FEATURE_SLUG" &&
               git push origin "HEAD:refs/heads/$BRANCH" &&

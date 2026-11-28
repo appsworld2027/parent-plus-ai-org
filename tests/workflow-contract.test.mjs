@@ -232,3 +232,22 @@ test("native pilot preflight checks exact JSON capability while ordinary routes 
     assert.notEqual(run(native,{NUMBER:"171"}).status,0);
   } finally { rmSync(root,{recursive:true,force:true}); }
 });
+
+test("native discovery captures authoritative pre-generation baseline and publishes only exact reconciled content", () => {
+  const workflow=read("../.github/workflows/agent-worker.yml");
+  const start=workflow.indexOf('# One explicitly admitted pilot uses native JSON output');
+  const end=workflow.indexOf('curl -LsSf https://astral.sh/uv/install.sh',start);
+  assert.ok(start>=0 && end>start);
+  const native=workflow.slice(start,end);
+  const before=native.indexOf('> /tmp/discovery-comments-before.json');
+  const generate=native.indexOf('scripts/discovery-native.mjs');
+  const publish=native.indexOf('gh issue comment "$NUMBER"');
+  assert.ok(before>=0 && before<generate && generate<publish);
+  assert.match(native,/NATIVE_REVISION_BASE=229d47675217a1f640ef88a41b97c28117988657/);
+  assert.match(native,/Unreconciled contract branch/);
+  assert.match(native,/git rev-parse FETCH_HEAD/);
+  assert.match(native,/git diff --quiet -- "\$DIRECTORY"/);
+  assert.ok(native.indexOf('native_content_matches &&')<native.indexOf('git add -- "$DIRECTORY/SUMMARY.md"'));
+  assert.match(native,/git push origin "HEAD:refs\/heads\/\$BRANCH"/);
+  assert.doesNotMatch(native,/--force|contract-ready/);
+});
