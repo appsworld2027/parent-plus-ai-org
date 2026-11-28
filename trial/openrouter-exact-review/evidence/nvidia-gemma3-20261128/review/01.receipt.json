@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "scope": "5ec91487f0a65f78550bc04edc62ab048bb5adc876b4867597d7502fdc98d506",
+  "model": "google/gemma-3-12b-it",
+  "path": "review.json",
+  "format": "json_object",
+  "maxTokens": 2600,
+  "promptHash": "f5034bb80570d74cd05bf8c5813fdd0452288058a3bbca4fef03e0016bc239eb",
+  "priorHashes": [],
+  "status": "rejected",
+  "httpStatus": 404,
+  "reportedModel": null,
+  "finishReason": null,
+  "responseHash": null,
+  "usage": null,
+  "failure": "http-404"
+}
