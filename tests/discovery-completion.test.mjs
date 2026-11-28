@@ -160,11 +160,12 @@ test("native pilot requires all four provider-authored JSON documents, retains p
   const md="# Feature\n"+"Detailed independently generated evidence and edge cases. ".repeat(4);
   const response={model:"openai/gpt-oss-20b",choices:[{finish_reason:"stop",message:{content:JSON.stringify({markdown:md})}}]};
   let calls=0,pauses=0,receipts=0;
-  const output=await generateNative({packet:"Authoritative task",cap:512,call:async(req,name)=>{
-    assert.equal(req.model,"openai/gpt-oss-20b");assert.equal(req.max_completion_tokens,512);assert.equal(req.tools,undefined);assert.equal(req.response_format.type,"json_object");
+  const output=await generateNative({packet:"Authoritative task",cap:1800,call:async(req,name)=>{
+    assert.equal(req.model,"openai/gpt-oss-20b");assert.equal(req.max_completion_tokens,1800);assert.equal(req.tools,undefined);assert.equal(req.response_format.type,"json_object");
     if(calls++)assert.match(req.messages[1].content,/Earlier independently generated documents/);return response;
   },record:()=>receipts++,pause:async()=>pauses++});
   assert.equal(calls,4);assert.equal(receipts,4);assert.equal(pauses,3);
+ await assert.rejects(generateNative({packet:"Task",cap:3001}),/Invalid free native packet completion cap/);
   const reportPath=join(root,"report.md"),folder="docs/product",slug="f010-quality-drift";
   persistNative({output,root,folder,slug,reportPath});
   assert.equal(readFileSync(join(root,folder,slug,"SUMMARY.md"),"utf8"),md);

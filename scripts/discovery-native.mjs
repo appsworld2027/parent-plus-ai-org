@@ -21,7 +21,7 @@ export function parseNativeDocument(response,name) {
  return value.markdown;
 }
 export async function generateNative({packet,cap,call,record,pause}) {
- if(!Number.isInteger(cap)||cap<128||cap>999) throw Error("Invalid existing free output cap");
+ if(!Number.isInteger(cap)||cap<128||cap>3000) throw Error("Invalid free native packet completion cap");
  const output={};
  for(const [i,[name,assignment]] of parts.entries()) {
   if(i) await pause();

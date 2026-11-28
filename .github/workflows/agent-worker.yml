@@ -288,6 +288,7 @@ jobs:
           STRATEGY_MAX_TURNS: ${{ steps.router.outputs.strategy_worker_max_turns }}
           STRATEGY_WALL_SECONDS: ${{ steps.router.outputs.strategy_worker_wall_seconds }}
           STRATEGY_OUTPUT_CAP: ${{ steps.router.outputs.strategy_worker_output_cap }}
+          STRATEGY_PACKET_COMPLETION_CAP: ${{ steps.router.outputs.strategy_packet_completion_cap }}
           STRATEGY_REVIEW_OUTPUT_CAP: ${{ steps.router.outputs.strategy_worker_review_output_cap }}
           AGENT_NAME: ${{ steps.router.outputs.agent_name }}
           AGENT_ROLE: ${{ steps.router.outputs.agent_role }}
@@ -385,7 +386,7 @@ jobs:
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/agent-logs/started-at
             DIRECTORY="$docs_folder/$FEATURE_SLUG"
-            if timeout "$STRATEGY_WALL_SECONDS" node .ai-org-handbook/scripts/discovery-native.mjs /tmp/body.md .ai-org-runtime/onboarding.md .ai-org-handbook/.ai/skills/superpowers/brainstorming/SKILL.md .ai-org-handbook/templates/PRODUCT_THINKING.md "$GITHUB_REPOSITORY" "$NUMBER" "$FEATURE_SLUG" "$docs_folder" "$BRANCH" "$GITHUB_WORKSPACE" /tmp/agent-logs "$STRATEGY_OUTPUT_CAP" 2>&1 | tee /tmp/agent-logs/native-run.txt &&
+            if timeout "$STRATEGY_WALL_SECONDS" node .ai-org-handbook/scripts/discovery-native.mjs /tmp/body.md .ai-org-runtime/onboarding.md .ai-org-handbook/.ai/skills/superpowers/brainstorming/SKILL.md .ai-org-handbook/templates/PRODUCT_THINKING.md "$GITHUB_REPOSITORY" "$NUMBER" "$FEATURE_SLUG" "$docs_folder" "$BRANCH" "$GITHUB_WORKSPACE" /tmp/agent-logs "$STRATEGY_PACKET_COMPLETION_CAP" 2>&1 | tee /tmp/agent-logs/native-run.txt &&
               git diff --cached --quiet &&
               git add -- "$DIRECTORY/SUMMARY.md" "$DIRECTORY/ACCEPTANCE.md" "$DIRECTORY/PRODUCT_THINKING.md" &&
               git commit -m "docs: Maya native discovery contract for $FEATURE_SLUG" &&

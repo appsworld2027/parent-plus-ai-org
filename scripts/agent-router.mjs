@@ -132,7 +132,7 @@ export function route({ labels = [], body = "", isPR = false, engines = { free: 
   const strategy = selectExecutionStrategy({engine:out.engine,stage:out.stage,model:out.free_model});
   Object.assign(out,{execution_strategy:strategy.id,strategy_context_mode:strategy.contextMode,strategy_task_class:strategy.taskClass,
     strategy_worker_max_turns:strategy.worker.maxTurns,strategy_worker_wall_seconds:strategy.worker.wallSeconds,
-    strategy_worker_output_cap:strategy.worker.outputTokenCap,strategy_worker_review_output_cap:strategy.worker.embeddedReviewOutputTokenCap});
+    strategy_packet_completion_cap:strategy.packet.completionTokenLimit,strategy_worker_output_cap:strategy.worker.outputTokenCap,strategy_worker_review_output_cap:strategy.worker.embeddedReviewOutputTokenCap});
   return out;
 }
 
