@@ -28,6 +28,8 @@ jobs:
     uses: ./.github/workflows/agent-worker.yml
     with:
       number: ${{ github.event.issue.number || github.event.pull_request.number || inputs.number }}
+      # Explicit manual branch dispatch tests that exact handbook commit; event-driven runs keep main.
+      handbook_ref: ${{ github.event_name == 'workflow_dispatch' && github.repository == 'appsworld2027/parent-plus-ai-org' && github.ref_name != 'main' && github.sha || 'main' }}
       tool_mode: ${{ github.event_name == 'issues' && startsWith(github.event.issue.title || '', '[SMOKE TEST]') && 'readonly' || 'standard' }}
       stage_override: ${{ github.event_name == 'issues' && startsWith(github.event.issue.title || '', '[SMOKE TEST]') && 'ai:discovery' || '' }}
     # Canonical policy: NVIDIA NIM free builder when available; Groq free builder fallback and independent reviewer. No paid credentials.

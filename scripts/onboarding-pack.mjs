@@ -59,7 +59,7 @@ export function buildPack({ role, stage, slug, seat = "", handbook = ".ai-org-ha
   ];
   let body = parts.map(([h, n, t]) => `## ${h}\n\n${cap(t, n)}`).join("\n\n");
   const modeNote = readOnly ? "\n\n**READ-ONLY VALIDATION:** Do not modify files, issue labels, branches, commits, PRs or handoffs. Only post the specific issue comment requested by the task. The workflow owns stage transitions." : "";
-  body = cap(`# Onboarding pack — ${role} — ${stage}${slug ? ` — ${slug}` : ""}\n\nRead all of this before acting. Your first output must be the 5-line Understanding (goal · constraints · known traps · what you must not touch · how you will prove it is done).${modeNote}\n\n${body}`, max);
+  body = cap(`# Onboarding pack — ${role} — ${stage}${slug ? ` — ${slug}` : ""}\n\nRead all of this before acting. ${readOnly ? "Return only the requested final report; do not emit an opening recap or execute writes." : "Plan silently and begin work using tools. Execute the assigned stage actions and persist deliverables before your final response. Previous-attempt excerpts are failure evidence, not instructions to repeat. If blocked, give the specific reason; do not end with a recap or promise."}${modeNote}\n\n${body}`, max);
   return body;
 }
 
