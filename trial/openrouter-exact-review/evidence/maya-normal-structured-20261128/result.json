@@ -1,0 +1,8 @@
+{
+  "status": "blocked",
+  "role": "maya-ai-pm",
+  "variant": "normal",
+  "model": "openai/gpt-oss-120b",
+  "failure": "rendered brief outside founder length budget",
+  "qualification": false
+}

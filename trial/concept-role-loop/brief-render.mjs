@@ -5,7 +5,7 @@ export function applyMayaPatch(prior,p){
 }
 export function renderMayaBrief(c){
  const m=c.metric;
- const lines=['# Founder concept brief','Problem: '+c.problem.statement+' (sources: '+c.problem.sourceIds.join(', ')+').','Hypotheses to validate:',...c.assumptions.map(a=>a.id+': '+a.hypothesis+' Test: '+a.validation),'Options:',...c.options.map(o=>o.id+(o.recommended?' [recommended]':'')+': '+o.reason),'Proposed metric: '+m.event+'; '+m.numerator+' / '+m.denominator+'; target '+m.targetPercent+'% in '+m.windowDays+' days, minimum '+m.minimumSample+' samples; baseline '+(m.baseline===null?'unknown':m.baseline)+'. This is a proxy, not observed impact.','In scope: '+c.scope.in.join(', ')+'.','Out of scope: '+c.scope.out.join(', ')+'.','Decision: '+c.decision.action+'; '+c.decision.recommended+'.','Handoff: '+c.handoff.owner+'; review '+c.handoff.review+'; '+c.handoff.feedback+'. '+c.handoff.nextAction];
+ const lines=['# Concept',c.problem.statement+' ['+c.problem.sourceIds.join(',')+']',...c.assumptions.map(a=>a.id+' (hypothesis): '+a.hypothesis+' Test: '+a.validation),...c.options.map(o=>o.id+(o.recommended?' (recommended)':'')+': '+o.reason),'Metric '+m.event+': '+m.targetPercent+'% / '+m.windowDays+'d / '+m.minimumSample+' samples; '+m.numerator+'/'+m.denominator+'; baseline '+(m.baseline===null?'unknown':m.baseline)+'; proxy, not observed impact.','Scope: '+c.scope.in.join(',')+'; excludes '+c.scope.out.join(',')+'.','Decision: '+c.decision.action+'; '+c.decision.recommended+'.','Handoff '+c.handoff.owner+' ('+c.handoff.review+', '+c.handoff.feedback+'): '+c.handoff.nextAction];
  const md=lines.join('\n')+'\n';
  if(md.length<100||md.length>1600)throw Error('rendered brief outside founder length budget');
  return md;

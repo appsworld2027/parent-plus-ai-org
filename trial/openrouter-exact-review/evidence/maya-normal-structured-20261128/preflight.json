@@ -1,0 +1,17 @@
+{
+  "scope": "5c66d62518edf44f1aa006269557b8e46c9f17595abe7d4afc317f8309a59da6",
+  "role": "maya-ai-pm",
+  "variant": "normal",
+  "fixtureHash": "6e581a36137fedb766899bd4c109e80289ed0358e842929f4c15c04c49cf5489",
+  "model": "openai/gpt-oss-120b",
+  "steps": [
+    {
+      "path": "patch.json",
+      "format": "json_object",
+      "maxTokens": 900
+    }
+  ],
+  "priorArtifactHash": "8f2307180bc217d2ca086280e43ba0cf7cb199d8742a6b9ba128d08ad5dea608",
+  "paidFallback": false,
+  "qualification": false
+}

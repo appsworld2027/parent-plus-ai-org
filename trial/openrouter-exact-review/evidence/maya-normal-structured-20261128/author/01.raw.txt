@@ -1,0 +1,5 @@
+{
+  "hypothesis": "Tenant users find reminders more discoverable when saved in a dedicated tenant-scoped view versus buried in group chat.",
+  "validation": "Run A/B test with 200 tenants, measuring % of reminders accessed within 24h; target ≥30% increase over baseline.",
+  "nextAction": "Submit the hypothesis and validation plan to the architecture review board for versioned API design approval before any code is written."
+}

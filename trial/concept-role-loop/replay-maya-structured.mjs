@@ -1,0 +1,18 @@
+import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+import {sha} from '../nim-per-file/transport.mjs';
+import {canonicalHash,rubric} from '../../scripts/frontier-admission.mjs';
+import {prepareFrontierCasebook,intakeFrontierArtifact} from '../../scripts/frontier-casebook.mjs';
+import {conceptFixture,evaluateConceptArtifact} from '../../scripts/frontier-concept-evaluator.mjs';
+import {applyMayaPatch,renderMayaBrief} from './brief-render.mjs';
+const [source,root]=process.argv.slice(2),role='maya-ai-pm',variant='normal',model='openai/gpt-oss-120b';
+if(!source||!root||existsSync(root))throw Error('explicit new evidence root required');
+const read=(p)=>JSON.parse(readFileSync(join(source,p),'utf8')),raw=readFileSync(join(source,'author/01.raw.txt'),'utf8'),r=read('author/01.receipt.json'),pre=read('preflight.json'),prior=JSON.parse(readFileSync('trial/openrouter-exact-review/evidence/maya-normal-hybrid-20261128/artifact.json','utf8')),fixture=conceptFixture(role,variant);
+const expected=canonicalHash({role,variant,fixtureHash:canonicalHash(fixture),priorArtifactHash:prior.artifactHash,model,version:'bounded-structured-patch-v1'});
+if(pre.scope!==expected||r.scope!==expected||r.rawHash!==sha(raw)||r.model!==model||r.reportedModel!==model||r.status!=='accepted'||r.finishReason!=='stop'||r.path!=='patch.json'||pre.priorArtifactHash!==prior.artifactHash)throw Error('invalid replay binding');
+const c=applyMayaPatch(JSON.parse(prior.files.find(f=>f.path==='contract.json').content),JSON.parse(raw)),md=renderMayaBrief(c);
+const book=prepareFrontierCasebook({sourceSha:'cf041948862dd5523d55c527109a02c20169cdff',seed:'issue129-nim-20261128',roleDefinitions:Object.fromEntries(rubric.roles.map(({role:r})=>[r,readFileSync('org/agents/'+r+'.md','utf8')]))}),caseSpec=book.cases.find(x=>x.fixture.role===role&&x.fixture.variant===variant);
+const artifact=intakeFrontierArtifact(caseSpec.fixture,{files:[{path:'contract.json',content:JSON.stringify(c,null,2)+'\n'},{path:'founder-brief.md',content:md}]}),grade=evaluateConceptArtifact(role,variant,artifact.files);
+mkdirSync(root,{recursive:true,mode:0o700});const save=(n,v)=>writeFileSync(join(root,n),JSON.stringify(v,null,2)+'\n',{mode:0o600});
+const result={status:grade.screenPassed?'screen-pass-independent-review-required':'screen-failed',role,variant,model,artifactHash:artifact.artifactHash,priorArtifactHash:prior.artifactHash,rawHash:r.rawHash,receiptScope:expected,passed:grade.passed,expected:grade.expected,briefChars:md.length,failed:Object.entries(grade.checks).filter(([,v])=>!v.pass),storedModelUsage:r.usage,additionalInferenceCalls:0,qualification:false,productionReady:false,paidFallback:false};
+save('artifact.json',artifact);save('grade.json',grade);save('result.json',result);console.log(JSON.stringify(result));if(!grade.screenPassed)process.exitCode=1;
