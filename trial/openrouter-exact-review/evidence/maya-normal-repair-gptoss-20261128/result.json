@@ -1,0 +1,52 @@
+{
+  "status": "screen-failed",
+  "role": "maya-ai-pm",
+  "variant": "normal",
+  "priorArtifactHash": "8f2307180bc217d2ca086280e43ba0cf7cb199d8742a6b9ba128d08ad5dea608",
+  "artifactHash": "88bf5576819b7f20ed813746411f3850a0a59ad4eb03d0062ac82f13892ea9a6",
+  "passed": 10,
+  "expected": 12,
+  "failed": [
+    [
+      "M02",
+      {
+        "pass": false,
+        "reason": "assumptions missing, duplicated or presented as observed facts"
+      }
+    ],
+    [
+      "M07",
+      {
+        "pass": false,
+        "reason": "founder brief missing or too long"
+      }
+    ]
+  ],
+  "briefChars": 2546,
+  "receipts": [
+    {
+      "path": "repair.json",
+      "usage": {
+        "prompt_tokens": 684,
+        "completion_tokens": 610,
+        "total_tokens": 1294
+      }
+    },
+    {
+      "path": "founder-brief.md",
+      "usage": {
+        "prompt_tokens": 1041,
+        "completion_tokens": 650,
+        "total_tokens": 1691
+      }
+    }
+  ],
+  "repairedFields": [
+    "assumptions",
+    "handoff",
+    "founder-brief.md"
+  ],
+  "qualification": false,
+  "productionReady": false,
+  "paidFallback": false
+}

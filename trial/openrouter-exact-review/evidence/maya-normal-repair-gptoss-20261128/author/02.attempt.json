@@ -1,0 +1,1 @@
+{"schema":1,"scope":"72430a10fef594098f0283322d25265565d1d2c0c8d06423e4c14d812102ad14","model":"openai/gpt-oss-120b","path":"founder-brief.md","format":"text","maxTokens":850,"promptHash":"2230d2da904a628168d39e0079a422c827093f14cf7ed26a655618ef685bceba","priorHashes":[{"path":"repair.json","hash":"4954d50e4982d4dfdfd9fccfead6fc12c718405ebd0912c28656ede84010ea91"}]}
