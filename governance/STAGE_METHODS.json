@@ -1,0 +1,148 @@
+{
+  "schema": "ai-org-stage-methods/v1",
+  "superpowersVersion": "7.0.2",
+  "cezarVersion": "0.20.0",
+  "cezarLiveEnabled": false,
+  "cezarReason": "Pinned Cezar workflows currently name Codex runners. Only zero-spend mock/synthetic workflows are permitted; no live Cezar route is admitted.",
+  "skills": {
+    "brainstorming": {
+      "gitBlobSha": "9eb0edc7fedf26e1d3e2f3f223e5bcc5058aed6a",
+      "excerpt": "Before you start implementing, you must, in order:"
+    },
+    "writing-plans": {
+      "gitBlobSha": "4cf0275d88d67aa4ef09f4bbca9970ed6ff74a00",
+      "excerpt": "Before defining tasks, map out which files will be created or modified"
+    },
+    "dispatching-parallel-agents": {
+      "gitBlobSha": "3fa091b348bbe0a18eaa0e17e9092c97f7005cbe",
+      "excerpt": "No shared state between investigations"
+    },
+    "test-driven-development": {
+      "gitBlobSha": "46838cc9e893c06259e3bdad0fc2425b36242f15",
+      "excerpt": "NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST"
+    },
+    "systematic-debugging": {
+      "gitBlobSha": "62fc752aaef59a8bbed5d305f4cadc60f8ae07ed",
+      "excerpt": "NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST"
+    },
+    "requesting-code-review": {
+      "gitBlobSha": "68d338a58ecdd8b77bfbb519b781ef223dbbb842",
+      "excerpt": "Dispatch a code reviewer subagent to catch issues before they cascade."
+    },
+    "verification-before-completion": {
+      "gitBlobSha": "7d45333cc4a49c57a80df6c1fe2fa777a207afbc",
+      "excerpt": "NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE"
+    }
+  },
+  "stages": {
+    "ai:discovery": {
+      "roles": [
+        "maya-ai-pm"
+      ],
+      "skill": "brainstorming",
+      "method": "Define the user problem, evidence vs assumptions, target user, measurable outcome, viable alternatives (including no change), prioritized scope, non-goals, and negative journeys. Resolve only delegated routine decisions. No invented evidence or implementation."
+    },
+    "ai:plan": {
+      "roles": [
+        "arjun-cpto"
+      ],
+      "skill": "writing-plans",
+      "method": "Compare architectures, confirm real paths and dependencies, produce an ADR, explicit interface/data/auth/invariants, failure recovery and reversible rollback, executable test plan, and open gates. No code until prerequisites."
+    },
+    "ai:lane-a": {
+      "roles": [
+        "kiran-pjm-a"
+      ],
+      "skill": "dispatching-parallel-agents",
+      "method": "Create a dependency DAG with ready-only tasks, exclusive file/interface/data ownership, bounded context and budget, exact handoffs; no dispatch before required gates. Demonstrate overlap only for truly independent work."
+    },
+    "ai:lane-b": {
+      "roles": [
+        "leela-pjm-b"
+      ],
+      "skill": "dispatching-parallel-agents",
+      "method": "Coordinate alongside Lane A with independent owned work and overlap; serialize shared changes. Specify idempotent interruption/recovery, stale-checkpoint and duplicate-dispatch tests; no static-only go."
+    },
+    "ai:design": {
+      "roles": [
+        "iris-design"
+      ],
+      "skill": "brainstorming",
+      "method": "Map the user journey and responsive accessible screens. Include empty/loading/error/permission/offline states, validation and destructive-action recovery. Keep exact contract labels, flag and unresolved gates."
+    },
+    "ai:database": {
+      "roles": [
+        "tara-database"
+      ],
+      "skill": "writing-plans",
+      "method": "Map actual schema and authorized scope before proposing changes. Specify tenant partition, expected-revision conflict, idempotency, immutable snapshots, negative controls, reversible migration or no migration. Never apply live SQL."
+    },
+    "ai:integration": {
+      "roles": [
+        "ravi-integration"
+      ],
+      "skill": "writing-plans",
+      "method": "Verify exact service boundaries, typed inputs/outputs, auth, local vs external transport, timeouts/retries/429/malformed responses and idempotency. Name actual test runner; do not invent API or claim readiness."
+    },
+    "ai:tests": {
+      "roles": [
+        "quinn-qa"
+      ],
+      "skill": "test-driven-development",
+      "method": "Map every locked acceptance case to testable behavior, negative controls, intended RED, independent clean/mutant calibration and guard tests; never implement product or self-approve."
+    },
+    "ai:tests-review": {
+      "roles": [
+        "quinn-qa"
+      ],
+      "skill": "requesting-code-review",
+      "method": "Challenge exact author artifact against every acceptance requirement with line evidence, mutation and false-positive risks; reject missing mandatory proof. Different model family; do not edit tests."
+    },
+    "ai:tests-signoff": {
+      "roles": [
+        "arjun-cpto"
+      ],
+      "skill": "verification-before-completion",
+      "method": "Verify exact locked artifacts, independent challenger, intended RED, clean/mutant and runtime eligibility. Reject any failed or missing gate; no override."
+    },
+    "ai:build": {
+      "roles": [
+        "dev-coder",
+        "tara-database",
+        "ravi-integration"
+      ],
+      "skill": "test-driven-development",
+      "method": "Prove existing locked tests fail for intended reason, smallest authorized change, fresh GREEN/regression/negative controls, exact diff; do not weaken tests or expand scope."
+    },
+    "ai:fix": {
+      "roles": [
+        "dev-coder",
+        "tara-database",
+        "ravi-integration"
+      ],
+      "skill": "systematic-debugging",
+      "method": "Reproduce root cause, isolate one hypothesis, preserve failure receipt, add/reuse a failing regression test, fix narrowly, verify fresh results; no repeated blind retries."
+    },
+    "ai:qa": {
+      "roles": [
+        "quinn-qa"
+      ],
+      "skill": "verification-before-completion",
+      "method": "Independently execute actual acceptance, regression and security negative cases on exact candidate. Record failures and missing evidence; never accept author self-report."
+    },
+    "ai:review": {
+      "roles": [
+        "rex-reviewer"
+      ],
+      "skill": "requesting-code-review",
+      "method": "Inspect exact diff and locked contract, attack edge cases, forbidden changes, security and weak tests. Cite reproducible evidence. Reject missing gates, never review own work."
+    },
+    "ai:release-ops": {
+      "roles": [
+        "sam-release"
+      ],
+      "skill": "verification-before-completion",
+      "method": "Confirm exact revision, independent approval, CI and smoke; verify authorized preview, disable/rollback and health. Distinguish build from deploy/release; no production authority."
+    }
+  }
+}

@@ -289,6 +289,7 @@ jobs:
           STRATEGY_REVIEW_OUTPUT_CAP: ${{ steps.router.outputs.strategy_worker_review_output_cap }}
           AGENT_NAME: ${{ steps.router.outputs.agent_name }}
           AGENT_ROLE: ${{ steps.router.outputs.agent_role }}
+          METHOD_ROLE: ${{ steps.router.outputs.role }}
           STAGE: ${{ steps.item.outputs.stage }}
           TOOL_MODE: ${{ inputs.tool_mode }}
           FEATURE_SLUG: ${{ steps.item.outputs.feature_slug }}
@@ -391,6 +392,11 @@ jobs:
           for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8082/v1/models && break; sleep 1; done
           git config user.name "$AGENT_NAME (AppsWorld AI Org)"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Load only the pinned stage-specific Superpowers excerpt and bounded adaptation.
+          # This records preparation, not proof of agent compliance or independent review.
+          node .ai-org-handbook/scripts/stage-method.mjs prepare "$STAGE" "$METHOD_ROLE" /tmp/stage-method.md /tmp/agent-logs/stage-method-preparation.json || exit 1
+          test -s /tmp/stage-method.md && test -s /tmp/agent-logs/stage-method-preparation.json || { echo "::error::Missing required stage methodology"; exit 1; }
+          PROMPT="$(printf '%s\n\n' "$PROMPT"; cat /tmp/stage-method.md)"
           # Embed the bounded onboarding pack directly in the initial prompt; the agent sandbox cannot read /tmp paths.
           PROMPT="$(printf '%s\\n\\n## Compact onboarding pack\\n' "$PROMPT"; cat .ai-org-runtime/onboarding.md)"
           if [ "$TOOL_MODE" = "readonly" ]; then

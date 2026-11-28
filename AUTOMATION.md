@@ -29,24 +29,17 @@ npm run ai:pilot
 This uses Cezar's mock agent, creates an isolated worktree, runs the one-team
 workflow, executes both quality gates and records mock usage without model spend.
 
-## Live cockpit
+## Cockpit (live route blocked)
 
 ```bash
-npm run ai:cockpit
+npm run ai:dry-run
 ```
 
 The cockpit binds to loopback by default. Do not expose it publicly: Cezar has no
 built-in authentication. For remote use, place it behind an authenticated HTTPS
 reverse proxy and approve that infrastructure separately.
 
-In another terminal, import the portable automations:
-
-```bash
-npm run ai:automations:import
-```
-
-Imports are paused by design. Preview the GitHub filter before enabling it. Enable
-the schedule only after confirming the cockpit timezone.
+The repository's existing Cezar YAMLs and configuration still use Codex runners. The supported live cockpit and automation import commands now fail closed; do not invoke `cezar-run` directly to bypass this boundary. Mock workflows are not evidence of live Cezar execution. An owner-reviewed free-only adapter and independent synthetic qualification are required before enabling a live Cezar workflow.
 
 ## Available workflows
 
@@ -74,3 +67,7 @@ Cezar establishes a current-time baseline.
 - No automatic merge, production deployment, purchase, credential change or
   destructive migration is permitted.
 - Material founder conflicts block only affected work and go to Ankit and Manu.
+
+## Required stage methodology
+
+`governance/STAGE_METHODS.json` maps each canonical executable stage to a pinned Superpowers skill, a small upstream excerpt and a role-specific adaptation. The canonical free worker verifies the exact vendored Git blob, injects a bounded packet before model inference, and publishes a preparation receipt. A preparation receipt proves only that the instructions were prepared and delivered to the invocation path; it is not proof of model compliance, Cezar execution, independent review, or role admission. Do not treat this as full Superpowers skill execution. The exact artifacts must undergo distinct-model review against the locked contract with trusted evidence, and all existing security, data, model, tests-first and release gates remain in force. The seven original Course planning artifacts were generated on a separate evaluation workflow before this integration; preserve them as failed/unadmitted baseline evidence. No re-admission or product write is implied.
