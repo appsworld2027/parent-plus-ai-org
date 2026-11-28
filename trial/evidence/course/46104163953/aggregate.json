@@ -1,0 +1,91 @@
+{
+  "schema": "course-independent-aggregate/v1",
+  "source": "710082b2d8cf3c1007086df31f87b34ae8e02573",
+  "contractHash": "6695ab62149003b833c1afa04a2f6e674db3494efe7048864357095de07176aa",
+  "model": "openai/gpt-oss-120b",
+  "authorModel": "qwen/qwen3.8-27b",
+  "calibrationPassed": true,
+  "approvals": [
+    {
+      "id": "CRS-01-SC-002",
+      "calibration": false,
+      "verdict": "APPROVE",
+      "artifactSha256": "7c08dff7099a4e92003f3e20dc9709f2844dca2b098f697e501734872dac6bb2",
+      "contextSha256": "7554ef44a8b90551bb9b3cb37a3164d46d32130e53f6da2f96c653ea21cf12b2",
+      "receiptSha256": "9f3a34b63e0d3fabef6037569e5266fda09e69ea40d23a83775935801550935b",
+      "tokens": 1572,
+      "resumedFrom": 46066451867,
+      "inference": false
+    },
+    {
+      "id": "CRS-01-SC-004",
+      "calibration": false,
+      "verdict": "APPROVE",
+      "artifactSha256": "6bcdd54bcc1263875e4792e2f9b4bd6b6f6617582c9900d34397dc8bbd0f7ab5",
+      "contextSha256": "8ba1abbd83fe6c7bb46e39c61a024368a766b68db53b4aab44ea3a675249c72e",
+      "receiptSha256": "8371a3a11e71a3dd0d4604099d5e2909e18af96ae8f3992613c65145f6b4e771",
+      "tokens": 2178,
+      "resumedFrom": 46066451867,
+      "inference": false
+    },
+    {
+      "id": "CRS-01-SC-003",
+      "calibration": false,
+      "verdict": "APPROVE",
+      "artifactSha256": "83038e843f37a9e23f9e0db9f223186d1264ee91b958fcde2c699a66d05a78b2",
+      "contextSha256": "a5059cafadaf1d19f60a1405e88679964dbfbee914c24bf6885be57e65715e36",
+      "receiptSha256": "1ed748e6a7a90c3930b0d566a5ecab4a2340f4f987f606380e5a195d642563b6",
+      "tokens": 2095,
+      "resumedFrom": 46071582904,
+      "inference": false
+    },
+    {
+      "id": "CRS-01-SC-005",
+      "calibration": false,
+      "verdict": "APPROVE",
+      "artifactSha256": "ccf8b856d400812f9ed750186d6f60751f707ebad116d99bbb75c1b21366b8b5",
+      "contextSha256": "9744da4527defeefa5419f4adbf6190fc607a376e4c753dba651fdb172a05869",
+      "receiptSha256": "1f90f5ee6f5808a516da7fc32d75e3026b43fa2fe3202dd6bdb6879019d710ad",
+      "tokens": 2137,
+      "resumedFrom": 46071845014,
+      "inference": false
+    },
+    {
+      "id": "GUARD-CRS-FLAG-OFF",
+      "calibration": false,
+      "verdict": "APPROVE",
+      "artifactSha256": "7559923ce010d561b204e49a01bcad2983ffc940e3330ddd92f39602ca5ee966",
+      "contextSha256": "85b435b53c543fec535e16b51219c3e0931879f49d4546b5ea3c41ea9db59ced",
+      "receiptSha256": "ec3b984d779b2ca48ec4617b06150907b807deb039b0e990569266ed5b4a0c37",
+      "tokens": 924,
+      "resumedFrom": 46103333813,
+      "inference": false
+    },
+    {
+      "id": "CRS-01-SC-001",
+      "calibration": false,
+      "verdict": "APPROVE",
+      "artifactSha256": "c8b9ff99feaa56773d50d3683c963d89b89de87df9097adea8a680bf318700bc",
+      "contextSha256": "2a057eb4039e824c2800aa405e0b5d863faf1458baa0321010bf17674d1e34bc",
+      "receiptSha256": "d9e94ec39b1fbe09ccb171ab6f88c5f742c6e5804a82e4c73a01340e6254ed46",
+      "tokens": 2149,
+      "resumedFrom": 46104163953,
+      "inference": false
+    },
+    {
+      "id": "CRS-01-SC-006",
+      "calibration": false,
+      "verdict": "APPROVE",
+      "artifactSha256": "c3708cf38d782b63ad7bab5f4ad00000747897910faf67db0b8099d97b26a180",
+      "contextSha256": "0b1c915de49853a934a3ec79efd2b0f0a5cf5f9c7395e6404bbd8981ccdada2c",
+      "receiptSha256": "3a448d0475ec5517b0d0e7384cf34e9244ab2be6977d92a5ecc330ff4f76811f",
+      "tokens": 2276,
+      "resumedFrom": 46104163953,
+      "inference": false
+    }
+  ],
+  "independentAcceptanceReviewPassed": true,
+  "roleAdmission": false,
+  "lockApproved": false,
+  "inference": false
+}
