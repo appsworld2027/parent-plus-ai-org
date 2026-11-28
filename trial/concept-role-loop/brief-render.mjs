@@ -5,7 +5,7 @@ export function applyMayaPatch(prior,p){
 }
 export function renderMayaBrief(c){
  const m=c.metric;
- const lines=['# Concept',c.problem.statement+' ['+c.problem.sourceIds.join(',')+']',...c.assumptions.map(a=>a.id+' (hypothesis): '+a.hypothesis+' Test: '+a.validation),...c.options.map(o=>o.id+(o.recommended?' (recommended)':'')+': '+o.reason),'Metric '+m.event+': '+m.targetPercent+'% / '+m.windowDays+'d / '+m.minimumSample+' samples; '+m.numerator+'/'+m.denominator+'; baseline '+(m.baseline===null?'unknown':m.baseline)+'; proxy, not observed impact.','Scope: '+c.scope.in.join(',')+'; excludes '+c.scope.out.join(',')+'.','Decision: '+c.decision.action+'; '+c.decision.recommended+'.','Handoff '+c.handoff.owner+' ('+c.handoff.review+', '+c.handoff.feedback+'): '+c.handoff.nextAction];
+ const lines=['# Concept',c.problem.statement+' ['+c.problem.sourceIds.join(',')+']',...c.assumptions.map(a=>a.id+' (hypothesis): '+a.hypothesis+' Test: '+a.validation),...c.options.map(o=>o.id+(o.recommended?' (recommended)':'')+': '+o.reason),'Metric '+m.event+': '+m.targetPercent+'% / '+m.windowDays+'d / '+m.minimumSample+' samples; '+m.numerator+'/'+m.denominator+'; baseline '+(m.baseline===null?'unknown':m.baseline)+'; proxy, not observed impact.','Scope: '+c.scope.in.join(',')+'; excludes '+c.scope.out.join(',')+'.','Decision: '+c.decision.action+'; '+c.decision.recommended+(c.decision.conflictSource?'; conflict '+c.decision.conflictSource+'; safe work '+c.decision.safeWork.join(','):'')+'.','Handoff '+c.handoff.owner+' ('+c.handoff.review+', '+c.handoff.feedback+'): '+c.handoff.nextAction];
  const md=lines.join('\n')+'\n';
  if(md.length<100||md.length>1600)throw Error('rendered brief outside founder length budget');
  return md;
