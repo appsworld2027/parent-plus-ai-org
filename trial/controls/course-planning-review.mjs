@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { prepareStageMethod } from "../../scripts/stage-method.mjs";
+import { selectExecutionStrategy } from "../../scripts/execution-strategy.mjs";
 import { preparePlanningReview, validatePlanningReview, REVIEW_SCHEMA } from "../../scripts/planning-artifact-review.mjs";
 const base = new URL("../evidence/course/roles-20261127/",import.meta.url);
 const read = path => readFileSync(new URL(path,base),"utf8");
@@ -70,10 +71,11 @@ const reviewerCard=readFileSync(new URL("../../org/agents/rex-reviewer.md",impor
 const method=prepareStageMethod({stage:"ai:review",role:"rex-reviewer"});
 const historicalFacts="Historical review context: at the time of these seven documents the prebuild acceptance lock was not approved. Existing five Coach tabs remain. The root App.tsx is the permitted navigation wiring file; Courses is a Today button. The pilot permits local in-memory only; no live/new SQL migration. The actual unit test runner is Vitest. Delivery plans must allow independently ready nonconflicting work in parallel. Never infer facts from source not supplied. This is historic artifact critique, not current lock sign-off.";
 const packet=preparePlanningReview({artifact,author:role,authorReceipt,contract:contract+"\n\n"+historicalFacts,reviewerMethod:method.prompt,reviewerCard});
+const strategy=selectExecutionStrategy({engine:"free",stage:"ai:review",model:"groq/"+packet.model});
 const {prompt,...safe}=packet;
 const out=join(process.env.RUNNER_TEMP||"/tmp","course-planning-review");
 mkdirSync(out,{recursive:true,mode:0o700});
-const preflight={schema:"course-planning-review-preflight/v1",state:"prepared-no-inference",...safe,source,lockedContractSha256:CONTRACT_SHA,authorRun:anchor.run,authorArtifactId:anchor.artifactId,method:method.receipt,roleAdmission:false};
+const preflight={schema:"course-planning-review-preflight/v1",state:"prepared-no-inference",...safe,source,lockedContractSha256:CONTRACT_SHA,authorRun:anchor.run,authorArtifactId:anchor.artifactId,method:method.receipt,strategy:{id:strategy.id,packet:strategy.packet},roleAdmission:false};
 writeFileSync(join(out,"preflight.json"),JSON.stringify(preflight,null,2)+"\n",{mode:0o600});
 if(mode==="preflight") {
   if(process.env.GROQ_API_KEY)throw Error("Preflight must not receive model key");
@@ -81,10 +83,10 @@ if(mode==="preflight") {
 } else if(mode==="review") {
   if(!process.env.GROQ_API_KEY)throw Error("Approved free model key unavailable; no fallback");
   const gpt=packet.model==="openai/gpt-oss-120b";
-  const body={model:packet.model,temperature:0,max_completion_tokens:2400,messages:[
+  const body={model:packet.model,temperature:0,max_completion_tokens:strategy.packet.completionTokenLimit,messages:[
     {role:"system",content:"Only the archived sanitized evaluation packet is supplied. No external tools or source access. Return JSON only. No claim of executed checks, no paid fallback."},
     {role:"user",content:prompt}],response_format:{type:"json_schema",json_schema:{name:"planning_artifact_review",strict:true,schema:REVIEW_SCHEMA}}};
-  body.reasoning_effort="medium";
+  if (strategy.packet.reasoningEffort!=="provider-default") body.reasoning_effort=strategy.packet.reasoningEffort;
   if(!gpt)body.reasoning_format="hidden";
   const start=Date.now(),response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+process.env.GROQ_API_KEY,"Content-Type":"application/json"},body:JSON.stringify(body),redirect:"error",signal:AbortSignal.timeout(110000)});
   const http={http:response.status,retryAfter:response.headers.get("retry-after"),requestedModel:packet.model,elapsedMs:Date.now()-start};
