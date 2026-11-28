@@ -1,0 +1,4 @@
+{
+  "dispatchTaskIds": ["api", "ui"],
+  "handover": "Dispatching api (Lane A, dev-coder) and ui (Lane B, iris-design). Both have all dependencies satisfied (tests observed complete with evidence tests-lock-1). Resource check: api requires api:board, file:board.mjs, product:reminder-visibility; ui requires file:board.html — no overlap. Lane isolation holds: api in Lane A, ui in Lane B, different owners. Capacity 2 fully used; dispatchBudget 2 respected. No expired, reconcile, or blocked tasks in graph. No old-worker fencing indicated. No reassignment — owners unchanged, no PR evidence needed. Downstream qa depends on completion of all four leaf tasks (api, database, ui, integration), not merely unblock; this dispatch advances two of four. Remaining ready tasks: database (Lane A, tara-database) and integration (Lane B, ravi-integration) await capacity release. CI not-run; no completion evidence to invent."
+}

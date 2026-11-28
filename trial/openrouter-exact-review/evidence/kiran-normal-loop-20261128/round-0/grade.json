@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "role": "kiran-pjm-a",
+  "variant": "normal",
+  "fixtureHash": "48bbe363a342691960eeeb7d71066b182506fd5176edcca43399b450047c2161",
+  "artifactHash": "8ad52d230b6387414406d11f2df70eda9db79dbd06e962bdb2ff4b453225540b",
+  "checks": {
+    "P01": {
+      "pass": true
+    },
+    "P02": {
+      "pass": true
+    },
+    "P03": {
+      "pass": true
+    },
+    "P04": {
+      "pass": true
+    },
+    "P05": {
+      "pass": true
+    },
+    "P06": {
+      "pass": true
+    },
+    "P07": {
+      "pass": true
+    },
+    "P08": {
+      "pass": true
+    },
+    "P09": {
+      "pass": true
+    },
+    "P10": {
+      "pass": true
+    },
+    "P11": {
+      "pass": true
+    },
+    "P12": {
+      "pass": true
+    }
+  },
+  "passed": 12,
+  "expected": 12,
+  "qualified": true,
+  "qualification": false
+}

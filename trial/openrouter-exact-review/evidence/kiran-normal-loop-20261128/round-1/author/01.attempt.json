@@ -1,0 +1,1 @@
+{"schema":1,"scope":"05407b9b8cd1e019550e333641a739b94166196775e012dfc9521d28dbcfd1bf","model":"nvidia/nemotron-3-ultra-550b-a55b","path":"decision.json","format":"json_object","maxTokens":2200,"promptHash":"988f269f01385b2164969cb47cc0d705e055acff8585c36304bb1a08d8a4e8b5","priorHashes":[]}

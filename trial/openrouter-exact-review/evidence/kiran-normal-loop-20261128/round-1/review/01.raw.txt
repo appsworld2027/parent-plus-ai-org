@@ -1,0 +1,36 @@
+{
+  "verdict": "APPROVE",
+  "evidence": [
+    {
+      "criterion": "dispatch-safety",
+      "source": "AUTHOR",
+      "status": "supported",
+      "quote": "Capacity 2 used, budget 2 respected"
+    },
+    {
+      "criterion": "authority-reconciliation",
+      "source": "AUTHOR",
+      "status": "supported",
+      "quote": "No expired/reconcile/blocked tasks"
+    },
+    {
+      "criterion": "dependency-completion",
+      "source": "AUTHOR",
+      "status": "supported",
+      "quote": "QA requires completion of all four predecessors (api, database, ui, integration), not merely unblock"
+    },
+    {
+      "criterion": "honest-execution",
+      "source": "AUTHOR",
+      "status": "supported",
+      "quote": "CI not-run; no completion evidence invented"
+    },
+    {
+      "criterion": "controller-plan",
+      "source": "CONTROLLER",
+      "status": "supported",
+      "quote": "\"dispatchTaskIds\":[\"api\",\"ui\"]"
+    }
+  ],
+  "findings": []
+}
