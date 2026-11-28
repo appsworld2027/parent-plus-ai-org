@@ -14,7 +14,7 @@ export function verifySavedLoop(source){
   const scratch=mkdtempSync(join(tmpdir(),'ai-org-offline-qualification-'));
   try{
     for(const r of recorded.rounds)cpSync(join(src,'round-'+r.round),join(scratch,'round-'+r.round),{recursive:true});
-    execFileSync(process.execPath,['trial/planning-repair-loop/run.mjs','run',recorded.role,recorded.variant,scratch],{env:{...process.env,AI_ORG_TRIAL_REPLAY_ONLY:'1',...(recorded.quoteRetryRound===undefined?{}:{AI_ORG_TRIAL_EXACT_QUOTE_ROUND:String(recorded.quoteRetryRound)}),...(recorded.reconcileGate?{AI_ORG_TRIAL_RECONCILE_GATE:'1'}:{})},timeout:30000,stdio:'pipe'});
+    execFileSync(process.execPath,['trial/planning-repair-loop/run.mjs','run',recorded.role,recorded.variant,scratch],{env:{...process.env,AI_ORG_TRIAL_REPLAY_ONLY:'1',...(recorded.quoteRetryRound===undefined?{}:{AI_ORG_TRIAL_EXACT_QUOTE_ROUND:String(recorded.quoteRetryRound)}),...(recorded.reconcileGate?{AI_ORG_TRIAL_RECONCILE_GATE:'1'}:{}),...(recorded.indexedReviewRound===undefined?{}:{AI_ORG_TRIAL_INDEXED_REVIEW_ROUND:String(recorded.indexedReviewRound)})},timeout:30000,stdio:'pipe'});
     const replay=read(scratch,'checkpoint.json');
     assert.equal(replay.status,accepted);
     assert.deepEqual(replay.rounds,recorded.rounds);
