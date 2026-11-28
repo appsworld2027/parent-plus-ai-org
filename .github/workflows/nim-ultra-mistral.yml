@@ -1,0 +1,42 @@
+name: Bounded Ultra Mistral hybrid developer trial
+on:
+  pull_request:
+    types: [opened]
+    branches: [review/nim-hybrid-planning-20261128]
+permissions:
+  contents: read
+concurrency:
+  group: nim-ultra-mistral-one-shot
+  cancel-in-progress: false
+jobs:
+  trial:
+    if: github.repository == 'appsworld2027/parent-plus-ai-org' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'review/nim-ultra-mistral-20261128' && github.event.pull_request.base.ref == 'review/nim-hybrid-planning-20261128' && github.actor == 'appsworld2027' && github.run_attempt == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Locked preflight, zero inference
+        run: |
+          git diff --exit-code cf041948862dd5523d55c527109a02c20169cdff -- org/agents scripts/frontier-admission.mjs scripts/frontier-casebook.mjs scripts/frontier-planning-evaluator.mjs governance/FRONTIER_ARTIFACT_RUBRIC.json governance/FRONTIER_PLANNING_BEHAVIOR.md
+          git diff --exit-code da5d190603974f9335647750dc58a48bbdcee32c -- trial/nim-per-file
+          git diff --exit-code 2de0edf5503d020096c109afb751032c247dead0 -- trial/nim-hybrid-planning
+          node --test tests/frontier-casebook.test.mjs tests/frontier-planning-evaluator.test.mjs trial/nim-per-file/transport.test.mjs trial/nim-hybrid-planning/compile.test.mjs
+          node trial/nim-ultra-mistral/run.mjs preflight "$RUNNER_TEMP/hybrid-preflight"
+      - name: Single bounded synthetic hybrid case, no paid fallback
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: node trial/nim-ultra-mistral/run.mjs trial "$RUNNER_TEMP/hybrid-trial"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: bounded-ultra-mistral-receipts
+          path: |
+            ${{ runner.temp }}/hybrid-preflight
+            ${{ runner.temp }}/hybrid-trial
