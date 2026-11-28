@@ -1,0 +1,226 @@
+{
+  "fixtureHash": "6e581a36137fedb766899bd4c109e80289ed0358e842929f4c15c04c49cf5489",
+  "contractVersion": "synthetic-board-v1",
+  "acceptance": [
+    {
+      "id": "AC-create",
+      "sourceIds": [
+        "S1",
+        "S2",
+        "S4"
+      ],
+      "expected": [
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "Pack sports kit",
+            "version": 1
+          }
+        },
+        [
+          {
+            "id": "r1",
+            "title": "Pack sports kit",
+            "version": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "AC-stale",
+      "sourceIds": [
+        "S3",
+        "S4"
+      ],
+      "expected": [
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "Original",
+            "version": 1
+          }
+        },
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "Updated",
+            "version": 2
+          }
+        },
+        {
+          "ok": false,
+          "code": "stale"
+        },
+        [
+          {
+            "id": "r1",
+            "title": "Updated",
+            "version": 2
+          }
+        ]
+      ]
+    },
+    {
+      "id": "AC-replay",
+      "sourceIds": [
+        "S4"
+      ],
+      "expected": [
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "First",
+            "version": 1
+          }
+        },
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "First",
+            "version": 1
+          }
+        },
+        {
+          "ok": false,
+          "code": "conflict"
+        },
+        [
+          {
+            "id": "r1",
+            "title": "First",
+            "version": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "AC-isolation",
+      "sourceIds": [
+        "S1",
+        "S4"
+      ],
+      "expected": [
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "A private",
+            "version": 1
+          }
+        },
+        {
+          "ok": true,
+          "record": {
+            "id": "r1",
+            "title": "B private",
+            "version": 1
+          }
+        },
+        [
+          {
+            "id": "r1",
+            "title": "A private",
+            "version": 1
+          }
+        ],
+        [
+          {
+            "id": "r1",
+            "title": "B private",
+            "version": 1
+          }
+        ]
+      ]
+    },
+    {
+      "id": "AC-invalid",
+      "sourceIds": [
+        "S4"
+      ],
+      "expected": [
+        {
+          "ok": false,
+          "code": "invalid"
+        },
+        {
+          "ok": false,
+          "code": "invalid"
+        },
+        {
+          "ok": false,
+          "code": "invalid"
+        },
+        {
+          "ok": false,
+          "code": "invalid"
+        },
+        {
+          "ok": false,
+          "code": "invalid"
+        },
+        {
+          "throws": "invalid"
+        },
+        []
+      ]
+    }
+  ],
+  "states": [
+    {
+      "id": "empty",
+      "effect": "show-empty-create"
+    },
+    {
+      "id": "loading",
+      "effect": "show-pending-no-success"
+    },
+    {
+      "id": "offline",
+      "effect": "cached-read-only-no-save"
+    },
+    {
+      "id": "denied",
+      "effect": "no-write-keep-draft"
+    },
+    {
+      "id": "stale",
+      "effect": "no-write-refresh-keep-draft"
+    },
+    {
+      "id": "invalid",
+      "effect": "no-write-inline-error"
+    },
+    {
+      "id": "saved",
+      "effect": "show-confirmed-record"
+    },
+    {
+      "id": "narrow-320",
+      "effect": "status-and-controls-visible-no-horizontal-scroll"
+    }
+  ],
+  "scope": {
+    "in": [
+      "tenant-view",
+      "tenant-save",
+      "stale-recovery",
+      "duplicate-reconciliation"
+    ],
+    "out": [
+      "cross-tenant",
+      "offline-write",
+      "real-notifications",
+      "public-release"
+    ]
+  },
+  "observed": {
+    "tests": "not-run",
+    "independentReview": "pending",
+    "ci": "unknown"
+  }
+}

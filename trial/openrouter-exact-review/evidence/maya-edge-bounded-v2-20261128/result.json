@@ -1,0 +1,58 @@
+{
+  "status": "screen-failed",
+  "role": "maya-ai-pm",
+  "variant": "edge",
+  "model": "openai/gpt-oss-120b",
+  "artifactHash": "23321d2ced6311956660692af913ad4665c0273b2df9a5a34d9f2b90abf5f0f5",
+  "passed": 11,
+  "expected": 12,
+  "briefChars": 1080,
+  "failed": [
+    [
+      "M03",
+      {
+        "pass": false,
+        "reason": "alternatives/no-build or single recommendation missing"
+      }
+    ]
+  ],
+  "usage": [
+    {
+      "prompt_tokens": 460,
+      "completion_tokens": 376,
+      "total_tokens": 836
+    }
+  ],
+  "reusedValidation": true,
+  "modelOwnedFields": [
+    "problem",
+    "sourceIds",
+    "preferred",
+    "sharedReason",
+    "chatReason",
+    "noBuildReason",
+    "hypothesis",
+    "validation",
+    "targetPercent",
+    "windowDays",
+    "minimumSample",
+    "action",
+    "conflictSource",
+    "feedback",
+    "nextAction"
+  ],
+  "toolGeneratedFields": [
+    "fixtureHash",
+    "contractVersion",
+    "acceptance",
+    "states",
+    "scope",
+    "observed",
+    "metric formula/baseline",
+    "policy boundaries and owner",
+    "assumption ID",
+    "brief rendering"
+  ],
+  "qualification": false,
+  "paidFallback": false
+}

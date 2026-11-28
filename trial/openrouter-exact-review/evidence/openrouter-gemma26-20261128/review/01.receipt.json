@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "scope": "f83a9cdcebc5a262915cf7915c255f78bbc324a6d4b0fc8cade6388c191e4931",
+  "model": "google/gemma-4-26b-a4b-it:free",
+  "path": "review.json",
+  "format": "json_object",
+  "maxTokens": 2600,
+  "promptHash": "ad4c15ccb71a6f8cc3ebca378acd7a5efad90fca94dbfbf38a6f848beada1f5f",
+  "priorHashes": [],
+  "status": "rejected",
+  "httpStatus": 200,
+  "reportedModel": "google/gemma-4-26b-a4b-it:free",
+  "finishReason": "stop",
+  "responseHash": "f90521832b126e3918388ac54e25143668ba69e9f1581b971fbaa8ae95339593",
+  "usage": {
+    "prompt_tokens": 2211,
+    "completion_tokens": 340,
+    "total_tokens": 2551
+  },
+  "failure": "identity-finish-or-format",
+  "rawHash": "adf41c55c7c048f0ae8fad4ad39a5fac4a290be858fd6be4447e66c2fdd66442"
+}

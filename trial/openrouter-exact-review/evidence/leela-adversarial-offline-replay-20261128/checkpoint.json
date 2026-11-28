@@ -1,0 +1,85 @@
+{
+  "role": "leela-pjm-b",
+  "variant": "adversarial",
+  "fixtureHash": "eef0b513215484b7feae67116c4234fd9fde321cedc3321524c0f80d402591d7",
+  "author": "nvidia/nemotron-3-ultra-550b-a55b",
+  "reviewer": "qwen/qwen3.8-27b",
+  "maxRounds": 4,
+  "authorBudget": 2200,
+  "reviewerBudget": 900,
+  "scope": "supervised-synthetic-only",
+  "paidFallback": false,
+  "qualification": false,
+  "status": "synthetic-loop-approved-semantic-audit-required",
+  "rounds": [
+    {
+      "round": 0,
+      "rawHash": "ea602d612c23c407402bf66ccce8c45272e220289c20269cd6177d18d4f8a0ce",
+      "artifactHash": "2c4997afd6a5f1f17cc39fcc8e31ec5c8968bdad9bef6449f50284476a13639a",
+      "screenPassed": 14,
+      "screenExpected": 14,
+      "authorUsage": {
+        "prompt_tokens": 829,
+        "completion_tokens": 1443,
+        "total_tokens": 2272
+      },
+      "reviewRawHash": "bea1ee99f40dbb6153e581d1ef974870c0886821a6a5bd6f384725bd09e89adc",
+      "reviewUsage": {
+        "prompt_tokens": 1466,
+        "completion_tokens": 282,
+        "total_tokens": 1748
+      },
+      "provenance": true,
+      "verdict": "SEMANTIC_EVIDENCE_CHANGES",
+      "qaQuoteScreen": {
+        "valid": false,
+        "reason": "insufficient-qa-completion-quote",
+        "ids": [
+          "api",
+          "database",
+          "ui",
+          "integration"
+        ],
+        "missing": [
+          "api",
+          "database",
+          "ui",
+          "integration"
+        ]
+      }
+    },
+    {
+      "round": 1,
+      "rawHash": "44a3ac44a739208bdc966b2899c556bab5236eb34e70fb65298d22fa247cbc2b",
+      "artifactHash": "2c4997afd6a5f1f17cc39fcc8e31ec5c8968bdad9bef6449f50284476a13639a",
+      "screenPassed": 14,
+      "screenExpected": 14,
+      "authorUsage": {
+        "prompt_tokens": 1111,
+        "completion_tokens": 1303,
+        "total_tokens": 2414
+      },
+      "reviewRawHash": "b5d0685dcab7aeb1432c51e384d95c21b2c181afdf86b3f76b545699872cfaac",
+      "reviewUsage": {
+        "prompt_tokens": 1480,
+        "completion_tokens": 306,
+        "total_tokens": 1786
+      },
+      "provenance": true,
+      "verdict": "APPROVE",
+      "qaQuoteScreen": {
+        "valid": true,
+        "reason": "minimum-qa-quote-screen-pass",
+        "ids": [
+          "api",
+          "database",
+          "ui",
+          "integration"
+        ],
+        "missing": []
+      }
+    }
+  ],
+  "unattended": false,
+  "productionReady": false
+}

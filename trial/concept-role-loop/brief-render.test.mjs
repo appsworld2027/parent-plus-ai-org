@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import {applyMayaPatch,renderMayaBrief} from './brief-render.mjs';
+const artifact=JSON.parse(readFileSync('trial/openrouter-exact-review/evidence/maya-normal-hybrid-20261128/artifact.json','utf8'));
+const prior=JSON.parse(artifact.files.find(f=>f.path==='contract.json').content);
+const patch={hypothesis:'A dedicated tenant reminder view may reduce time spent locating reminders.',validation:'Compare reminder lookup times and proposed task success across a controlled prototype trial.',nextAction:'Submit versioned API proposal to Arjun for review before any implementation.'};
+test('bounded patch preserves all unrelated contract fields',()=>{const c=applyMayaPatch(prior,patch);for(const k of Object.keys(prior).filter(k=>!['assumptions','handoff'].includes(k)))assert.deepEqual(c[k],prior[k]);assert.equal(c.assumptions.length,1);assert.equal(c.handoff.review,'pending')});
+test('reject extra output fields and overlength',()=>{assert.throws(()=>applyMayaPatch(prior,{...patch,extra:true}));assert.throws(()=>applyMayaPatch(prior,{...patch,hypothesis:'x'.repeat(121)}))});
+test('compact brief retains model content and all option rationales',()=>{const c=applyMayaPatch(prior,patch),md=renderMayaBrief(c);assert.ok(md.length<=1600);for(const s of [patch.hypothesis,patch.validation,patch.nextAction,c.problem.statement,...c.options.map(o=>o.reason),c.metric.numerator,c.metric.denominator,'baseline unknown','proxy, not observed impact',...c.scope.in,...c.scope.out])assert.ok(md.includes(s),s)});
+test('renderer rejects excess content rather than truncation',()=>{const c=applyMayaPatch(prior,patch);c.problem.statement='x'.repeat(2000);assert.throws(()=>renderMayaBrief(c))});

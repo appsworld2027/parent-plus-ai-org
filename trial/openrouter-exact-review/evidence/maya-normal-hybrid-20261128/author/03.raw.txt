@@ -1,0 +1,26 @@
+**Founder Brief: Tenant-Scoped Shared Reminder Board**
+
+**Problem:** Household reminders get buried in group chat (S2) and suffer version drift — different text versions confuse members (S3).
+
+**Evidence vs Assumptions**
+- Evidence: S1 approves tenant-scoped view/save only; S4 contract defines versioned create/update/replay with isolation.
+- Assumptions: A1 — versioned board reduces loss/conflicts (validate: 2-week beta, 5 households, track saves vs acknowledgments, conflict errors). A2 — ≤2 taps/≤5s save from chat (instrument prototype). A3 — auto-archive >30d stale reminders (analyze logs, survey 10 users).
+
+**Alternatives Evaluated**
+- **Shared Board (recommended):** Fits approved scope (tenant-view, save, stale-recovery, duplicate-reconciliation); solves burial + drift via S4 versioning; no cross-tenant/public risk.
+- Improve Chat (rejected): Pinning/threading only mitigates burial; no single source of truth for text; requires platform changes outside control.
+- No Build (rejected): Leaves both problems unresolved; no progress on approved capability.
+
+**Measurable Outcome**
+- Event: `reminder-saved-and-visible`
+- Target: 80% of eligible save attempts confirmed visible within 14 days (min 50 attempts).
+- Baseline: null (new capability).
+
+**Material Decisions**
+- Retain strict tenant isolation (S1, S4).
+- Safe work now: `tenant-view`, `tenant-save` endpoints per S4 contract.
+- Defer: cross-tenant, offline-write, real-notifications, public-release (all out of scope).
+
+**Next Action**
+- v1.0: Implement tenant-view and tenant-save endpoints per S4 contract; run 2-week beta per A1 validation.
+- Owner: arjun-cpto; Review: pending; Feedback: routine-validation.

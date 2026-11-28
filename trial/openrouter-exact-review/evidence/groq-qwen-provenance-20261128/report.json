@@ -1,0 +1,59 @@
+{
+  "scope": "synthetic-only",
+  "sourceRun": 46104313533,
+  "artifactHash": "22d6152abb88911f73fa821358fdb41548d64884b08fecca548d9f3b93607a34",
+  "rawDecisionHash": "c5115b43163ad3424b121d21d3686a3e34977d039f109f740f85649bb3c1ed83",
+  "model": "qwen/qwen3.8-27b",
+  "promptChars": 5210,
+  "outputBudget": 900,
+  "paidFallback": false,
+  "qualification": false,
+  "status": "provenance-screen-pass-semantic-review-required",
+  "verdict": {
+    "verdict": "CHANGES",
+    "evidence": [
+      {
+        "criterion": "authority-transfer",
+        "source": "AUTHOR",
+        "status": "missing",
+        "quote": null
+      },
+      {
+        "criterion": "dependency-next-steps",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "Next actions: after api and ui complete, dispatch integration, then qa (depends on api, database, ui, integration), review, release."
+      },
+      {
+        "criterion": "actual-lease",
+        "source": "CONTROLLER",
+        "status": "supported",
+        "quote": "{\"taskId\":\"api\",\"worker\":\"synthetic-controller-api\",\"generation\":4,\"base\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"expiresAt\":1060}"
+      }
+    ],
+    "findings": [
+      {
+        "criterion": "authority-transfer",
+        "message": "The author fails to explicitly explain the safety rationale for fencing the old worker (worker-old) or the mechanism by which the new lease generation (4) invalidates the prior authority (generation 3). The text only states the expired lease details without addressing the transition of authority or preventing concurrent execution by the old worker."
+      }
+    ]
+  },
+  "provenance": {
+    "valid": true,
+    "reason": "provenance-screen-pass",
+    "qualification": false,
+    "semanticJudgmentStillRequired": true
+  },
+  "receipt": {
+    "status": "accepted",
+    "model": "qwen/qwen3.8-27b",
+    "finish": "stop",
+    "usage": {
+      "prompt_tokens": 1342,
+      "completion_tokens": 299,
+      "total_tokens": 1641
+    },
+    "rawHash": "17d527d4503d31b4dc6f1a8c083f507556e50b24663f453203b278ce9a1080ae",
+    "failure": null
+  }
+}

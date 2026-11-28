@@ -1,0 +1,32 @@
+**Founder Brief – Tenant‑Scoped Reminder Board**  
+
+**Problem**  
+Household reminders are getting lost in group‑chat noise (S2) and suffer from version drift when multiple edits produce conflicting texts (S3). This creates confusion and missed actions.  
+
+**Assumptions & Validation**  
+- **A1**: A tenant‑scoped board with versioned saves will cut loss and conflicts. *Validate* via a 2‑week beta (5 households), tracking reminders created vs. acknowledged and counting version‑conflict errors per S4 replay logic.  
+- **A2**: Adoption hinges on ≤2 taps (≤5 s) from chat to save. *Validate* with prototype tap‑count telemetry; iterate UI until median ≤2 taps.  
+- **A3**: Auto‑archiving reminders unchanged >30 days won’t frustrate users. *Validate* by analyzing chat logs for update frequency, simulating auto‑archive, and surveying 10 users.  
+- **A4**: Returning a sorted cloned list improves cross‑device consistency. *Validate* in a 1‑week iOS/Android pilot; target ≥90 % identical ordering reports.  
+- **A5**: Replay of identical tenant/request IDs prevents duplicate creation. *Validate* with load‑test duplicate IDs; expect no extra persists and proper conflict response.  
+- **A6**: Enforcing a 1‑80 char title reduces confusion/UI truncation. *Validate* via A/B test; aim for ≥80 % drop in related support tickets.  
+
+**Options**  
+1. **Shared‑Board (recommended)** – Implements tenant‑view, tenant‑save, stale‑recovery, duplicate‑reconciliation within approved scope; directly tackles burial and version drift using S4 contract.  
+2. **Improve‑Chat** – Pinning/threading mitigates burial only; does not enforce a single source of truth, leaving version drift unresolved and requires chat‑platform changes.  
+3. **No‑Build** – Leaves both pain points untouched; no progress on the approved tenant‑scoped reminder capability.  
+
+**Metric**  
+- Event: *reminder‑saved‑and‑visible*  
+- Target: 80 % of eligible save attempts visible within 14 days (≥50 samples). Baseline is currently unknown; this metric will serve as a proxy for impact.  
+
+**Boundaries**  
+- In‑scope: tenant‑view, tenant‑save, stale‑recovery, duplicate‑reconciliation.  
+- Out‑of‑scope: cross‑tenant access, offline writes, real notifications, public release, archive/chat integration.  
+
+**Architecture Handoff**  
+- Owner: Arjun (CPO)  
+- Review: pending; routine validation feedback expected.  
+- Next Action: Build v1.0 tenant‑view and tenant‑save endpoints per S4 contract; launch 2‑week beta to validate A1.  
+
+*Prepared for founder review – 1,018 characters.*

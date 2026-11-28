@@ -1,0 +1,35 @@
+{
+  "verdict": "CHANGES",
+  "evidence": [
+    {
+      "criterion": "authority-transfer",
+      "source": "AUTHOR",
+      "status": "supported",
+      "quote": "Safety rationale: the controller issued a new lease at generation 4 with a new base, fencing the old worker by generation increment; the old worker's authority is invalidated because the system only honors the highest generation lease for a task."
+    },
+    {
+      "criterion": "dependency-next-steps",
+      "source": "AUTHOR",
+      "status": "missing",
+      "quote": null
+    },
+    {
+      "criterion": "honest-execution-status",
+      "source": "AUTHOR",
+      "status": "supported",
+      "quote": "Dispatched api (generation 4, new lease to synthetic-controller-api, base aaaa..., expiresAt 1060) and ui (pending, generation 0)."
+    },
+    {
+      "criterion": "actual-lease",
+      "source": "CONTROLLER",
+      "status": "supported",
+      "quote": "{\"taskId\":\"api\",\"worker\":\"synthetic-controller-api\",\"generation\":4,\"base\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"expiresAt\":1060}"
+    }
+  ],
+  "findings": [
+    {
+      "criterion": "dependency-next-steps",
+      "message": "The author lists 'qa' as a next action depending on 'database', but 'database' is currently blocked by 'migration-lock'. The author fails to explicitly state that the blocked dependency (database) must be resolved before QA can proceed, omitting a material safety rationale regarding the dependency chain."
+    }
+  ]
+}

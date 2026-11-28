@@ -1,0 +1,13 @@
+{
+  "role": "leela-pjm-b",
+  "variant": "adversarial",
+  "fixtureHash": "eef0b513215484b7feae67116c4234fd9fde321cedc3321524c0f80d402591d7",
+  "author": "nvidia/nemotron-3-ultra-550b-a55b",
+  "reviewer": "qwen/qwen3.8-27b",
+  "maxRounds": 4,
+  "authorBudget": 2200,
+  "reviewerBudget": 900,
+  "scope": "supervised-synthetic-only",
+  "paidFallback": false,
+  "qualification": false
+}

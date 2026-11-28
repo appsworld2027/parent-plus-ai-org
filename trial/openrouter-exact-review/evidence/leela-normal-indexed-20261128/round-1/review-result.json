@@ -1,0 +1,44 @@
+{
+  "review": {
+    "verdict": "APPROVE",
+    "evidence": [
+      {
+        "criterion": "dispatch-safety",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "Dependencies met: tests complete (evidence: tests-lock-1). Four ready tasks (api, database, ui, integration) with no resource conflicts. Capacity 2 allows two dispatches."
+      },
+      {
+        "criterion": "authority-reconciliation",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "No expired/reconcile/blocked tasks observed."
+      },
+      {
+        "criterion": "dependency-completion",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "Dependencies met: tests complete (evidence: tests-lock-1)."
+      },
+      {
+        "criterion": "honest-execution",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "No existing PR evidence on pending tasks (evidence: null)."
+      },
+      {
+        "criterion": "controller-plan",
+        "source": "CONTROLLER",
+        "status": "supported",
+        "quote": "\"dispatchTaskIds\":[\"api\",\"ui\"]"
+      }
+    ],
+    "findings": []
+  },
+  "gate": {
+    "valid": true,
+    "reason": "provenance-screen-pass",
+    "qualification": false,
+    "semanticJudgmentStillRequired": true
+  }
+}

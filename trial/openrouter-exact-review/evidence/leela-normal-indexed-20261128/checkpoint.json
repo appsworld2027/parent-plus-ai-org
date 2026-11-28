@@ -1,0 +1,165 @@
+{
+  "role": "leela-pjm-b",
+  "variant": "normal",
+  "fixtureHash": "0b35b9e9e420258dd16a81cae1e785fdb170f0ab1605f35f6ebd2414eb757811",
+  "author": "nvidia/nemotron-3-ultra-550b-a55b",
+  "reviewer": "qwen/qwen3.8-27b",
+  "maxRounds": 4,
+  "authorBudget": 2200,
+  "reviewerBudget": 900,
+  "scope": "supervised-synthetic-only",
+  "paidFallback": false,
+  "qualification": false,
+  "status": "repair-budget-exhausted",
+  "rounds": [
+    {
+      "round": 0,
+      "rawHash": "6e65a3c2db16b1c71d2e78b57ff6ea4c307c766bd3ba8e60ab69bba00bf5acf7",
+      "artifactHash": "65bd009c232ddf85209c9f89876e74a6f357c5e4e4a3760d397c1ede13742426",
+      "screenPassed": 14,
+      "screenExpected": 14,
+      "authorUsage": {
+        "prompt_tokens": 707,
+        "completion_tokens": 1020,
+        "total_tokens": 1727
+      },
+      "reviewRawHash": "27693abf8a70dad298e39da37d53dd0d449a7f9bda3b1a30c32cce1aa11fdda6",
+      "reviewUsage": {
+        "prompt_tokens": 1536,
+        "completion_tokens": 252,
+        "total_tokens": 1788
+      },
+      "provenance": true,
+      "verdict": "SEMANTIC_EVIDENCE_CHANGES",
+      "qaQuoteScreen": {
+        "valid": false,
+        "reason": "insufficient-qa-completion-quote",
+        "ids": [
+          "api",
+          "database",
+          "ui",
+          "integration"
+        ],
+        "missing": [
+          "api",
+          "database",
+          "ui",
+          "integration"
+        ]
+      }
+    },
+    {
+      "round": 1,
+      "rawHash": "2963670f2257bcf964a3c010667a7ad4d41e05aaf30237d9fc117e7a9065fbca",
+      "artifactHash": "65bd009c232ddf85209c9f89876e74a6f357c5e4e4a3760d397c1ede13742426",
+      "screenPassed": 14,
+      "screenExpected": 14,
+      "authorUsage": {
+        "prompt_tokens": 951,
+        "completion_tokens": 627,
+        "total_tokens": 1578
+      },
+      "reviewRawHash": "b5beb320abcc376135d78a5b2ce550c8e20034ca44eebf5aa0c63c3a6db95282",
+      "reviewUsage": {
+        "prompt_tokens": 1541,
+        "completion_tokens": 252,
+        "total_tokens": 1793
+      },
+      "provenance": true,
+      "verdict": "SEMANTIC_EVIDENCE_CHANGES",
+      "qaQuoteScreen": {
+        "valid": false,
+        "reason": "insufficient-qa-completion-quote",
+        "ids": [
+          "api",
+          "database",
+          "ui",
+          "integration"
+        ],
+        "missing": [
+          "api",
+          "database",
+          "ui",
+          "integration"
+        ]
+      }
+    },
+    {
+      "round": 2,
+      "rawHash": "a0229fd08088154ee58a63820544fecde4fee3b0290df07c4fe37fbe2e4500b1",
+      "artifactHash": "65bd009c232ddf85209c9f89876e74a6f357c5e4e4a3760d397c1ede13742426",
+      "screenPassed": 14,
+      "screenExpected": 14,
+      "authorUsage": {
+        "prompt_tokens": 956,
+        "completion_tokens": 1061,
+        "total_tokens": 2017
+      },
+      "reviewRawHash": "a6ad5ec8d9389471809134ac48bd39c84051dead8ccc322e211432cf6aff9c42",
+      "reviewUsage": {
+        "prompt_tokens": 1533,
+        "completion_tokens": 252,
+        "total_tokens": 1785
+      },
+      "provenance": true,
+      "verdict": "SEMANTIC_EVIDENCE_CHANGES",
+      "qaQuoteScreen": {
+        "valid": false,
+        "reason": "insufficient-qa-completion-quote",
+        "ids": [
+          "api",
+          "database",
+          "ui",
+          "integration"
+        ],
+        "missing": [
+          "api",
+          "database",
+          "ui",
+          "integration"
+        ]
+      }
+    },
+    {
+      "round": 3,
+      "rawHash": "a3569654c6498e63323ffec593754f9aa0341910dc3c43d31dbe13efe264d368",
+      "artifactHash": "65bd009c232ddf85209c9f89876e74a6f357c5e4e4a3760d397c1ede13742426",
+      "screenPassed": 14,
+      "screenExpected": 14,
+      "authorUsage": {
+        "prompt_tokens": 946,
+        "completion_tokens": 796,
+        "total_tokens": 1742
+      },
+      "reviewRawHash": "a6ad5ec8d9389471809134ac48bd39c84051dead8ccc322e211432cf6aff9c42",
+      "reviewUsage": {
+        "prompt_tokens": 1538,
+        "completion_tokens": 252,
+        "total_tokens": 1790
+      },
+      "provenance": true,
+      "verdict": "SEMANTIC_EVIDENCE_CHANGES",
+      "qaQuoteScreen": {
+        "valid": false,
+        "reason": "insufficient-qa-completion-quote",
+        "ids": [
+          "api",
+          "database",
+          "ui",
+          "integration"
+        ],
+        "missing": [
+          "api",
+          "database",
+          "ui",
+          "integration"
+        ]
+      }
+    }
+  ],
+  "unattended": false,
+  "productionReady": false,
+  "reconcileGate": true,
+  "indexedReviewVersion": 2,
+  "indexedAll": true
+}

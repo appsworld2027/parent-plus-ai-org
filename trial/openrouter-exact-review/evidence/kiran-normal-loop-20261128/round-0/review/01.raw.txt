@@ -1,0 +1,36 @@
+{
+  "verdict": "APPROVE",
+  "evidence": [
+    {
+      "criterion": "dispatch-safety",
+      "source": "AUTHOR",
+      "status": "supported",
+      "quote": "Capacity 2 fully used; dispatchBudget 2 respected."
+    },
+    {
+      "criterion": "authority-reconciliation",
+      "source": "AUTHOR",
+      "status": "supported",
+      "quote": "No expired, reconcile, or blocked tasks in graph."
+    },
+    {
+      "criterion": "dependency-completion",
+      "source": "AUTHOR",
+      "status": "supported",
+      "quote": "Both have all dependencies satisfied (tests observed complete with evidence tests-lock-1)."
+    },
+    {
+      "criterion": "honest-execution",
+      "source": "AUTHOR",
+      "status": "supported",
+      "quote": "CI not-run; no completion evidence to invent."
+    },
+    {
+      "criterion": "controller-plan",
+      "source": "CONTROLLER",
+      "status": "supported",
+      "quote": "\"dispatchTaskIds\":[\"api\",\"ui\"]"
+    }
+  ],
+  "findings": []
+}

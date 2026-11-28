@@ -1,0 +1,47 @@
+[
+  {
+    "id": "A0",
+    "source": "AUTHOR",
+    "quote": "Dispatch ui (pending, lane B, resources: file:board.html — no conflicts) and api (expired, generation 3, lane A, resources: api:board, file:board.mjs, product:reminder-visibility)."
+  },
+  {
+    "id": "A1",
+    "source": "AUTHOR",
+    "quote": "api expired with priorWorker=worker-old on priorBase=bbbbbbbb..."
+  },
+  {
+    "id": "A2",
+    "source": "AUTHOR",
+    "quote": "(different from current base aaaaaaaa...), triggering old-worker fencing; no PR evidence exists (evidence=null), so safe to reassign."
+  },
+  {
+    "id": "A3",
+    "source": "AUTHOR",
+    "quote": "database remains blocked by migration-lock — cannot dispatch until unblocked."
+  },
+  {
+    "id": "A4",
+    "source": "AUTHOR",
+    "quote": "integration pending but shares api:board, file:board.mjs, product:reminder-visibility with api; dispatching both would exceed resource compatibility."
+  },
+  {
+    "id": "A5",
+    "source": "AUTHOR",
+    "quote": "ui and api use disjoint resources, fit capacity=2."
+  },
+  {
+    "id": "A6",
+    "source": "AUTHOR",
+    "quote": "Downstream qa requires completion (not just unblock) of api, database, ui, integration before QA can start."
+  },
+  {
+    "id": "R0",
+    "source": "AUTHOR",
+    "quote": "Dispatch ui (pending, lane B, resources: file:board.html — no conflicts) and api (expired, generation 3, lane A, resources: api:board, file:board.mjs, product:reminder-visibility). api expired with priorWorker=worker-old on priorBase=bbbbbbbb... (different from current base aaaaaaaa...), triggering old-worker fencing; no PR evidence exists (evidence=null), so safe to reassign."
+  },
+  {
+    "id": "C0",
+    "source": "CONTROLLER",
+    "quote": "\"dispatchTaskIds\":[\"ui\",\"api\"]"
+  }
+]

@@ -1,0 +1,12 @@
+{
+  "valid": true,
+  "reason": "minimum-reconcile-quote-screen-pass",
+  "fence": true,
+  "pr": true,
+  "base": true,
+  "verify": true,
+  "taskIds": [
+    "api",
+    "integration"
+  ]
+}

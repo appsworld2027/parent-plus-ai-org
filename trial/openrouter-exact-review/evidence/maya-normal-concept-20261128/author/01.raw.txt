@@ -1,0 +1,82 @@
+{
+  "fixtureHash": "6e581a36137fedb766899bd4c109e80289ed0358e842929f4c15c04c49cf5489",
+  "contractVersion": "synthetic-board-v1",
+  "acceptance": {
+    "AC-create": {
+      "id": "AC-create",
+      "sourceIds": ["S1", "S2", "S4"],
+      "expected": [
+        { "id": "r1", "title": "Pack sports kit", "version": 0 },
+        [{ "id": "r1", "title": "Pack sports kit", "version": 0 }]
+      ]
+    },
+    "AC-stale": {
+      "id": "AC-stale",
+      "sourceIds": ["S3", "S4"],
+      "expected": [
+        { "id": "r1", "title": "Original", "version": 0 },
+        { "error": "stale" },
+        { "error": "stale" },
+        [{ "id": "r1", "title": "Original", "version": 0 }]
+      ]
+    },
+    "AC-replay": {
+      "id": "AC-replay",
+      "sourceIds": ["S4"],
+      "expected": [
+        { "id": "r1", "title": "First", "version": 0 },
+        { "id": "r1", "title": "First", "version": 0 },
+        { "error": "conflict" },
+        [{ "id": "r1", "title": "First", "version": 0 }]
+      ]
+    },
+    "AC-isolation": {
+      "id": "AC-isolation",
+      "sourceIds": ["S1", "S4"],
+      "expected": [
+        { "id": "r1", "title": "A private", "version": 0 },
+        { "id": "r1", "title": "B private", "version": 0 },
+        [{ "id": "r1", "title": "A private", "version": 0 }],
+        [{ "id": "r1", "title": "B private", "version": 0 }]
+      ]
+    },
+    "AC-invalid": {
+      "id": "AC-invalid",
+      "sourceIds": ["S4"],
+      "expected": [
+        { "error": "invalid" },
+        { "error": "invalid" },
+        { "error": "invalid" },
+        { "error": "invalid" },
+        { "error": "invalid" },
+        { "throws": "invalid" },
+        []
+      ]
+    }
+  },
+  "states": [
+    { "id": "empty", "effect": "show-empty-create" },
+    { "id": "loading", "effect": "show-pending-no-success" },
+    { "id": "offline", "effect": "cached-read-only-no-save" },
+    { "id": "denied", "effect": "no-write-keep-draft" },
+    { "id": "stale", "effect": "no-write-refresh-keep-draft" },
+    { "id": "invalid", "effect": "no-write-inline-error" },
+    { "id": "saved", "effect": "show-confirmed-record" },
+    { "id": "narrow-320", "effect": "status-and-controls-visible-no-horizontal-scroll" }
+  ],
+  "scope": {
+    "in": ["tenant-view", "tenant-save", "stale-recovery", "duplicate-reconciliation"],
+    "out": ["cross-tenant", "offline-write", "real-notifications", "public-release"]
+  },
+  "observed": {
+    "tests": "not-run",
+    "independentReview": "pending",
+    "ci": "unknown"
+  },
+  "problem": {
+    "statement": "Household reminders get buried in group chat (S2) and different versions of reminder text confuse the household (S3), causing missed tasks and friction.",
+    "sourceIds": ["S2", "S3"]
+  },
+  "assumptions": [
+    { "id": "A1", "hypothesis": "Tenants will adopt a dedicated reminder board if it reduces chat noise.", "validation": "Measure reminder-saved-and-visible rate vs chat reminder volume over 14 days with 50+ households." },
+    { "id": "A2", "hypothesis": "Versioned saves with stale detection prevent conflicting edits without locking.", "validation": "Track stale/conflict error rates and

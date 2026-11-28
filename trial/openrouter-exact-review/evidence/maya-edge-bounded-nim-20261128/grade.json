@@ -1,0 +1,50 @@
+{
+  "schema": 1,
+  "role": "maya-ai-pm",
+  "variant": "edge",
+  "fixtureHash": "1cfa3d763f84da3f0797e817a733ba6711afe3e40522aabc864718e5961e858f",
+  "artifactHash": "87d986ba1372901d1005b1cc32342d64011fe76de6281216a1e9c5936717f378",
+  "checks": {
+    "C01": {
+      "pass": true
+    },
+    "C02": {
+      "pass": true
+    },
+    "C03": {
+      "pass": true
+    },
+    "C04": {
+      "pass": true
+    },
+    "C05": {
+      "pass": true
+    },
+    "M01": {
+      "pass": true
+    },
+    "M02": {
+      "pass": true
+    },
+    "M03": {
+      "pass": true
+    },
+    "M04": {
+      "pass": true
+    },
+    "M05": {
+      "pass": true
+    },
+    "M06": {
+      "pass": true
+    },
+    "M07": {
+      "pass": true
+    }
+  },
+  "passed": 12,
+  "expected": 12,
+  "screenPassed": true,
+  "qualification": false,
+  "productionReady": false
+}

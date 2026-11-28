@@ -1,0 +1,23 @@
+{
+  "status": "screen-pass-independent-review-required",
+  "role": "maya-ai-pm",
+  "variant": "normal",
+  "model": "openai/gpt-oss-120b",
+  "artifactHash": "f859bfac35f3fe460ae688b23d1e1ee45ba7cf315eadf2cf42f72889e672b227",
+  "priorArtifactHash": "8f2307180bc217d2ca086280e43ba0cf7cb199d8742a6b9ba128d08ad5dea608",
+  "rawHash": "13c8edbd21b3d8803e4d3c598401c8c35f2d0505ca55a58539d98c04cacd87e5",
+  "receiptScope": "5c66d62518edf44f1aa006269557b8e46c9f17595abe7d4afc317f8309a59da6",
+  "passed": 12,
+  "expected": 12,
+  "briefChars": 1562,
+  "failed": [],
+  "storedModelUsage": {
+    "prompt_tokens": 361,
+    "completion_tokens": 352,
+    "total_tokens": 713
+  },
+  "additionalInferenceCalls": 0,
+  "qualification": false,
+  "productionReady": false,
+  "paidFallback": false
+}

@@ -1,0 +1,57 @@
+[
+  {
+    "id": "A0",
+    "source": "AUTHOR",
+    "quote": "Dependencies met: tests complete (evidence: tests-lock-1)."
+  },
+  {
+    "id": "A1",
+    "source": "AUTHOR",
+    "quote": "Four ready tasks (api, database, ui, integration) with no resource conflicts."
+  },
+  {
+    "id": "A2",
+    "source": "AUTHOR",
+    "quote": "Capacity 2 allows two dispatches."
+  },
+  {
+    "id": "A3",
+    "source": "AUTHOR",
+    "quote": "Selected api (lane A, resources: api:board, file:board.mjs, product:reminder-visibility) and ui (lane B, resource: file:board.html) for lane balance."
+  },
+  {
+    "id": "A4",
+    "source": "AUTHOR",
+    "quote": "No expired/reconcile/blocked tasks observed."
+  },
+  {
+    "id": "A5",
+    "source": "AUTHOR",
+    "quote": "No old-worker fencing needed."
+  },
+  {
+    "id": "A6",
+    "source": "AUTHOR",
+    "quote": "No existing PR evidence on pending tasks (evidence: null)."
+  },
+  {
+    "id": "A7",
+    "source": "AUTHOR",
+    "quote": "Downstream qa requires actual completion of all four predecessors, not merely unblocked."
+  },
+  {
+    "id": "A8",
+    "source": "AUTHOR",
+    "quote": "Dispatch budget 2 consumed."
+  },
+  {
+    "id": "R0",
+    "source": "AUTHOR",
+    "quote": "Dependencies met: tests complete (evidence: tests-lock-1). Four ready tasks (api, database, ui, integration) with no resource conflicts. Capacity 2 allows two dispatches."
+  },
+  {
+    "id": "C0",
+    "source": "CONTROLLER",
+    "quote": "\"dispatchTaskIds\":[\"api\",\"ui\"]"
+  }
+]

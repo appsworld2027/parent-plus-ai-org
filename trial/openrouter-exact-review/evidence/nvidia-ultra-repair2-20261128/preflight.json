@@ -1,0 +1,11 @@
+{
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "originalRawHash": "e127a102557eb5c66016283f8b63375e468652e6563eae0a63ca84e362deccf2",
+  "originalArtifactHash": "c3ca7b01429418d0ba84f6af9f1ae30a3f8ccc28c060f6ed217f65b10e6afcc5",
+  "reviewRawHash": "661135fd1a84552e5acb0cb1840cf115efe5e425e8b5e3a46475e387e658bf9c",
+  "promptChars": 4823,
+  "outputBudget": 2200,
+  "scope": "supervised-synthetic-only",
+  "paidFallback": false,
+  "qualification": false
+}

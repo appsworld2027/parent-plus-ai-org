@@ -1,0 +1,54 @@
+{
+  "status": "screen-failed",
+  "role": "maya-ai-pm",
+  "variant": "normal",
+  "artifactHash": "8f2307180bc217d2ca086280e43ba0cf7cb199d8742a6b9ba128d08ad5dea608",
+  "passed": 11,
+  "expected": 12,
+  "failed": [
+    [
+      "M07",
+      {
+        "pass": false,
+        "reason": "founder brief missing or too long"
+      }
+    ]
+  ],
+  "receipts": [
+    {
+      "path": "problem-options.json",
+      "usage": {
+        "prompt_tokens": 429,
+        "completion_tokens": 737,
+        "total_tokens": 1166
+      }
+    },
+    {
+      "path": "measurement-handoff.json",
+      "usage": {
+        "prompt_tokens": 1020,
+        "completion_tokens": 1201,
+        "total_tokens": 2221
+      }
+    },
+    {
+      "path": "founder-brief.md",
+      "usage": {
+        "prompt_tokens": 1528,
+        "completion_tokens": 516,
+        "total_tokens": 2044
+      }
+    }
+  ],
+  "controllerGeneratedFields": [
+    "fixtureHash",
+    "contractVersion",
+    "acceptance",
+    "states",
+    "scope",
+    "observed"
+  ],
+  "qualification": false,
+  "productionReady": false,
+  "paidFallback": false
+}

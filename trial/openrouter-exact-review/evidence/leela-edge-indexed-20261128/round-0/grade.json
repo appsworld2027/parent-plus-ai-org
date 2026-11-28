@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "role": "leela-pjm-b",
+  "variant": "edge",
+  "fixtureHash": "743c6fdf82683b7b6338b5bd11a6031ea235bf822ab354ef3c572cbf2a706a88",
+  "artifactHash": "901b8eb7d2d42f8369ccf10d300f35c02d4148a9cbaa87c63bc61f646e8692ed",
+  "checks": {
+    "P01": {
+      "pass": true
+    },
+    "P02": {
+      "pass": true
+    },
+    "P03": {
+      "pass": true
+    },
+    "P04": {
+      "pass": true
+    },
+    "P05": {
+      "pass": true
+    },
+    "P06": {
+      "pass": true
+    },
+    "P07": {
+      "pass": true
+    },
+    "P08": {
+      "pass": true
+    },
+    "P09": {
+      "pass": true
+    },
+    "P10": {
+      "pass": true
+    },
+    "P11": {
+      "pass": true
+    },
+    "P12": {
+      "pass": true
+    },
+    "P13": {
+      "pass": true
+    },
+    "P14": {
+      "pass": true
+    }
+  },
+  "passed": 14,
+  "expected": 14,
+  "qualified": true,
+  "qualification": false
+}

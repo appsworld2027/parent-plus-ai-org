@@ -1,0 +1,1 @@
+SEMANTIC AUDIT: not accepted; evidence of old-worker fencing present, but no explicit existing PR outcome verification against current base.

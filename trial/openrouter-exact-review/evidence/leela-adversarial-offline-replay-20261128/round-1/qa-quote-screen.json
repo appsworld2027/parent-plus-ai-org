@@ -1,0 +1,11 @@
+{
+  "valid": true,
+  "reason": "minimum-qa-quote-screen-pass",
+  "ids": [
+    "api",
+    "database",
+    "ui",
+    "integration"
+  ],
+  "missing": []
+}

@@ -1,0 +1,34 @@
+{
+  "scope": "NVIDIA-developer-trial-synthetic-only",
+  "sourceRun": 46104313533,
+  "sourceArtifact": 15247060844,
+  "sourceHead": "03398e98b312077328b40ac3b355cac208b05654",
+  "rawDecisionHash": "c5115b43163ad3424b121d21d3686a3e34977d039f109f740f85649bb3c1ed83",
+  "artifactHash": "22d6152abb88911f73fa821358fdb41548d64884b08fecca548d9f3b93607a34",
+  "fixtureHash": "ec23020022f825316b884a72a680df1211aed2375a6d4e5d935f605b5ab2edb0",
+  "passed": 12,
+  "expected": 12,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "reviewer": "stepfun-ai/step-5-preview",
+  "reviewerCandidates": [
+    "stepfun-ai/step-5-preview"
+  ],
+  "replayedAuthor": true,
+  "standaloneModelQualification": false,
+  "qualification": false,
+  "productionReady": false,
+  "paidFallback": false,
+  "independentlyApproved": false,
+  "status": "blocked",
+  "catalogMatches": [
+    "stepfun-ai/step-5-preview"
+  ],
+  "failure": "provider-or-artifact-blocked:transport-or-timeout",
+  "reviewReceipt": {
+    "status": "rejected",
+    "model": null,
+    "finish": null,
+    "usage": null,
+    "failure": "transport-or-timeout"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "fixtureHash": "8fcaf613ac9a2706155c8da1ee2f1ad91eb73ba85b5c4f8c80b5e855e9ff168b",
+  "artifactHash": "65bd009c232ddf85209c9f89876e74a6f357c5e4e4a3760d397c1ede13742426",
+  "files": [
+    {
+      "path": "conflict-register.json",
+      "content": "{\n  \"fixtureHash\": \"0b35b9e9e420258dd16a81cae1e785fdb170f0ab1605f35f6ebd2414eb757811\",\n  \"conflicts\": []\n}\n"
+    },
+    {
+      "path": "lane-plan.json",
+      "content": "{\n  \"fixtureHash\": \"0b35b9e9e420258dd16a81cae1e785fdb170f0ab1605f35f6ebd2414eb757811\",\n  \"nodes\": [\n    {\n      \"id\": \"contract\",\n      \"owner\": \"maya-ai-pm\",\n      \"lane\": \"shared\",\n      \"dependsOn\": [],\n      \"observed\": \"complete\",\n      \"evidence\": \"contract-lock-1\"\n    },\n    {\n      \"id\": \"architecture\",\n      \"owner\": \"arjun-cpto\",\n      \"lane\": \"shared\",\n      \"dependsOn\": [\n        \"contract\"\n      ],\n      \"observed\": \"complete\",\n      \"evidence\": \"architecture-lock-1\"\n    },\n    {\n      \"id\": \"tests\",\n      \"owner\": \"quinn-qa\",\n      \"lane\": \"shared\",\n      \"dependsOn\": [\n        \"architecture\"\n      ],\n      \"observed\": \"complete\",\n      \"evidence\": \"tests-lock-1\"\n    },\n    {\n      \"id\": \"api\",\n      \"owner\": \"dev-coder\",\n      \"lane\": \"A\",\n      \"dependsOn\": [\n        \"tests\"\n      ],\n      \"observed\": \"pending\",\n      \"evidence\": null\n    },\n    {\n      \"id\": \"database\",\n      \"owner\": \"tara-database\",\n      \"lane\": \"A\",\n      \"dependsOn\": [\n        \"tests\"\n      ],\n      \"observed\": \"pending\",\n      \"evidence\": null\n    },\n    {\n      \"id\": \"ui\",\n      \"owner\": \"iris-design\",\n      \"lane\": \"B\",\n      \"dependsOn\": [\n        \"tests\"\n      ],\n      \"observed\": \"pending\",\n      \"evidence\": null\n    },\n    {\n      \"id\": \"integration\",\n      \"owner\": \"ravi-integration\",\n      \"lane\": \"B\",\n      \"dependsOn\": [\n        \"tests\"\n      ],\n      \"observed\": \"pending\",\n      \"evidence\": null\n    },\n    {\n      \"id\": \"qa\",\n      \"owner\": \"quinn-qa\",\n      \"lane\": \"shared\",\n      \"dependsOn\": [\n        \"api\",\n        \"database\",\n        \"ui\",\n        \"integration\"\n      ],\n      \"observed\": \"pending\",\n      \"evidence\": null\n    },\n    {\n      \"id\": \"review\",\n      \"owner\": \"rex-reviewer\",\n      \"lane\": \"shared\",\n      \"dependsOn\": [\n        \"qa\"\n      ],\n      \"observed\": \"pending\",\n      \"evidence\": null\n    },\n    {\n      \"id\": \"release\",\n      \"owner\": \"sam-release\",\n      \"lane\": \"shared\",\n      \"dependsOn\": [\n        \"review\"\n      ],\n      \"observed\": \"pending\",\n      \"evidence\": null\n    }\n  ],\n  \"dispatch\": [\n    {\n      \"taskId\": \"api\",\n      \"worker\": \"synthetic-controller-api\",\n      \"generation\": 1,\n      \"base\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n      \"expiresAt\": 1060\n    },\n    {\n      \"taskId\": \"ui\",\n      \"worker\": \"synthetic-controller-ui\",\n      \"generation\": 1,\n      \"base\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n      \"expiresAt\": 1060\n    }\n  ],\n  \"reconcile\": [],\n  \"ci\": \"not-run\"\n}\n"
+    }
+  ],
+  "status": "intake-only",
+  "qualified": false
+}

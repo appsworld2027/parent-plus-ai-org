@@ -1,0 +1,13 @@
+{
+  "role": "kiran-pjm-a",
+  "variant": "normal",
+  "fixtureHash": "48bbe363a342691960eeeb7d71066b182506fd5176edcca43399b450047c2161",
+  "author": "nvidia/nemotron-3-ultra-550b-a55b",
+  "reviewer": "qwen/qwen3.8-27b",
+  "maxRounds": 4,
+  "authorBudget": 2200,
+  "reviewerBudget": 900,
+  "scope": "supervised-synthetic-only",
+  "paidFallback": false,
+  "qualification": false
+}

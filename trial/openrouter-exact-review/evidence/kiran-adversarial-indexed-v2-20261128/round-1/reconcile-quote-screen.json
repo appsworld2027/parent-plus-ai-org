@@ -1,0 +1,12 @@
+{
+  "valid": false,
+  "reason": "reconciliation-evidence-incomplete",
+  "fence": true,
+  "pr": false,
+  "base": false,
+  "verify": false,
+  "taskIds": [
+    "api",
+    "integration"
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "role": "maya-ai-pm",
+  "variant": "edge",
+  "fixtureHash": "1cfa3d763f84da3f0797e817a733ba6711afe3e40522aabc864718e5961e858f",
+  "artifactHash": "23321d2ced6311956660692af913ad4665c0273b2df9a5a34d9f2b90abf5f0f5",
+  "checks": {
+    "C01": {
+      "pass": true
+    },
+    "C02": {
+      "pass": true
+    },
+    "C03": {
+      "pass": true
+    },
+    "C04": {
+      "pass": true
+    },
+    "C05": {
+      "pass": true
+    },
+    "M01": {
+      "pass": true
+    },
+    "M02": {
+      "pass": true
+    },
+    "M03": {
+      "pass": false,
+      "reason": "alternatives/no-build or single recommendation missing"
+    },
+    "M04": {
+      "pass": true
+    },
+    "M05": {
+      "pass": true
+    },
+    "M06": {
+      "pass": true
+    },
+    "M07": {
+      "pass": true
+    }
+  },
+  "passed": 11,
+  "expected": 12,
+  "screenPassed": false,
+  "qualification": false,
+  "productionReady": false
+}

@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "scope": "0e539ce1e5f3a2519f0209d2e9077ee3ba831ad2db7e91fae0a16c6e39b7f562",
+  "model": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "path": "repair.json",
+  "format": "json_object",
+  "maxTokens": 1800,
+  "promptHash": "e681a0c65dc2cc62deac79618312f7d48750ce25cac8c2726ffde2d6e41d4a12",
+  "priorHashes": [],
+  "status": "rejected",
+  "httpStatus": 200,
+  "reportedModel": "nvidia/nemotron-3.5-lightning-30b-a3b",
+  "finishReason": "length",
+  "responseHash": "a24541d3ee7f70dbc8bea595c5fc66ceefd3b4bb75a7d0aba3e66c8686fe9bd7",
+  "usage": {
+    "prompt_tokens": 681,
+    "completion_tokens": 1800,
+    "total_tokens": 2481
+  },
+  "failure": "identity-finish-or-format"
+}

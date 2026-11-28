@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "role": "kiran-pjm-a",
+  "variant": "edge",
+  "fixtureHash": "ec23020022f825316b884a72a680df1211aed2375a6d4e5d935f605b5ab2edb0",
+  "artifactHash": "c3ca7b01429418d0ba84f6af9f1ae30a3f8ccc28c060f6ed217f65b10e6afcc5",
+  "checks": {
+    "P01": {
+      "pass": true
+    },
+    "P02": {
+      "pass": true
+    },
+    "P03": {
+      "pass": true
+    },
+    "P04": {
+      "pass": true
+    },
+    "P05": {
+      "pass": true
+    },
+    "P06": {
+      "pass": true
+    },
+    "P07": {
+      "pass": true
+    },
+    "P08": {
+      "pass": true
+    },
+    "P09": {
+      "pass": true
+    },
+    "P10": {
+      "pass": true
+    },
+    "P11": {
+      "pass": true
+    },
+    "P12": {
+      "pass": true
+    }
+  },
+  "passed": 12,
+  "expected": 12,
+  "qualified": true,
+  "qualification": false
+}

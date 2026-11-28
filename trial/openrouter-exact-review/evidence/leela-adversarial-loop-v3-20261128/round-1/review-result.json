@@ -1,0 +1,44 @@
+{
+  "review": {
+    "verdict": "APPROVE",
+    "evidence": [
+      {
+        "criterion": "dispatch-safety",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "Dispatch database (lane A) as sole immediate safe task per dispatchBudget=1"
+      },
+      {
+        "criterion": "authority-reconciliation",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "old‑worker fencing required — must verify PR outcomes against current base aaaa... and confirm actual completion before any downstream QA"
+      },
+      {
+        "criterion": "dependency-completion",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "QA depends on api, database, ui, integration all completing, not merely unblocked"
+      },
+      {
+        "criterion": "honest-execution",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "No CI signals observed"
+      },
+      {
+        "criterion": "controller-plan",
+        "source": "CONTROLLER",
+        "status": "supported",
+        "quote": "\"dispatchTaskIds\":[\"database\"]"
+      }
+    ],
+    "findings": []
+  },
+  "gate": {
+    "valid": true,
+    "reason": "provenance-screen-pass",
+    "qualification": false,
+    "semanticJudgmentStillRequired": true
+  }
+}

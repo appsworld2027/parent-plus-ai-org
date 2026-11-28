@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "scope": "cd0e3cf68f5997534ff129c5a9afbb14b8d50c8441490bb1cb6dcfb910de9e30",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "path": "decision.json",
+  "format": "json_object",
+  "maxTokens": 2200,
+  "promptHash": "e8e56533713702b16ae9a5c6409e4beaeb9cc2326390291089ec07d0afed349d",
+  "priorHashes": [],
+  "status": "accepted",
+  "httpStatus": 200,
+  "reportedModel": "nvidia/nemotron-3-ultra-550b-a55b",
+  "finishReason": "stop",
+  "responseHash": "58a0d0581cba62eb78a394c85e753f2849be963d8603827f4d66d2ea45e8a0d7",
+  "usage": {
+    "prompt_tokens": 1103,
+    "completion_tokens": 1670,
+    "total_tokens": 2773
+  },
+  "failure": null,
+  "rawHash": "ba240e3424146819cf93db89b0cd125a1d778c2a9540a14dc6077f9b94f2f9b9"
+}

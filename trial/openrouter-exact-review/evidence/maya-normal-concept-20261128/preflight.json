@@ -1,0 +1,21 @@
+{
+  "scope": "470526c3bf110297bba095c53dfe9eafd01e7ec7550b9b64496d59acf14d4a72",
+  "role": "maya-ai-pm",
+  "variant": "normal",
+  "fixtureHash": "6e581a36137fedb766899bd4c109e80289ed0358e842929f4c15c04c49cf5489",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "steps": [
+    {
+      "path": "contract.json",
+      "format": "json_object",
+      "maxTokens": 3500
+    },
+    {
+      "path": "founder-brief.md",
+      "format": "text",
+      "maxTokens": 900
+    }
+  ],
+  "qualification": false,
+  "paidFallback": false
+}

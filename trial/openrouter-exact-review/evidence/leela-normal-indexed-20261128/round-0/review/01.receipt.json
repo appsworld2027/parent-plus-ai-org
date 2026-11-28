@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "scope": "2878bfaf84587e60f74c8d769d50f29cc6da8d95379af57ef4bcf20e0a2280d2",
+  "model": "qwen/qwen3.8-27b",
+  "path": "review.json",
+  "format": "json_object",
+  "maxTokens": 900,
+  "promptHash": "dd22cef695357a6a8f2ee447ee68d1cd3218221b422643c493a41d5f8142f2ed",
+  "priorHashes": [],
+  "status": "accepted",
+  "httpStatus": 200,
+  "reportedModel": "qwen/qwen3.8-27b",
+  "finishReason": "stop",
+  "responseHash": "e65bbd2c17d75a89df6066a2c7644840a0c9ae1dd82c644e163c8a8590f6e940",
+  "usage": {
+    "prompt_tokens": 1536,
+    "completion_tokens": 252,
+    "total_tokens": 1788
+  },
+  "failure": null,
+  "rawHash": "27693abf8a70dad298e39da37d53dd0d449a7f9bda3b1a30c32cce1aa11fdda6"
+}

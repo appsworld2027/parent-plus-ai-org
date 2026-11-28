@@ -1,0 +1,25 @@
+{
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "originalRawHash": "c5115b43163ad3424b121d21d3686a3e34977d039f109f740f85649bb3c1ed83",
+  "originalArtifactHash": "22d6152abb88911f73fa821358fdb41548d64884b08fecca548d9f3b93607a34",
+  "reviewRawHash": "17d527d4503d31b4dc6f1a8c083f507556e50b24663f453203b278ce9a1080ae",
+  "promptChars": 4219,
+  "outputBudget": 2200,
+  "scope": "supervised-synthetic-only",
+  "paidFallback": false,
+  "qualification": false,
+  "status": "blocked",
+  "failure": "delta-boundary",
+  "receipt": {
+    "status": "accepted",
+    "model": "nvidia/nemotron-3-ultra-550b-a55b",
+    "finish": "stop",
+    "usage": {
+      "prompt_tokens": 1166,
+      "completion_tokens": 871,
+      "total_tokens": 2037
+    },
+    "rawHash": "e127a102557eb5c66016283f8b63375e468652e6563eae0a63ca84e362deccf2",
+    "failure": null
+  }
+}

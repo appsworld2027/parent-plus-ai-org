@@ -1,0 +1,4 @@
+{
+  "dispatchTaskIds": ["api", "ui"],
+  "handover": "Dispatching api (Lane A, dev-coder) and ui (Lane B, iris-design). Dependencies satisfied: tests observed complete (tests-lock-1). Resources: api needs api:board, file:board.mjs, product:reminder-visibility; ui needs file:board.html — no conflict. Lane isolation holds. Capacity 2 used, budget 2 respected. No expired/reconcile/blocked tasks. No old-worker fencing. No reassignment; owners unchanged. QA requires completion of all four predecessors (api, database, ui, integration), not merely unblock; this dispatch starts two. Remaining ready: database (Lane A) and integration (Lane B) await capacity. CI not-run; no completion evidence invented."
+}

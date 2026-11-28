@@ -1,0 +1,51 @@
+{
+  "schema": 1,
+  "role": "maya-ai-pm",
+  "variant": "normal",
+  "fixtureHash": "6e581a36137fedb766899bd4c109e80289ed0358e842929f4c15c04c49cf5489",
+  "artifactHash": "8f2307180bc217d2ca086280e43ba0cf7cb199d8742a6b9ba128d08ad5dea608",
+  "checks": {
+    "C01": {
+      "pass": true
+    },
+    "C02": {
+      "pass": true
+    },
+    "C03": {
+      "pass": true
+    },
+    "C04": {
+      "pass": true
+    },
+    "C05": {
+      "pass": true
+    },
+    "M01": {
+      "pass": true
+    },
+    "M02": {
+      "pass": true
+    },
+    "M03": {
+      "pass": true
+    },
+    "M04": {
+      "pass": true
+    },
+    "M05": {
+      "pass": true
+    },
+    "M06": {
+      "pass": true
+    },
+    "M07": {
+      "pass": false,
+      "reason": "founder brief missing or too long"
+    }
+  },
+  "passed": 11,
+  "expected": 12,
+  "screenPassed": false,
+  "qualification": false,
+  "productionReady": false
+}

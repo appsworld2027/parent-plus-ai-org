@@ -1,0 +1,40 @@
+{
+  "problem": {
+    "statement": "Household reminders are lost in group chat noise and suffer from version drift, causing confusion about the current reminder text.",
+    "sourceIds": ["S2", "S3"]
+  },
+  "assumptions": [
+    {
+      "id": "A1",
+      "hypothesis": "A tenant-scoped board with explicit versioned saves will reduce reminder loss and version conflicts.",
+      "validation": "Run a 2-week beta with 5 households; measure reminders created vs. reminders acknowledged, and count version-conflict errors from S4 contract replay logic."
+    },
+    {
+      "id": "A2",
+      "hypothesis": "Users will adopt a dedicated board only if saving a reminder takes ≤2 taps from the chat context.",
+      "validation": "Instrument prototype tap-count and time-to-save; target median ≤2 taps and ≤5 seconds; iterate UI until met."
+    },
+    {
+      "id": "A3",
+      "hypothesis": "Stale reminders (unchanged >30 days) can be auto-archived without user frustration.",
+      "validation": "Analyze existing chat logs for reminder update frequency; simulate auto-archive on 30-day inactivity; survey 10 users on perceived loss."
+    }
+  ],
+  "options": [
+    {
+      "id": "shared-board",
+      "recommended": true,
+      "reason": "Fits approved scope (tenant-view, tenant-save, stale-recovery, duplicate-reconciliation); directly solves burial and version drift with versioned contract (S4); no cross-tenant or public release risk."
+    },
+    {
+      "id": "improve-chat",
+      "recommended": false,
+      "reason": "Pinning or threading in chat only mitigates burial; does not enforce single source of truth for reminder text, so version drift (S3) persists; also requires chat-platform changes outside product control."
+    },
+    {
+      "id": "no-build",
+      "recommended": false,
+      "reason": "Leaves both burial (S2) and version confusion (S3) unresolved; households continue using unreliable workarounds; no progress on approved tenant-scoped reminder capability."
+    }
+  ]
+}

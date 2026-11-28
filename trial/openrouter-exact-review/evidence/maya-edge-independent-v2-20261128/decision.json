@@ -1,0 +1,41 @@
+{
+  "verdict": "APPROVE",
+  "checks": [
+    {
+      "id": "R1",
+      "pass": true,
+      "evidence": "E1",
+      "reason": "E1 accurately synthesizes S2 (buried), S3 (conflicts), and S5 (stale/hidden status) without adding unsupported claims."
+    },
+    {
+      "id": "R2",
+      "pass": true,
+      "evidence": "E2",
+      "reason": "Hypothesis is within approved scope (tenant-view/save), falsifiable via A/B test, and framed as a proposal, not an observed fact."
+    },
+    {
+      "id": "R3",
+      "pass": true,
+      "evidence": "E3",
+      "reason": "Includes no-build and two alternatives; recommendation respects tenant scope; no unsupported claims about public release or cross-tenant access."
+    },
+    {
+      "id": "R4",
+      "pass": true,
+      "evidence": "E4",
+      "reason": "Defines testable metric (85% target, 14d, 100 samples), explicitly notes baseline is null/unknown, and acknowledges proxy limitation."
+    },
+    {
+      "id": "R5",
+      "pass": true,
+      "evidence": "E5",
+      "reason": "Scope in/out matches approvedScope; decision to continue with tenant isolation is consistent; no unapproved commitments or false observed results."
+    },
+    {
+      "id": "R6",
+      "pass": true,
+      "evidence": "E6",
+      "reason": "Handoff to Arjun is pending review; brief (E7) accurately reflects contract and scope without inventing owners or evidence."
+    }
+  ]
+}

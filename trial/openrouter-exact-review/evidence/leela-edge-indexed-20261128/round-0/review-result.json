@@ -1,0 +1,44 @@
+{
+  "review": {
+    "verdict": "APPROVE",
+    "evidence": [
+      {
+        "criterion": "dispatch-safety",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "ui and api use disjoint resources, fit capacity=2."
+      },
+      {
+        "criterion": "authority-reconciliation",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "(different from current base aaaaaaaa...), triggering old-worker fencing; no PR evidence exists (evidence=null), so safe to reassign."
+      },
+      {
+        "criterion": "dependency-completion",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "Downstream qa requires completion (not just unblock) of api, database, ui, integration before QA can start."
+      },
+      {
+        "criterion": "honest-execution",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "(different from current base aaaaaaaa...), triggering old-worker fencing; no PR evidence exists (evidence=null), so safe to reassign."
+      },
+      {
+        "criterion": "controller-plan",
+        "source": "CONTROLLER",
+        "status": "supported",
+        "quote": "\"dispatchTaskIds\":[\"ui\",\"api\"]"
+      }
+    ],
+    "findings": []
+  },
+  "gate": {
+    "valid": true,
+    "reason": "provenance-screen-pass",
+    "qualification": false,
+    "semanticJudgmentStillRequired": true
+  }
+}

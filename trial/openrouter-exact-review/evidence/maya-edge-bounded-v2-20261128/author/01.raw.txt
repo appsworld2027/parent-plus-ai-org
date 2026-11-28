@@ -1,0 +1,8 @@
+{
+  "problem": "Users lose reminders in group chats and see stale edits, lacking reliable offline‑cached view on mobile.",
+  "sourceIds": ["S2", "S3", "S5"],
+  "preferred": "improve-chat",
+  "sharedReason": "Adds reminder visibility without new tenant‑wide feature.",
+  "chatReason": "Integrates reminders into chat, reducing missed items.",
+  "noBuildReason": "Reminders remain hidden, users continue missing tasks."
+}

@@ -1,0 +1,29 @@
+{
+  "verdict": "CHANGES",
+  "evidence": [
+    {
+      "criterion": "authority-transfer",
+      "source": "AUTHOR",
+      "status": "missing",
+      "quote": null
+    },
+    {
+      "criterion": "dependency-next-steps",
+      "source": "AUTHOR",
+      "status": "supported",
+      "quote": "Next actions: after api and ui complete, dispatch integration, then qa (depends on api, database, ui, integration), review, release."
+    },
+    {
+      "criterion": "actual-lease",
+      "source": "CONTROLLER",
+      "status": "supported",
+      "quote": "{\"taskId\":\"api\",\"worker\":\"synthetic-controller-api\",\"generation\":4,\"base\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"expiresAt\":1060}"
+    }
+  ],
+  "findings": [
+    {
+      "criterion": "authority-transfer",
+      "message": "The author fails to explicitly explain the safety rationale for fencing the old worker (worker-old) or the mechanism by which the new lease generation (4) invalidates the prior authority (generation 3). The text only states the expired lease details without addressing the transition of authority or preventing concurrent execution by the old worker."
+    }
+  ]
+}

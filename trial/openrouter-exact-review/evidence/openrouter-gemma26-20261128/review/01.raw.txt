@@ -1,0 +1,18 @@
+[
+  {
+    "artifactHash": "22d6152abb88911f73fa821358fdb41548d64884b08fecca548d9f3b93607a34",
+    "rawDecisionHash": "c5115b43163ad3424b121d21d3686a3e34977d039f109f740f85649bb3c1ed83",
+    "verdict": "APPROVE",
+    "evidence": [
+      "api task is expired (generation 3) and correctly incremented to generation 4 for new dispatch.",
+      "api task shows correct old-worker fencing (priorWorker: worker-old, priorBase: bbb...b).",
+      "ui task is pending (generation 0) and correctly incremented to generation 1 for new dispatch.",
+      "dispatch budget (2) and capacity (2) are fully utilized.",
+      "database task is correctly identified as blocked by 'migration-lock'.",
+      "dependencies for api and ui (tests) are confirmed as complete.",
+      "resource collision check passed (api uses api:board/file/product; ui uses file:board.html).",
+      "handover correctly identifies the migration-lock dependency and the unknown CI status."
+    ],
+    "findings": []
+  }
+]

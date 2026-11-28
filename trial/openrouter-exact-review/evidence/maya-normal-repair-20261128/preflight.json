@@ -1,0 +1,22 @@
+{
+  "scope": "d5877be241a21f50ee36166749d15f4c96ae7e7e4b7d70a7368eb1a239af755e",
+  "role": "maya-ai-pm",
+  "variant": "normal",
+  "priorArtifactHash": "8f2307180bc217d2ca086280e43ba0cf7cb199d8742a6b9ba128d08ad5dea608",
+  "fixtureHash": "6e581a36137fedb766899bd4c109e80289ed0358e842929f4c15c04c49cf5489",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "steps": [
+    {
+      "path": "repair.json",
+      "format": "json_object",
+      "maxTokens": 1450
+    },
+    {
+      "path": "founder-brief.md",
+      "format": "text",
+      "maxTokens": 850
+    }
+  ],
+  "qualification": false,
+  "paidFallback": false
+}

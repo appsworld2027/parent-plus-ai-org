@@ -1,0 +1,20 @@
+{
+  "status": "screen-pass-independent-review-required",
+  "role": "maya-ai-pm",
+  "variant": "edge",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "validationModel": "openai/gpt-oss-120b",
+  "artifactHash": "9fc7689f022d1b61c3600bf2cb9394fe2da21a7f21229880fb42b7121849e2ca",
+  "priorArtifactHash": "87d986ba1372901d1005b1cc32342d64011fe76de6281216a1e9c5936717f378",
+  "passed": 12,
+  "expected": 12,
+  "briefChars": 1345,
+  "repairedField": "options.improve-chat.reason",
+  "usage": {
+    "prompt_tokens": 405,
+    "completion_tokens": 1585,
+    "total_tokens": 1990
+  },
+  "qualification": false,
+  "paidFallback": false
+}

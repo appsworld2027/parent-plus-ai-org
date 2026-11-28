@@ -1,0 +1,57 @@
+{
+  "verdict": "APPROVE",
+  "evidence": [
+    {
+      "criterion": "dispatch-safety",
+      "source": "AUTHOR",
+      "status": "supported",
+      "spanId": "A1"
+    },
+    {
+      "criterion": "authority-reconciliation",
+      "source": "AUTHOR",
+      "status": "supported",
+      "spanId": "A3"
+    },
+    {
+      "criterion": "dependency-completion",
+      "source": "AUTHOR",
+      "status": "supported",
+      "spanId": "A4"
+    },
+    {
+      "criterion": "honest-execution",
+      "source": "AUTHOR",
+      "status": "supported",
+      "spanId": "A6"
+    },
+    {
+      "criterion": "controller-plan",
+      "source": "CONTROLLER",
+      "status": "supported",
+      "spanId": "C0"
+    }
+  ],
+  "findings": [
+    {
+      "criterion": "dispatch-safety",
+      "message": "Capacity (2) and budget (1) permit the single dispatch of 'database'. Resource 'schema:reminders' is unique to this task among active dispatches, ensuring no conflict."
+    },
+    {
+      "criterion": "authority-reconciliation",
+      "message": "Tasks 'api' and 'integration' are correctly identified as blocked. The plan explicitly requires fencing old workers and verifying existing PRs against the current base before any reassignment, preventing authority conflicts."
+    },
+    {
+      "criterion": "dependency-completion",
+      "message": "The plan correctly identifies that downstream QA requires all predecessors (api, database, ui, integration) to be complete, not just unblocked. Since 'api' and 'integration' are not complete, QA remains correctly pending."
+    },
+    {
+      "criterion": "honest-execution",
+      "message": "The plan explicitly states that CI status is unknown and decisions are based solely on observed graph state, avoiding any invented completion or CI status claims."
+    },
+    {
+      "criterion": "controller-plan",
+      "message": "The controller plan dispatches only 'database', which aligns with the author's assessment that it is the only task ready for immediate dispatch within the budget."
+    }
+  ]
+}

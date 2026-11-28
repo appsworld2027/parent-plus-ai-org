@@ -1,0 +1,7 @@
+{
+  "status": "blocked",
+  "role": "maya-ai-pm",
+  "variant": "normal",
+  "failure": "provider-or-artifact-blocked:http-429",
+  "qualification": false
+}

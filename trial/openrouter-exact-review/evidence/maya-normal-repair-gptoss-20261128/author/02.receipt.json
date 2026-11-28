@@ -1,0 +1,27 @@
+{
+  "schema": 1,
+  "scope": "72430a10fef594098f0283322d25265565d1d2c0c8d06423e4c14d812102ad14",
+  "model": "openai/gpt-oss-120b",
+  "path": "founder-brief.md",
+  "format": "text",
+  "maxTokens": 850,
+  "promptHash": "2230d2da904a628168d39e0079a422c827093f14cf7ed26a655618ef685bceba",
+  "priorHashes": [
+    {
+      "path": "repair.json",
+      "hash": "4954d50e4982d4dfdfd9fccfead6fc12c718405ebd0912c28656ede84010ea91"
+    }
+  ],
+  "status": "accepted",
+  "httpStatus": 200,
+  "reportedModel": "openai/gpt-oss-120b",
+  "finishReason": "stop",
+  "responseHash": "8b5341f8f729d89891ed2ad70e8937549b52039d90aa131df19b373ede437583",
+  "usage": {
+    "prompt_tokens": 1041,
+    "completion_tokens": 650,
+    "total_tokens": 1691
+  },
+  "failure": null,
+  "rawHash": "272f078662ce9e558b5c18a7d276316da693205684e0c2c46239acdd0d1b0ffe"
+}

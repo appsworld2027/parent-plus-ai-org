@@ -1,0 +1,284 @@
+{
+  "fixtureHash": "6e581a36137fedb766899bd4c109e80289ed0358e842929f4c15c04c49cf5489",
+  "contractVersion": "synthetic-board-v1",
+  "acceptance": [
+    {
+      "id": "AC-create",
+      "sourceIds": ["S1", "S2", "S4"],
+      "expected": [
+        {
+          "op": "save",
+          "result": {
+            "tenant": "synthetic-tenant-A",
+            "id": "r1",
+            "title": "Pack sports kit",
+            "version": 0,
+            "requestId": "q1"
+          }
+        },
+        {
+          "op": "list",
+          "result": [
+            {
+              "tenant": "synthetic-tenant-A",
+              "id": "r1",
+              "title": "Pack sports kit",
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-stale",
+      "sourceIds": ["S3", "S4"],
+      "expected": [
+        {
+          "op": "save",
+          "result": {
+            "tenant": "synthetic-tenant-A",
+            "id": "r1",
+            "title": "Original",
+            "version": 0,
+            "requestId": "q1"
+          }
+        },
+        {
+          "op": "save",
+          "result": {
+            "tenant": "synthetic-tenant-A",
+            "id": "r1",
+            "title": "Updated",
+            "version": 1,
+            "requestId": "q2"
+          }
+        },
+        {
+          "op": "save",
+          "error": "stale-version"
+        },
+        {
+          "op": "list",
+          "result": [
+            {
+              "tenant": "synthetic-tenant-A",
+              "id": "r1",
+              "title": "Updated",
+              "version": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-replay",
+      "sourceIds": ["S4"],
+      "expected": [
+        {
+          "op": "save",
+          "result": {
+            "tenant": "synthetic-tenant-A",
+            "id": "r1",
+            "title": "First",
+            "version": 0,
+            "requestId": "q1"
+          }
+        },
+        {
+          "op": "save",
+          "result": {
+            "replay": true,
+            "tenant": "synthetic-tenant-A",
+            "id": "r1",
+            "title": "First",
+            "version": 0,
+            "requestId": "q1"
+          }
+        },
+        {
+          "op": "save",
+          "error": "conflict-different-payload"
+        },
+        {
+          "op": "list",
+          "result": [
+            {
+              "tenant": "synthetic-tenant-A",
+              "id": "r1",
+              "title": "First",
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-isolation",
+      "sourceIds": ["S1", "S4"],
+      "expected": [
+        {
+          "op": "save",
+          "result": {
+            "tenant": "synthetic-tenant-A",
+            "id": "r1",
+            "title": "A private",
+            "version": 0,
+            "requestId": "q1"
+          }
+        },
+        {
+          "op": "save",
+          "result": {
+            "tenant": "synthetic-tenant-B",
+            "id": "r1",
+            "title": "B private",
+            "version": 0,
+            "requestId": "q1"
+          }
+        },
+        {
+          "op": "list",
+          "tenant": "synthetic-tenant-A",
+          "result": [
+            {
+              "tenant": "synthetic-tenant-A",
+              "id": "r1",
+              "title": "A private",
+              "version": 0
+            }
+          ]
+        },
+        {
+          "op": "list",
+          "tenant": "synthetic-tenant-B",
+          "result": [
+            {
+              "tenant": "synthetic-tenant-B",
+              "id": "r1",
+              "title": "B private",
+              "version": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "AC-invalid",
+      "sourceIds": ["S4"],
+      "expected": [
+        {
+          "op": "save",
+          "error": "invalid-title-empty"
+        },
+        {
+          "op": "save",
+          "error": "invalid-title-too-long"
+        },
+        {
+          "op": "save",
+          "error": "invalid-expectedVersion-negative"
+        },
+        {
+          "op": "save",
+          "error": "invalid-tenant-missing"
+        },
+        {
+          "op": "save",
+          "error": "invalid-requestId-missing"
+        },
+        {
+          "op": "list",
+          "error": "invalid-tenant-missing"
+        },
+        {
+          "op": "list",
+          "tenant": "synthetic-tenant-A",
+          "result": []
+        }
+      ]
+    }
+  ],
+  "states": [
+    { "id": "empty", "effect": "show-empty-create" },
+    { "id": "loading", "effect": "show-pending-no-success" },
+    { "id": "offline", "effect": "cached-read-only-no-save" },
+    { "id": "denied", "effect": "no-write-keep-draft" },
+    { "id": "stale", "effect": "no-write-refresh-keep-draft" },
+    { "id": "invalid", "effect": "no-write-inline-error" },
+    { "id": "saved", "effect": "show-confirmed-record" },
+    { "id": "narrow-320", "effect": "status-and-controls-visible-no-horizontal-scroll" }
+  ],
+  "scope": {
+    "in": ["tenant-view", "tenant-save", "stale-recovery", "duplicate-reconciliation"],
+    "out": ["cross-tenant", "offline-write", "real-notifications", "public-release"]
+  },
+  "observed": {
+    "tests": "not-run",
+    "independentReview": "pending",
+    "ci": "unknown"
+  },
+  "problem": {
+    "statement": "Reminders get buried in group chat and different versions of reminder text confuse households, leading to missed or duplicated actions.",
+    "sourceIds": ["S2", "S3"]
+  },
+  "assumptions": [
+    {
+      "id": "A1",
+      "hypothesis": "Tenant‑scoped reminders keep each household’s list private and reduce cross‑tenant noise.",
+      "validation": "Create reminders in two tenants and verify list isolation."
+    },
+    {
+      "id": "A2",
+      "hypothesis": "Trimming titles to 1‑80 characters prevents overly long or empty reminders that users find unusable.",
+      "validation": "Attempt saves with empty, whitespace‑only, and >80‑char titles and expect validation errors."
+    },
+    {
+      "id": "A3",
+      "hypothesis": "Idempotent saves (same requestId, same payload) improve perceived reliability when network retries occur.",
+      "validation": "Replay identical save request and confirm no duplicate record or version bump."
+    },
+    {
+      "id": "A4",
+      "hypothesis": "Stale‑version detection forces users to refresh, preventing accidental overwrites.",
+      "validation": "Submit a save with an outdated expectedVersion and verify conflict response."
+    }
+  ],
+  "options": [
+    {
+      "id": "shared-board",
+      "recommended": true,
+      "reason": "Fits the approved scope (tenant‑view/save) and directly solves the burial problem by giving each tenant its own board without cross‑tenant exposure."
+    },
+    {
+      "id": "improve-chat",
+      "recommended": false,
+      "reason": "Would require cross‑tenant visibility and UI changes outside the approved scope, increasing complexity."
+    },
+    {
+      "id": "no-build",
+      "recommended": false,
+      "reason": "Leaves the problem unaddressed; user interviews already show clear pain."
+    }
+  ],
+  "metric": {
+    "event": "reminder-saved-and-visible",
+    "baseline": null,
+    "targetPercent": 80,
+    "windowDays": 14,
+    "minimumSample": 50,
+    "numerator": "confirmed-visible-saves",
+    "denominator": "eligible-save-attempts"
+  },
+  "decision": {
+    "action": "build",
+    "conflictSource": null,
+    "recommended": "shared-board",
+    "safeWork": ["tenant-view", "tenant-save"]
+  },
+  "handoff": {
+    "owner": "arjun-cpto",
+    "review": "pending",
+    "feedback": "routine-validation",
+    "nextAction": "prepare‑build‑plan‑v1"
+  }
+}

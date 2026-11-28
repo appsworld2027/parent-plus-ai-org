@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "scope": "72430a10fef594098f0283322d25265565d1d2c0c8d06423e4c14d812102ad14",
+  "model": "openai/gpt-oss-120b",
+  "path": "repair.json",
+  "format": "json_object",
+  "maxTokens": 1450,
+  "promptHash": "e681a0c65dc2cc62deac79618312f7d48750ce25cac8c2726ffde2d6e41d4a12",
+  "priorHashes": [],
+  "status": "accepted",
+  "httpStatus": 200,
+  "reportedModel": "openai/gpt-oss-120b",
+  "finishReason": "stop",
+  "responseHash": "363bc6bc48dd8a7f992ff2d7090e29f972b67e264658b0e5db620e10306f77e4",
+  "usage": {
+    "prompt_tokens": 684,
+    "completion_tokens": 610,
+    "total_tokens": 1294
+  },
+  "failure": null,
+  "rawHash": "4954d50e4982d4dfdfd9fccfead6fc12c718405ebd0912c28656ede84010ea91"
+}

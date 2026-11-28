@@ -1,0 +1,9 @@
+{
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "sourceRawHash": "c1f1438d53c0114a874a3d253f3c885daed53723e1d675a7e1b48e4938070cbe",
+  "scope": "synthetic-next-actions-contract-only",
+  "promptChars": 3525,
+  "outputBudget": 2600,
+  "paidFallback": false,
+  "qualification": false
+}

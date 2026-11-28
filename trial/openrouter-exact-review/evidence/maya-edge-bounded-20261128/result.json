@@ -1,0 +1,8 @@
+{
+  "status": "blocked",
+  "role": "maya-ai-pm",
+  "variant": "edge",
+  "model": "openai/gpt-oss-120b",
+  "failure": "invalid bounded product fields",
+  "qualification": false
+}

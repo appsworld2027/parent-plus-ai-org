@@ -1,0 +1,53 @@
+{
+  "status": "independent-review-reject",
+  "artifactHash": "87d986ba1372901d1005b1cc32342d64011fe76de6281216a1e9c5936717f378",
+  "model": "qwen/qwen3.8-27b",
+  "valid": true,
+  "modelDecision": "REJECT",
+  "checks": [
+    {
+      "id": "R1",
+      "pass": true,
+      "evidence": "E1",
+      "reason": "E1 accurately summarizes S2 (buried), S3 (conflicts), and S5 (stale/hidden status) with correct source IDs."
+    },
+    {
+      "id": "R2",
+      "pass": true,
+      "evidence": "E2",
+      "reason": "Hypothesis is within approved scope (tenant-view/save), falsifiable via A/B test, and framed as a proposal, not observed fact."
+    },
+    {
+      "id": "R3",
+      "pass": false,
+      "evidence": "E3",
+      "reason": "E3 claims 'improve-chat' violates 'no-public-release' scope; S1/S4 define scope as tenant-scoped, not public, making this claim unsupported."
+    },
+    {
+      "id": "R4",
+      "pass": true,
+      "evidence": "E4",
+      "reason": "E4 defines a testable metric (85% target, 14d window, 100 samples) with explicit numerator/denominator and null baseline."
+    },
+    {
+      "id": "R5",
+      "pass": true,
+      "evidence": "E5",
+      "reason": "E5 scope matches approvedScope; decision to continue with tenant isolation is consistent; no false observed results claimed."
+    },
+    {
+      "id": "R6",
+      "pass": true,
+      "evidence": "E6",
+      "reason": "E6 correctly identifies Arjun as owner with pending review; E7 brief accurately reflects contract and scope without inventing evidence."
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1995,
+    "completion_tokens": 428,
+    "total_tokens": 2423
+  },
+  "qualification": false,
+  "productionReady": false,
+  "paidFallback": false
+}
