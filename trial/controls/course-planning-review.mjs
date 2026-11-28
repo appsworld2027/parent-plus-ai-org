@@ -80,11 +80,12 @@ if(mode==="preflight") {
   console.log(JSON.stringify(preflight)); 
 } else if(mode==="review") {
   if(!process.env.GROQ_API_KEY)throw Error("Approved free model key unavailable; no fallback");
-  const strict=packet.model==="openai/gpt-oss-120b";
+  const gpt=packet.model==="openai/gpt-oss-120b";
   const body={model:packet.model,temperature:0,max_completion_tokens:2400,messages:[
     {role:"system",content:"Only the archived sanitized evaluation packet is supplied. No external tools or source access. Return JSON only. No claim of executed checks, no paid fallback."},
-    {role:"user",content:prompt}],response_format:strict?{type:"json_schema",json_schema:{name:"planning_artifact_review",strict:true,schema:REVIEW_SCHEMA}}:{type:"json_object"}};
-  if(strict)body.reasoning_effort="medium";
+    {role:"user",content:prompt}],response_format:{type:"json_schema",json_schema:{name:"planning_artifact_review",strict:true,schema:REVIEW_SCHEMA}}};
+  body.reasoning_effort="medium";
+  if(!gpt)body.reasoning_format="hidden";
   const start=Date.now(),response=await fetch("https://api.groq.com/openai/v1/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+process.env.GROQ_API_KEY,"Content-Type":"application/json"},body:JSON.stringify(body),redirect:"error",signal:AbortSignal.timeout(110000)});
   const http={http:response.status,retryAfter:response.headers.get("retry-after"),requestedModel:packet.model,elapsedMs:Date.now()-start};
   writeFileSync(join(out,"transport.json"),JSON.stringify(http,null,2)+"\n");
