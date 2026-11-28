@@ -10,3 +10,7 @@ OpenRouter connected existing free-tier account (read-only /key confirmed is_fre
 - StepFun direct NVIDIA timed out without usable identity/usage/verdict.
 
 All raw files in evidence are synthetic benchmark results; credentials never recorded. 68 targeted original evaluator/transport and price-gate tests pass, no previously held request replay, no paid fallback. No model qualified; no production changes/security changes. Do not merge these experiments.
+
+## Evidence-provenance regression (qualification-only)
+
+NVIDIA Gemma 3 12B returned 404 even though present in catalog; no identity/usage/verdict. The new provenance/gate.mjs requires a full criterion ledger with explicit AUTHOR versus CONTROLLER source and a verbatim quote (or MISSING), denies misplaced/fabricated quotes, duplicate/omitted criteria and approval with missing evidence. CHANGES with specific findings can be a good review. It does not establish semantic adequacy or qualification. Tests include the real Gemini/Gemma 26B raw false approval and exact original Ultra author plus projected controller data. Six provenance tests plus original locked group: 74/74. The original benchmark and production policy remain unchanged. No new model call after provider daily limit.
