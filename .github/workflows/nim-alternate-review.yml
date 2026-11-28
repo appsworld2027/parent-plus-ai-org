@@ -1,0 +1,54 @@
+name: Exact Ultra artifact alternate free reviewer
+on:
+  pull_request:
+    types: [opened]
+    branches: [review/nim-minimax-review-20261128]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: nim-alternate-review-one-shot
+  cancel-in-progress: false
+jobs:
+  trial:
+    if: github.repository == 'appsworld2027/parent-plus-ai-org' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'review/nim-alternate-review-20261128' && github.event.pull_request.base.ref == 'review/nim-minimax-review-20261128' && github.actor == 'appsworld2027' && github.run_attempt == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Verify exact artifact provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/appsworld2027/parent-plus-ai-org/actions/artifacts/15247060844 --jq '. as $a | ($a.id == 15247060844 and $a.name == "bounded-ultra-mistral-receipts" and $a.expired == false and $a.workflow_run.id == 46104313533 and $a.workflow_run.head_sha == "03398e98b312077328b40ac3b355cac208b05654")' | grep -x true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: bounded-ultra-mistral-receipts
+          github-token: ${{ github.token }}
+          repository: appsworld2027/parent-plus-ai-org
+          run-id: 46104313533
+          path: ${{ runner.temp }}/prior-ultra
+      - name: Locked zero-inference exact replay
+        run: |
+          git diff --exit-code cf041948862dd5523d55c527109a02c20169cdff -- org/agents scripts/frontier-admission.mjs scripts/frontier-casebook.mjs scripts/frontier-planning-evaluator.mjs governance/FRONTIER_ARTIFACT_RUBRIC.json governance/FRONTIER_PLANNING_BEHAVIOR.md
+          git diff --exit-code 2de0edf5503d020096c109afb751032c247dead0 -- trial/nim-hybrid-planning trial/nim-per-file
+          node --test tests/frontier-casebook.test.mjs tests/frontier-planning-evaluator.test.mjs trial/nim-hybrid-planning/compile.test.mjs trial/nim-per-file/transport.test.mjs trial/nim-alternate-review/select.test.mjs
+          node trial/nim-alternate-review/run.mjs preflight "$RUNNER_TEMP/prior-ultra/hybrid-trial" "$RUNNER_TEMP/replay-preflight"
+      - name: One distinct reviewer only, original author retained
+        env:
+          NVIDIA_NIM_API_KEY: ${{ secrets.NVIDIA_NIM_API_KEY }}
+        run: node trial/nim-alternate-review/run.mjs review "$RUNNER_TEMP/prior-ultra/hybrid-trial" "$RUNNER_TEMP/exact-review"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: exact-ultra-alternate-review-receipts
+          path: |
+            ${{ runner.temp }}/replay-preflight
+            ${{ runner.temp }}/exact-review
