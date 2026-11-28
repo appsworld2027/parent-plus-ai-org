@@ -1,0 +1,43 @@
+{
+  "review": {
+    "verdict": "APPROVE",
+    "evidence": [
+      {
+        "criterion": "dispatch-safety",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "Capacity 2, budget 1 permits one immediate dispatch. database uses schema:reminders; no resource conflict with ui (file:board.html)."
+      },
+      {
+        "criterion": "authority-reconciliation",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "require old-worker fencing and verification of existing PR outcomes against current base before any reassignment"
+      },
+      {
+        "criterion": "dependency-completion",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "Downstream QA requires api, database, ui, and integration all to complete (not merely become unblocked)."
+      },
+      {
+        "criterion": "honest-execution",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "do not claim PR outcomes or completion"
+      },
+      {
+        "criterion": "controller-plan",
+        "source": "CONTROLLER",
+        "status": "supported",
+        "quote": "{\"dispatchTaskIds\":[\"database\"]}"
+      }
+    ],
+    "findings": []
+  },
+  "gate": {
+    "valid": false,
+    "reason": "quote-not-in-attributed-source",
+    "qualification": false
+  }
+}
