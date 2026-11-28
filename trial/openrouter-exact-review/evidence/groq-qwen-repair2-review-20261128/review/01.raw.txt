@@ -1,0 +1,35 @@
+{
+  "verdict": "CHANGES",
+  "evidence": [
+    {
+      "criterion": "authority-transfer",
+      "source": "AUTHOR",
+      "status": "supported",
+      "quote": "the controller has issued a new lease at generation 4 with a new base, fencing the old worker because the system honors only the highest generation lease for a task"
+    },
+    {
+      "criterion": "dependency-next-steps",
+      "source": "AUTHOR",
+      "status": "missing",
+      "quote": null
+    },
+    {
+      "criterion": "honest-execution-status",
+      "source": "AUTHOR",
+      "status": "supported",
+      "quote": "Proposing dispatch of api (generation 4, new lease to synthetic-controller-api, base aaaa..., expiresAt 1060) and ui (generation 0, pending)."
+    },
+    {
+      "criterion": "actual-lease",
+      "source": "CONTROLLER",
+      "status": "supported",
+      "quote": "{\"taskId\":\"api\",\"worker\":\"synthetic-controller-api\",\"generation\":4,\"base\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"expiresAt\":1060}"
+    }
+  ],
+  "findings": [
+    {
+      "criterion": "dependency-next-steps",
+      "message": "The author's next steps state 'once integration completes and the migration-lock clears (unblocking database), dispatch qa'. This conflates the removal of a blocker with the completion of the task. The dependency graph requires 'database' to be 'complete' for 'qa' to proceed, not merely 'unblocked'. The author fails to explicitly require the completion of the database task before QA."
+    }
+  ]
+}
