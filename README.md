@@ -7,7 +7,7 @@ Run `python3 -m unittest discover -s tests -v` to verify the framework.
 Run `npm run ai:verify` to verify the framework, Cezar pin, Superpowers installation,
 workflows and portable automations together.
 Run `npm run ai:pilot` for a zero-spend Cezar/Superpowers end-to-end dry run.
-Run `npm run ai:cockpit` to start the local orchestration dashboard.
+Live Cezar cockpit/import are intentionally blocked pending a qualified free-only adapter. Use `npm run ai:dry-run` or `npm run ai:pilot` for mock evaluation only.
 Run `python3 org.py demo` to see the synthetic pilot, including the founder conflict and merge gate.
 Run `python3 org.py report PATH_TO_LOCAL_LEDGER` to see usage.
 Run `python3 org.py daily-report demo/status.json --ledger demo/usage.jsonl` to inspect the legacy demo report. Use [the canonical Founder Dashboard standard](governance/FOUNDER_DASHBOARD.md) for project reporting.
