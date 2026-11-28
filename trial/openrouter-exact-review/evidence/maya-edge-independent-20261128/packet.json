@@ -1,0 +1,387 @@
+{
+  "role": "maya-ai-pm",
+  "variant": "edge",
+  "artifactHash": "87d986ba1372901d1005b1cc32342d64011fe76de6281216a1e9c5936717f378",
+  "sourceEvidence": [
+    {
+      "id": "S1",
+      "kind": "approved",
+      "text": "Founder approved tenant-scoped shared reminders: view and save, no public release or cross-tenant access."
+    },
+    {
+      "id": "S2",
+      "kind": "synthetic-interview",
+      "text": "Participant A says reminders get buried in group chat."
+    },
+    {
+      "id": "S3",
+      "kind": "synthetic-interview",
+      "text": "Participant B says different versions of reminder text confuse the household."
+    },
+    {
+      "id": "S4",
+      "kind": "approved-contract",
+      "text": "Save requires tenant,id,title,expectedVersion,requestId; title trimmed 1–80 chars; create v0, update exact version; replay identical successful tenant/request id, conflict on changed payload, sorted cloned list."
+    },
+    {
+      "id": "S5",
+      "kind": "synthetic-observation",
+      "text": "Mobile user needs an offline cached read; support reports stale edits; 320px view obscures status. Preserve draft, no offline write or false confirmation."
+    }
+  ],
+  "approvedScope": {
+    "in": [
+      "tenant-view",
+      "tenant-save",
+      "stale-recovery",
+      "duplicate-reconciliation"
+    ],
+    "out": [
+      "cross-tenant",
+      "offline-write",
+      "real-notifications",
+      "public-release"
+    ]
+  },
+  "criteria": {
+    "R1": "Problem grounded in fictional sources; source references accurate.",
+    "R2": "Hypothesis in approved scope, falsifiable, validation feasible as proposal and not claimed observed.",
+    "R3": "Three alternatives including no-build with meaningful tradeoffs; recommendation tied to scope; avoid unsupported claims that alternate approaches necessarily imply public release or cross-tenant access.",
+    "R4": "Metric target, unknown baseline and proxy limitation; testable definition.",
+    "R5": "Scope boundary and decision consistent, any material conflict escalated with safe work retained, no unapproved commitments or false observed results.",
+    "R6": "Arjun handoff pending and review before building; brief accurately represents contract, no invented owners or evidence."
+  },
+  "evidence": {
+    "E1": {
+      "statement": "Users lose reminders buried in group chat, face conflicting versions, and experience stale cached reads with hidden status on narrow mobile screens.",
+      "sourceIds": [
+        "S2",
+        "S3",
+        "S5"
+      ]
+    },
+    "E2": [
+      {
+        "id": "A1",
+        "hypothesis": "A shared board will reduce reminder loss and version conflicts for tenants.",
+        "validation": "Run an A/B test comparing shared board to chat; track reminder find rate and version mismatch over a 14‑day period."
+      }
+    ],
+    "E3": [
+      {
+        "id": "shared-board",
+        "recommended": true,
+        "reason": "Shared board centralizes reminders, enables versioned saves, avoids chat noise, respects tenant scope and duplicate reconciliation."
+      },
+      {
+        "id": "improve-chat",
+        "recommended": false,
+        "reason": "Improving chat adds cross‑tenant risk, duplicates effort, ignores version control, and violates approved no‑public‑release scope."
+      },
+      {
+        "id": "no-build",
+        "recommended": false,
+        "reason": "Doing nothing leaves burial, conflicts, stale reads unresolved, worsening household coordination and increasing support tickets."
+      }
+    ],
+    "E4": {
+      "event": "reminder-saved-and-visible",
+      "baseline": null,
+      "targetPercent": 85,
+      "windowDays": 14,
+      "minimumSample": 100,
+      "numerator": "confirmed-visible-saves",
+      "denominator": "eligible-save-attempts"
+    },
+    "E5": {
+      "scope": {
+        "in": [
+          "tenant-view",
+          "tenant-save",
+          "stale-recovery",
+          "duplicate-reconciliation"
+        ],
+        "out": [
+          "cross-tenant",
+          "offline-write",
+          "real-notifications",
+          "public-release"
+        ]
+      },
+      "decision": {
+        "action": "continue",
+        "conflictSource": null,
+        "recommended": "retain-tenant-isolation",
+        "safeWork": [
+          "tenant-view",
+          "tenant-save"
+        ]
+      },
+      "observed": {
+        "tests": "not-run",
+        "independentReview": "pending",
+        "ci": "unknown"
+      }
+    },
+    "E6": {
+      "owner": "arjun-cpto",
+      "review": "pending",
+      "feedback": "routine-validation",
+      "nextAction": "Conduct an Arjun architecture review (v1) of the shared‑board design before any build; proceed only if no conflicts are found."
+    },
+    "E7": "# Concept\nUsers lose reminders buried in group chat, face conflicting versions, and experience stale cached reads with hidden status on narrow mobile screens. [S2,S3,S5]\nA1 (hypothesis): A shared board will reduce reminder loss and version conflicts for tenants. Test: Run an A/B test comparing shared board to chat; track reminder find rate and version mismatch over a 14‑day period.\nshared-board (recommended): Shared board centralizes reminders, enables versioned saves, avoids chat noise, respects tenant scope and duplicate reconciliation.\nimprove-chat: Improving chat adds cross‑tenant risk, duplicates effort, ignores version control, and violates approved no‑public‑release scope.\nno-build: Doing nothing leaves burial, conflicts, stale reads unresolved, worsening household coordination and increasing support tickets.\nMetric reminder-saved-and-visible: 85% / 14d / 100 samples; confirmed-visible-saves/eligible-save-attempts; baseline unknown; proxy, not observed impact.\nScope: tenant-view,tenant-save,stale-recovery,duplicate-reconciliation; excludes cross-tenant,offline-write,real-notifications,public-release.\nDecision: continue; retain-tenant-isolation.\nHandoff arjun-cpto (pending, routine-validation): Conduct an Arjun architecture review (v1) of the shared‑board design before any build; proceed only if no conflicts are found.\n",
+    "E8": {
+      "acceptance": [
+        {
+          "id": "AC-create",
+          "sourceIds": [
+            "S1",
+            "S2",
+            "S4"
+          ],
+          "expected": [
+            {
+              "ok": true,
+              "record": {
+                "id": "r1",
+                "title": "Pack sports kit",
+                "version": 1
+              }
+            },
+            [
+              {
+                "id": "r1",
+                "title": "Pack sports kit",
+                "version": 1
+              }
+            ]
+          ]
+        },
+        {
+          "id": "AC-stale",
+          "sourceIds": [
+            "S3",
+            "S4"
+          ],
+          "expected": [
+            {
+              "ok": true,
+              "record": {
+                "id": "r1",
+                "title": "Original",
+                "version": 1
+              }
+            },
+            {
+              "ok": true,
+              "record": {
+                "id": "r1",
+                "title": "Updated",
+                "version": 2
+              }
+            },
+            {
+              "ok": false,
+              "code": "stale"
+            },
+            [
+              {
+                "id": "r1",
+                "title": "Updated",
+                "version": 2
+              }
+            ]
+          ]
+        },
+        {
+          "id": "AC-replay",
+          "sourceIds": [
+            "S4"
+          ],
+          "expected": [
+            {
+              "ok": true,
+              "record": {
+                "id": "r1",
+                "title": "First",
+                "version": 1
+              }
+            },
+            {
+              "ok": true,
+              "record": {
+                "id": "r1",
+                "title": "First",
+                "version": 1
+              }
+            },
+            {
+              "ok": false,
+              "code": "conflict"
+            },
+            [
+              {
+                "id": "r1",
+                "title": "First",
+                "version": 1
+              }
+            ]
+          ]
+        },
+        {
+          "id": "AC-isolation",
+          "sourceIds": [
+            "S1",
+            "S4"
+          ],
+          "expected": [
+            {
+              "ok": true,
+              "record": {
+                "id": "r1",
+                "title": "A private",
+                "version": 1
+              }
+            },
+            {
+              "ok": true,
+              "record": {
+                "id": "r1",
+                "title": "B private",
+                "version": 1
+              }
+            },
+            [
+              {
+                "id": "r1",
+                "title": "A private",
+                "version": 1
+              }
+            ],
+            [
+              {
+                "id": "r1",
+                "title": "B private",
+                "version": 1
+              }
+            ]
+          ]
+        },
+        {
+          "id": "AC-invalid",
+          "sourceIds": [
+            "S4"
+          ],
+          "expected": [
+            {
+              "ok": false,
+              "code": "invalid"
+            },
+            {
+              "ok": false,
+              "code": "invalid"
+            },
+            {
+              "ok": false,
+              "code": "invalid"
+            },
+            {
+              "ok": false,
+              "code": "invalid"
+            },
+            {
+              "ok": false,
+              "code": "invalid"
+            },
+            {
+              "throws": "invalid"
+            },
+            []
+          ]
+        },
+        {
+          "id": "AC-boundary",
+          "sourceIds": [
+            "S4",
+            "S5"
+          ],
+          "expected": [
+            {
+              "ok": true,
+              "record": {
+                "id": "r2",
+                "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "version": 1
+              }
+            },
+            {
+              "ok": true,
+              "record": {
+                "id": "r1",
+                "title": "Valid",
+                "version": 1
+              }
+            },
+            [
+              {
+                "id": "r1",
+                "title": "Valid",
+                "version": 1
+              },
+              {
+                "id": "r2",
+                "title": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                "version": 1
+              }
+            ]
+          ]
+        }
+      ],
+      "states": [
+        {
+          "id": "empty",
+          "effect": "show-empty-create"
+        },
+        {
+          "id": "loading",
+          "effect": "show-pending-no-success"
+        },
+        {
+          "id": "offline",
+          "effect": "cached-read-only-no-save"
+        },
+        {
+          "id": "denied",
+          "effect": "no-write-keep-draft"
+        },
+        {
+          "id": "stale",
+          "effect": "no-write-refresh-keep-draft"
+        },
+        {
+          "id": "invalid",
+          "effect": "no-write-inline-error"
+        },
+        {
+          "id": "saved",
+          "effect": "show-confirmed-record"
+        },
+        {
+          "id": "narrow-320",
+          "effect": "status-and-controls-visible-no-horizontal-scroll"
+        }
+      ]
+    }
+  },
+  "authors": [
+    "nvidia/nemotron-3-ultra-550b-a55b",
+    "openai/gpt-oss-120b"
+  ],
+  "toolGenerated": [
+    "fixture acceptance and trace/state facts",
+    "brief rendering",
+    "assumption ID",
+    "metric formula and baseline",
+    "approved policy boundaries and review owner"
+  ]
+}
