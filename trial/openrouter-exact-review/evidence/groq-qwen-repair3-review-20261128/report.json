@@ -1,0 +1,60 @@
+{
+  "scope": "synthetic-only-repair-review",
+  "sourceTrial": "nvidia-ultra-repair3-20261128",
+  "artifactHash": "6a62b995a588a5b17bfeb6f16d18250ab24253e2badc219ee1857dd948a02423",
+  "rawDecisionHash": "c38b2c5586d91427aa9d9ff81cf2cfd7856608839483cb80c1af00c0a325e221",
+  "model": "qwen/qwen3.8-27b",
+  "promptChars": 5944,
+  "outputBudget": 900,
+  "paidFallback": false,
+  "qualification": false,
+  "status": "provenance-screen-pass-semantic-review-required",
+  "verdict": {
+    "verdict": "APPROVE",
+    "evidence": [
+      {
+        "criterion": "authority-transfer",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "the controller has issued a new lease at generation 4 with a new base, fencing the old worker because the system honors only the highest generation lease for a task"
+      },
+      {
+        "criterion": "dependency-next-steps",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "once integration completes AND database completes (migration-lock cleared and database work finished), dispatch qa"
+      },
+      {
+        "criterion": "honest-execution-status",
+        "source": "AUTHOR",
+        "status": "supported",
+        "quote": "Proposing dispatch of api (generation 4, new lease to synthetic-controller-api, base aaaa..., expiresAt 1060) and ui (generation 0, pending)"
+      },
+      {
+        "criterion": "actual-lease",
+        "source": "CONTROLLER",
+        "status": "supported",
+        "quote": "{\"taskId\":\"api\",\"worker\":\"synthetic-controller-api\",\"generation\":4,\"base\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"expiresAt\":1060}"
+      }
+    ],
+    "findings": []
+  },
+  "provenance": {
+    "valid": true,
+    "reason": "provenance-screen-pass",
+    "qualification": false,
+    "semanticJudgmentStillRequired": true
+  },
+  "receipt": {
+    "status": "accepted",
+    "model": "qwen/qwen3.8-27b",
+    "finish": "stop",
+    "usage": {
+      "prompt_tokens": 1470,
+      "completion_tokens": 314,
+      "total_tokens": 1784
+    },
+    "rawHash": "ca1d60214504d78dfba57d183cf4889eccd37f6412c0c39f9494668f75bd3b7c",
+    "failure": null
+  }
+}
