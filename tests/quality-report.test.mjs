@@ -116,3 +116,41 @@ test("checked-in QA registry templates generate an honest unverified report", t 
   assert.equal(json.qualityStatus, "NEEDS_REVIEW");
   assert.equal(json.releaseReadiness, "UNVERIFIED");
 });
+
+function workspaceFixture(t) {
+  const root = mkdtempSync(join(tmpdir(), "ai-org-workspace-registry-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const directory = join(root, "ai-workspace", "qa");
+  mkdirSync(directory, { recursive: true });
+  writeFileSync(join(directory, "feature-registry.csv"), "feature_id,master_feature,feature,sub_feature,user_journey,source,status,evidence\nF-1,Foundation,Example,Sub,Journey,prd.md,IMPLEMENTED_WITH_TESTS,tests/example.test.ts\n");
+  writeFileSync(join(directory, "scenario-registry.csv"), "scenario_id,feature_id,scenario_type,scenario,preconditions,expected_result,status,evidence\nS-1,F-1,Happy flow,Example scenario,fixture,expected,PASS,tests/example.test.ts\n");
+  writeFileSync(join(directory, "traceability.csv"), "trace_id,requirement_or_source,feature_id,scenario_id,implementation,evidence,status\nT-1,prd.md,F-1,S-1,src/example.ts,tests/example.test.ts,PARTIAL\n");
+  return root;
+}
+test("A-08 workspace registry interoperability does not invent missing evidence", (t) => {
+  const root = workspaceFixture(t);
+  const report = JSON.parse(execFileSync(process.execPath, [script], { cwd: root, encoding: "utf8" }));
+  assert.equal(report.registryProfile, "workspace-v1");
+  assert.equal(report.featuresIndexed, 1);
+  assert.equal(report.scenariosIndexed, 1);
+  assert.equal(report.traceabilityRows, 1);
+  assert.equal(report.recordedPassed, 0);
+  assert.equal(report.qualityStatus, "NEEDS_REVIEW");
+  assert.equal(report.releaseReadiness, "UNVERIFIED");
+  assert.ok(report.reviewReasons.some(reason => /does not record.*acceptance/i.test(reason)));
+});
+
+test("A-08 reporter rejects mixed or incomplete registry layouts instead of silently merging", async (t) => {
+  const { spawnSync } = await import("node:child_process");
+  const root = workspaceFixture(t);
+  mkdirSync(join(root, "qa"));
+  writeFileSync(join(root, "qa", "feature-registry.csv"), headers["feature-registry.csv"].join(",") + "\n");
+  const auto = spawnSync(process.execPath, [script], { cwd: root, encoding: "utf8" });
+  assert.notEqual(auto.status, 0);
+  assert.match(auto.stderr, /Ambiguous registry layouts/);
+  const explicit = JSON.parse(execFileSync(process.execPath, [script, "--registry-profile", "workspace-v1"], { cwd: root, encoding: "utf8" }));
+  assert.equal(explicit.registryProfile, "workspace-v1");
+  const incomplete = spawnSync(process.execPath, [script, "--registry-profile", "canonical"], { cwd: root, encoding: "utf8" });
+  assert.notEqual(incomplete.status, 0);
+  assert.match(incomplete.stderr, /Incomplete canonical registry set/);
+});

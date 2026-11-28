@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 
 // Registry entries are declarations, not verified execution receipts. Never infer
 // release approval from a CSV flag (even if every row reports success).
@@ -46,19 +46,59 @@ function readRegistry(path, required) {
 
 const upper = value => (value || "").toUpperCase();
 const template = value => /^TEMPLATE-/i.test(value || "");
-const featureRows = readRegistry("qa/feature-registry.csv", [
-  "Feature ID", "Feature Name", "Implementation Status", "Requirement Source", "Acceptance Criteria"
-]);
-const scenarioRows = readRegistry("qa/test-scenario-registry.csv", [
-  "Scenario ID", "Feature ID", "Scenario Description", "Expected Outcome", "Actual Outcome", "Result", "Last Execution", "Evidence"
-]);
-const traceRows = readRegistry("qa/traceability.csv", [
-  "Feature ID", "Scenario ID", "Requirement Evidence", "Implementation Evidence", "Test Evidence", "Independent Review", "Release Gate Status"
-]);
+const profiles = {
+  canonical: ["qa/feature-registry.csv", "qa/test-scenario-registry.csv", "qa/traceability.csv"],
+  "workspace-v1": ["ai-workspace/qa/feature-registry.csv", "ai-workspace/qa/scenario-registry.csv", "ai-workspace/qa/traceability.csv"]
+};
+const args = process.argv.slice(2);
+let registryProfile;
+if (args.length) {
+  if (args.length !== 2 || args[0] !== "--registry-profile" || !Object.hasOwn(profiles, args[1])) {
+    throw new Error("Usage: quality-report.mjs [--registry-profile canonical|workspace-v1]");
+  }
+  registryProfile = args[1];
+} else {
+  const present = Object.entries(profiles).filter(([, files]) => files.some(existsSync)).map(([name]) => name);
+  if (present.length > 1) throw new Error("Ambiguous registry layouts; choose --registry-profile explicitly. Never mix registry sets.");
+  registryProfile = present[0] || "canonical";
+}
+const registryFiles = profiles[registryProfile];
+const missing = registryFiles.filter(path => !existsSync(path));
+if (missing.length) throw new Error("Incomplete " + registryProfile + " registry set: " + missing.join(", "));
+const schemaLimitations = registryProfile === "workspace-v1" ? [
+  "Workspace-v1 schema does not record acceptance criteria, actual test outcomes, execution dates, independent review verdicts or release gate status; missing fields remain unverified."
+] : [];
+let featureRows, scenarioRows, traceRows;
+if (registryProfile === "canonical") {
+  featureRows = readRegistry(registryFiles[0], [
+    "Feature ID", "Feature Name", "Implementation Status", "Requirement Source", "Acceptance Criteria"
+  ]);
+  scenarioRows = readRegistry(registryFiles[1], [
+    "Scenario ID", "Feature ID", "Scenario Description", "Expected Outcome", "Actual Outcome", "Result", "Last Execution", "Evidence"
+  ]);
+  traceRows = readRegistry(registryFiles[2], [
+    "Feature ID", "Scenario ID", "Requirement Evidence", "Implementation Evidence", "Test Evidence", "Independent Review", "Release Gate Status"
+  ]);
+} else {
+  featureRows = readRegistry(registryFiles[0], ["feature_id","master_feature","feature","sub_feature","user_journey","source","status","evidence"]).map(r => ({
+    "Feature ID": r.feature_id, "Feature Name": r.feature, "Implementation Status": r.status,
+    "Requirement Source": r.source, "Acceptance Criteria": ""
+  }));
+  scenarioRows = readRegistry(registryFiles[1], ["scenario_id","feature_id","scenario_type","scenario","preconditions","expected_result","status","evidence"]).map(r => ({
+    "Scenario ID": r.scenario_id, "Feature ID": r.feature_id, "Scenario Description": r.scenario,
+    "Expected Outcome": r.expected_result, "Actual Outcome": "", "Result": r.status,
+    "Last Execution": "", "Evidence": r.evidence
+  }));
+  traceRows = readRegistry(registryFiles[2], ["trace_id","requirement_or_source","feature_id","scenario_id","implementation","evidence","status"]).map(r => ({
+    "Feature ID": r.feature_id, "Scenario ID": r.scenario_id, "Requirement Evidence": r.requirement_or_source,
+    "Implementation Evidence": r.implementation, "Test Evidence": r.evidence,
+    "Independent Review": "", "Release Gate Status": ""
+  }));
+}
 const features = featureRows.filter(row => !template(row["Feature ID"]));
 const scenarios = scenarioRows.filter(row => !template(row["Scenario ID"]) && !template(row["Feature ID"]));
 const trace = traceRows.filter(row => !template(row["Feature ID"]) && !template(row["Scenario ID"]));
-const reviewReasons = [];
+const reviewReasons = [...schemaLimitations];
 const reason = text => reviewReasons.push(text);
 const group = (rows, field) => {
   const map = new Map();
@@ -123,6 +163,7 @@ const product = (process.env.GITHUB_REPOSITORY || "AppsWorld AI Organization").r
 const report = {
   generatedAt: new Date().toISOString(),
   product,
+  registryProfile, registryFiles, schemaLimitations,
   featuresIndexed: features.length,
   scenariosIndexed: scenarios.length,
   traceabilityRows: trace.length,
@@ -136,6 +177,7 @@ mkdirSync("evidence", { recursive: true });
 writeFileSync("evidence/quality-report.json", JSON.stringify(report, null, 2) + "\n");
 const summary = [
   "# " + product + " — Quality Report", "",
+  "- Registry profile: " + report.registryProfile,
   "- Real features indexed: " + report.featuresIndexed,
   "- Real scenarios indexed: " + report.scenariosIndexed,
   "- Real traceability rows: " + report.traceabilityRows,
