@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { pathToFileURL } from "node:url";
+import { normalizeProductDocsFolder } from "./product-docs.mjs";
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MARK = /(?:^|\n)<!-- ai-org:contract-candidate ([a-z0-9]+(?:-[a-z0-9]+)*) -->\s*$/;
@@ -36,21 +37,22 @@ export function renderVerifiedReport(result, after) {
   return report.body.slice(0,marker.index).trim()+"\n\nVerified remote contract commit: `"+result.head+"` (candidate comment "+result.commentId+").\n\n<!-- ai-org:contract-ready "+result.slug+" -->\n";
 }
 
-export function resolveRemoteContract(slug, cwd = process.cwd()) {
+export function resolveRemoteContract(slug, cwd = process.cwd(), docsFolder = "docs/product") {
   if (!SLUG.test(slug)) throw new Error("invalid slug");
+  const docs = normalizeProductDocsFolder(docsFolder);
   const git = args => execFileSync("git",args,{cwd,encoding:"utf8",stdio:["ignore","pipe","pipe"],maxBuffer:1024*1024}).trim();
   git(["fetch","--no-tags","origin","refs/heads/ai/contract-"+slug]);
   const head=git(["rev-parse","--verify","FETCH_HEAD^{commit}"]);
-  const files=Object.fromEntries(DOCS.map(doc => [doc,git(["show",head+":docs/product/"+slug+"/"+doc])]));
+  const files=Object.fromEntries(DOCS.map(doc => [doc,git(["show",head+":"+docs+"/"+slug+"/"+doc])]));
   return {head,files};
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  const [, , beforePath, afterPath, expectedSlug="", reportPath] = process.argv;
+  const [, , beforePath, afterPath, expectedSlug="", reportPath, docsFolder="docs/product"] = process.argv;
   let result;
   try {
     const after=JSON.parse(readFileSync(afterPath,"utf8"));
-    result=verifyDiscoveryOutput({before:JSON.parse(readFileSync(beforePath,"utf8")),after,expectedSlug,resolveContract:resolveRemoteContract});
+    result=verifyDiscoveryOutput({before:JSON.parse(readFileSync(beforePath,"utf8")),after,expectedSlug,resolveContract:slug=>resolveRemoteContract(slug,process.cwd(),docsFolder)});
     if (result.ok && reportPath) writeFileSync(reportPath,renderVerifiedReport(result,after));
   } catch { result=fail("could not read authoritative comment evidence"); }
   console.log(JSON.stringify(result));

@@ -6,6 +6,7 @@
 //   next     - start eligible backlog items under the delivery lane policy
 // Founder touches only two gates: approve the Feature Contract, and approve the Demo Pack (ship to main).
 // Everything else (contract tests, build, QA, review, merge into the feature branch, release checks) is automatic.
+import { DEFAULT_PRODUCT_DOCS_FOLDER, normalizeProductDocsFolder, resolveProductDocsFolder } from "./product-docs.mjs";
 import { execFileSync } from "node:child_process";
 import { selectDeliveryItems, verifyScopedChanges } from "./delivery-lanes.mjs";
 import {selectExecutionStrategy,resolveFeatureLoop} from "./execution-strategy.mjs";
@@ -141,6 +142,37 @@ export function contractState(comments = [], founders = []) {
   }
   return { slug: ready?.slug || null, ready: !!ready && ready.at > changedAt };
 }
+
+/**
+ * Reconcile only the latest direction from each configured founder in the active
+ * contract or demo cycle. Different change requests require human reconciliation;
+ * the controller must not guess whether their meanings are compatible.
+ */
+export function founderDecisionState(comments = [], founders = [], cycle = "contract") {
+  const ordered = [...comments].sort((a, b) =>
+    String(a.created_at || "").localeCompare(String(b.created_at || "")) ||
+    Number(a.id || 0) - Number(b.id || 0));
+  const marker = cycle === "demo" ? MARK.demo : MARK.contractReady;
+  const latest = new Map();
+  for (const c of ordered) {
+    const body = c.body || "";
+    if (body.includes(`<!-- ${marker}`) && !parseCommand(body)) {
+      latest.clear();
+      continue;
+    }
+    if (!isFounder(c.user?.login, c.author_association, founders)) continue;
+    const direction = parseCommand(body);
+    if (!direction || !["approve", "changes", "stop"].includes(direction.cmd)) continue;
+    const login = String(c.user.login).toLowerCase();
+    latest.delete(login);
+    latest.set(login, { id: c.id, login, cmd: direction.cmd, text: direction.text });
+  }
+  const directions = [...latest.values()];
+  const choices = new Set(directions.map(d =>
+    d.cmd === "changes" ? `changes:${d.text.replace(/\s+/g, " ").trim()}` : d.cmd));
+  return { conflict: choices.size > 1, directions };
+}
+
 export const slugOfBranch = (b = "") => (b.match(/^ai\/contract-(.+)$/) || [])[1] || null;
 export function demoPack({ pr, title, why, acs, preview, founders = [], checksUrl = "" }) {
   const rows = acs.map((a) => `| ${a.id} | ${a.when || "—"} | ${a.then} | ✅ |`).join("\n");
@@ -154,9 +186,9 @@ export function demoPack({ pr, title, why, acs, preview, founders = [], checksUr
     "- \"change: <what to change>\" → it posts `/changes <what to change>`: agents fix it and send a new Demo Pack", "",
     `Evidence: full validation, locked acceptance tests, QA lab and contract-lock passed on the head commit${checksUrl ? ` (${checksUrl})` : ""}.`].join("\n");
 }
-export function buildIssueBody({ pr, branch, slug }) {
+export function buildIssueBody({ pr, branch, slug, docsFolder = DEFAULT_PRODUCT_DOCS_FOLDER }) {
   return [`<!-- ${MARK.buildFor} ${pr} -->`, "Owner: Dev", `Stage: build (stacked on contract PR #${pr})`, "",
-    "## Goal", `Build exactly what the approved Feature Contract says: \`docs/product/${slug}/ACCEPTANCE.md\` on branch \`${branch}\`.`,
+    "## Goal", `Build exactly what the approved Feature Contract says: \`${normalizeProductDocsFolder(docsFolder)}/${slug}/ACCEPTANCE.md\` on branch \`${branch}\`.`,
     `Locked tests: \`e2e/acceptance/\` on that branch. They fail today; make all of them pass.`, "",
     "## Hard rules (AI Org AGENTS.md §7A)",
     `1. \`git fetch origin && git switch -c ai/build-${slug} origin/${branch}\` — never from main.`,
@@ -174,12 +206,12 @@ export function fixIssueBody({ pr, branch, slug, text, author, n }) {
     "3. Done only when the acceptance tests and `npm run check` pass. Quote the result lines.",
     `4. Open the PR with base \`${branch}\`, body starting \`Closes #<this issue>\`, label it \`ai:qa\`. Never merge.`].join("\n");
 }
-export function discoveryIssueBody(item) {
+export function discoveryIssueBody(item, docsFolder = DEFAULT_PRODUCT_DOCS_FOLDER) {
   return [`Owner: Maya`, `Stage: discovery — backlog item \`${item.slug}\`${item.ref ? ` (${item.ref})` : ""}`, "",
     `## Idea`, item.title, "",
     "## What Maya does (AI Org playbooks/ai-pm.md + playbooks/feature-contract.md)",
     `1. Research silently (code, prototype in founders/prototypes/, PRD.md, roadmap). Decide what a good PM decides alone.`,
-    `2. Write \`docs/product/${item.slug}/ACCEPTANCE.md\` (template: AI Org playbooks/feature-contract.md, incl. loading/empty/error/offline/large-data ACs) and \`SUMMARY.md\` (≤2 min).`,
+    `2. Write \`${normalizeProductDocsFolder(docsFolder)}/${item.slug}/ACCEPTANCE.md\` (template: AI Org playbooks/feature-contract.md, incl. loading/empty/error/offline/large-data ACs) and \`SUMMARY.md\` (≤2 min).`,
     `3. Commit both on branch \`ai/contract-${item.slug}\` (create it from main the first time; on later rounds \`git fetch origin && git switch ai/contract-${item.slug}\`) and push that branch. NEVER commit to \`main\`. No app code, no tests.`,
     `4. Comment here: 2-minute summary, the AC table, out-of-scope list, any product question with options + one Recommended; end with \`<!-- ${MARK.contractReady} ${item.slug} -->\`.`,
     "5. Label this issue `ai:founder-decision` and remove `ai:discovery`. The founder decides in their AI chat; it posts `/approve` or `/changes <text>` here."].join("\n");
@@ -198,7 +230,7 @@ const apiItems = (path, query) => gh("api", "--paginate", `repos/${REPO}/${path}
 const log = (...a) => console.log(...a);
 function act(desc, fn) { log(`${DRY ? "[dry-run] would" : "→"} ${desc}`); if (!DRY) return fn(); }
 const manifest = () => existsSync(".ai-org/manifest.json") ? JSON.parse(readFileSync(".ai-org/manifest.json", "utf8")) : {};
-const cfg = () => { const m = manifest(); const strategy=selectExecutionStrategy({engine:"free",stage:"ai:build"}); const limits=resolveFeatureLoop(strategy,m.loop||{}); return { founders: m.governance?.founders || [], raci: m.raci || null, loop: { backlog: "docs/product/BACKLOG.md", agentsWorkflow: "ai-agents.yml", checksWorkflow: "checks.yml", qaWorkflow: "qa-lab.yml", requiredChecks: ["foundation"], lockedPaths: "e2e/acceptance/", ...(m.loop || {}), ...limits, executionStrategy:strategy.id } }; };
+const cfg = () => { const m = manifest(); const strategy=selectExecutionStrategy({engine:"free",stage:"ai:build"}); const limits=resolveFeatureLoop(strategy,m.loop||{}); const docsFolder = resolveProductDocsFolder(m); return { docsFolder, founders: m.governance?.founders || [], raci: m.raci || null, loop: { backlog: `${docsFolder}/BACKLOG.md`, agentsWorkflow: "ai-agents.yml", checksWorkflow: "checks.yml", qaWorkflow: "qa-lab.yml", requiredChecks: ["foundation"], lockedPaths: "e2e/acceptance/", ...(m.loop || {}), ...limits, executionStrategy:strategy.id } }; };
 const comments = (n) => api(`issues/${n}/comments?per_page=100`) || [];
 const comment = (n, body) => act(`comment on #${n}: ${body.split("\n").find((l) => l && !l.startsWith("<!--")).slice(0, 90)}`, () => gh("api", "-X", "POST", `repos/${REPO}/issues/${n}/comments`, "-f", `body=${body}`));
 const label = (n, add = [], remove = []) => act(`#${n} labels +[${add}] -[${remove}]`, () => {
@@ -206,11 +238,35 @@ const label = (n, add = [], remove = []) => act(`#${n} labels +[${add}] -[${remo
   if (add.length) gh("api", "-X", "POST", `repos/${REPO}/issues/${n}/labels`, ...add.flatMap((l) => ["-f", `labels[]=${l}`]));
 });
 function wake(n) { if (process.env.GITHUB_ACTIONS === "true") act(`wake agents for #${n}`, () => gh("workflow", "run", cfg().loop.agentsWorkflow, "--repo", REPO, "-f", `number=${n}`)); }
+// A routing label must be part of the issue creation transaction. A separate
+// create/edit can strand an unlabeled issue after interruption. Never wake a
+// worker until GitHub confirms the exact issue and label; no blind POST retry.
+export function createRoutedIssue({ repository, title, body, route, post, wakeWorker }) {
+  if (typeof repository !== "string" || !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repository) ||
+      typeof title !== "string" || !title.trim() || typeof body !== "string" ||
+      typeof route !== "string" || !/^ai:[a-z-]+$/.test(route) ||
+      typeof post !== "function" || typeof wakeWorker !== "function") throw Error("Invalid issue routing request");
+  const receipt = post({ repository, title, body, route });
+  const number = receipt?.number;
+  if (!Number.isSafeInteger(number) || number <= 0 || receipt.pull_request ||
+      receipt.state !== "open" || receipt.title !== title || receipt.body !== body ||
+      typeof receipt.repository_url !== "string" ||
+      receipt.repository_url.toLowerCase() !== ("https://api.github.com/repos/" + repository).toLowerCase() ||
+      typeof receipt.html_url !== "string" ||
+      receipt.html_url.toLowerCase() !== ("https://github.com/" + repository + "/issues/" + number).toLowerCase() ||
+      !Array.isArray(receipt.labels) || !receipt.labels.some(label => label?.name === route)) {
+    throw Error("Issue creation not fully confirmed; reconcile before retry");
+  }
+  wakeWorker(String(number));
+  return String(number);
+}
 function newIssue(title, body, lbl) {
-  return act(`open issue "${title}" (${lbl})`, () => {
-    const url = gh("issue", "create", "--repo", REPO, "--title", title, "--body", body).trim();
-    const n = url.split("/").pop(); gh("issue", "edit", n, "--repo", REPO, "--add-label", lbl); wake(n); return n;
-  });
+  return act(`open issue "${title}" (${lbl})`, () => createRoutedIssue({
+    repository: REPO, title, body, route: lbl,
+    post: ({ repository, title, body, route }) => JSON.parse(gh("api", "-X", "POST",
+      `repos/${repository}/issues`, "-f", `title=${title}`, "-f", `body=${body}`, "-f", `labels[]=${route}`)),
+    wakeWorker: wake
+  }));
 }
 const labelsOf = (x) => (x.labels || []).map((l) => l.name || l);
 const openPRs = () => ghj("pr", "list", "--repo", REPO, "--state", "open", "--limit", "100", "--json", "number,title,baseRefName,headRefName,headRefOid,labels,body,url");
@@ -316,7 +372,7 @@ function advanceRelease(pr) {
   }
   if (!lock("main", pr.headRefName, pr.headRefOid, ["ai:delivery"]).ok) { label(pr.number, ["ai:blocked"], ["ai:release"]); return comment(pr.number, "**[Sam — Release]** Delivery lock failed: locked tests differ from the approved contract. Blocked for review."); }
   const slug = slugOfBranch(pr.headRefName);
-  let md = ""; try { md = run("git", ["show", `origin/${pr.headRefName}:docs/product/${slug}/ACCEPTANCE.md`]); } catch { /* none */ }
+  let md = ""; try { md = run("git", ["show", `origin/${pr.headRefName}:${cfg().docsFolder}/${slug}/ACCEPTANCE.md`]); } catch { /* none */ }
   const a = parseAcceptance(md);
   comment(pr.number, demoPack({ pr: pr.number, title: a.title || pr.title, why: a.why, acs: a.acs, preview: previewUrl(pr.headRefOid), founders: cfg().founders }));
   label(pr.number, ["ai:founder-test"], ["ai:release"]);
@@ -372,8 +428,8 @@ function advanceContract(pr) {
     if (step === "block") { label(issue, ["ai:blocked"]); return comment(pr.number, "**[Kiran — Project Manager]** Sign-off still asks for changes after the fix round. Paused for the founder (`ai:blocked`)."); }
     if (step === "wait") return log(`#${pr.number}: waiting for QA verdicts`);
   }
-  const n = newIssue(`Build: ${pr.title.replace(/^Contract:\s*/i, "")} (stacked on #${pr.number})`, buildIssueBody({ pr: pr.number, branch: pr.headRefName, slug }), "ai:build");
-  comment(pr.number, `<!-- ${MARK.buildFor} ${pr.number} ${pr.headRefOid} -->\n**[Kiran — Project Manager]** Locked tests are in${cfg().raci?.["ai:tests"] ? " and signed off" : ""}. Build issue ${n ? `#${n}` : "(opened)"} assigned to Dev, with the full handover chain in \`docs/product/${slug}/handoffs/\`.`);
+  const n = newIssue(`Build: ${pr.title.replace(/^Contract:\s*/i, "")} (stacked on #${pr.number})`, buildIssueBody({ pr: pr.number, branch: pr.headRefName, slug, docsFolder: cfg().docsFolder }), "ai:build");
+  comment(pr.number, `<!-- ${MARK.buildFor} ${pr.number} ${pr.headRefOid} -->\n**[Kiran — Project Manager]** Locked tests are in${cfg().raci?.["ai:tests"] ? " and signed off" : ""}. Build issue ${n ? `#${n}` : "(opened)"} assigned to Dev, with the full handover chain in \`${cfg().docsFolder}/${slug}/handoffs/\`.`);
 }
 function advanceDiscovery() {
   const open = ghj("issue", "list", "--repo", REPO, "--state", "open", "--label", "ai:discovery", "--limit", "50", "--json", "number,labels");
@@ -383,7 +439,7 @@ function advanceDiscovery() {
     const st = contractState(comments(number), cfg().founders);
     if (!st.ready) { log(`#${number}: Maya still working on the contract`); continue; }
     label(number, ["ai:founder-decision"], ["ai:discovery"]);
-    comment(number, `**[Kiran — Project Manager]** Contract \`${st.slug}\` is ready for the founder's decision (\`docs/product/${st.slug}/\` on branch \`ai/contract-${st.slug}\`).`);
+    comment(number, `**[Kiran — Project Manager]** Contract \`${st.slug}\` is ready for the founder's decision (\`${cfg().docsFolder}/${st.slug}/\` on branch \`ai/contract-${st.slug}\`).`);
   }
 }
 export function advance() {
@@ -407,7 +463,10 @@ export function next() {
   const busy = [...open.filter(i => /^Discovery: .* \[/.test(i.title) || labelsOf(i).some(l => [...IN_FLIGHT, "ai:founder-decision", "ai:blocked"].includes(l))),
     ...prs.filter(p => /^ai\/(contract|build|fix)-/.test(p.headRefName) || labelsOf(p).some(l => [...IN_FLIGHT, "ai:blocked"].includes(l)))];
   let md = ""; try { md = readFileSync(cfg().loop.backlog, "utf8"); } catch { return log(`next: no ${cfg().loop.backlog}`); }
-  const titles = ghj("issue", "list", "--repo", REPO, "--state", "all", "--limit", "300", "--search", "Discovery: in:title", "--json", "title").map((i) => i.title);
+  const history = ghj("issue", "list", "--repo", REPO, "--state", "all", "--limit", "300", "--search", "Discovery: in:title", "--json", "title");
+  if (history.length >= 300) return log("next: incomplete discovery history; scheduling paused");
+  // Include current open inventory even if GitHub search indexing has lagged.
+  const titles = [...history, ...open.filter(i => /^Discovery: .* \[/.test(i.title))].map(i => i.title);
   const used = titles.map((t) => (t.match(/\[([a-z0-9-]+)\]$/) || [])[1]).filter(Boolean);
   const items = [];
   for (let item; (item = nextBacklogItem(md, [...used, ...items.map(i => i.slug)]));) items.push(item);
@@ -419,7 +478,7 @@ export function next() {
   const completed = Object.keys(scopes).length ? ghj("pr", "list", "--repo", REPO, "--state", "merged", "--base", "main", "--limit", "300", "--json", "headRefName").map(p => slugOfBranch(p.headRefName)).filter(Boolean) : [];
   const selected = selectDeliveryItems({items, active:busy, scopes, completed, maxLanes:policy.execution.maxConcurrentDeliveryLanes});
   if (!selected.length) return log("next: capacity, unresolved dependency, unknown scope or overlap; scheduling paused");
-  for (const item of selected) newIssue(`Discovery: ${item.title} [${item.slug}]`, discoveryIssueBody(item), "ai:discovery");
+  for (const item of selected) newIssue(`Discovery: ${item.title} [${item.slug}]`, discoveryIssueBody(item, cfg().docsFolder), "ai:discovery");
 }
 function command() {
   const id = process.env.COMMENT_ID; if (!id) return log("command: no COMMENT_ID");
@@ -429,6 +488,24 @@ function command() {
   if (!isFounder(c.user.login, c.author_association, cfg().founders)) return log(`command: ignored /${parsed.cmd} from ${c.user.login} (not a founder)`);
   const item = api(`issues/${n}`), L = labelsOf(item), isPR = !!item.pull_request;
   const who = c.user.login;
+
+  // Reconcile known directions before any contract/release transition. Stop remains
+  // immediate and /next remains independent of the affected decision.
+  if (["approve", "changes"].includes(parsed.cmd) &&
+      (isPR ? L.includes("ai:founder-test") : (L.includes("ai:founder-decision") || L.includes("ai:discovery")))) {
+    const history = apiItems(`issues/${n}/comments?per_page=100`, ".[]");
+    if (!history.some(x => String(x.id) === String(id))) history.push(c);
+    const state = founderDecisionState(history, cfg().founders, isPR ? "demo" : "contract");
+    if (!state.directions.some(d => String(d.id) === String(id))) {
+      return log(`#${n}: obsolete founder direction; no action`);
+    }
+    if (state.conflict) {
+      const marker = `<!-- ai-org:founder-conflict ${state.directions.map(d => d.id).join(",")} -->`;
+      if (history.some(x => (x.body || "").includes(marker))) return log(`#${n}: founder conflict already recorded`);
+      return comment(n, `${marker}\n**[Kiran — Project Manager]** Founder directions differ in this decision cycle: ${state.directions.map(d => `@${d.login}: /${d.cmd} (comment ${d.id})`).join("; ")}. The affected transition is paused. Please align the latest directions; unrelated work can continue.`);
+    }
+  }
+
   if (parsed.cmd === "next") return next();
   if (parsed.cmd === "stop") { label(n, ["ai:blocked"]); return comment(n, `**[Kiran — Project Manager]** Stopped by @${who}. Reply \`/changes <direction>\` to resume.`); }
   if (L.includes("ai:blocked") && parsed.cmd === "approve") return log(`#${n}: blocked; resume work before approving`);
@@ -471,7 +548,7 @@ function command() {
     }
     if (parsed.cmd === "approve") { label(n, [], ["ai:founder-decision", "ai:discovery"]); return comment(n, `**[Kiran — Project Manager]** Decision recorded: approved by @${who}.`); }
     if (parsed.cmd === "changes") {
-      const slug = ready?.[1], where = slug ? `\n\nMaya: revise \`docs/product/${slug}/\` on branch \`ai/contract-${slug}\` (\`git fetch origin && git switch ai/contract-${slug}\`). Never commit to \`main\`.` : "";
+      const slug = ready?.[1], where = slug ? `\n\nMaya: revise \`${cfg().docsFolder}/${slug}/\` on branch \`ai/contract-${slug}\` (\`git fetch origin && git switch ai/contract-${slug}\`). Never commit to \`main\`.` : "";
       label(n, ["ai:discovery"], ["ai:founder-decision", "ai:blocked"]); comment(n, `**[Kiran — Project Manager]** @${who} asked for changes — back to Maya:\n\n> ${parsed.text.replace(/\n/g, "\n> ")}${where}`); return wake(n);
     }
   }

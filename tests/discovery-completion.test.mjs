@@ -80,3 +80,34 @@ test("worker verifies and publishes discovery output before recording completion
   assert.ok(worker.includes('agent.stderr "$TOOL_MODE")'));
   assert.ok(worker.includes('touch /tmp/agent-logs/incomplete'));
 });
+test("integrated workflow prepares the assigned branch locally and resumes an existing contract without remote writes",()=>{
+  const root=mkdtempSync(join(tmpdir(),"ai-org-pilot-prep-"));
+  try {
+    const remote=join(root,"remote.git"), seed=join(root,"seed");
+    const git=(cwd,...args)=>execFileSync("git",args,{cwd,encoding:"utf8",stdio:["ignore","pipe","pipe"]}).trim();
+    git(root,"init","--bare",remote);mkdirSync(seed);git(seed,"init","-b","main");
+    git(seed,"remote","add","origin",remote);writeFileSync(join(seed,"README.md"),"Fixture");
+    git(seed,"add",".");git(seed,"-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","-m","base");
+    const base=git(seed,"rev-parse","HEAD");git(seed,"push","origin","HEAD:refs/heads/main");
+    const source=readFileSync(new URL("../.github/workflows/agent-worker.yml",import.meta.url),"utf8");
+    const begin=source.indexOf("# Deterministic workspace preparation");
+    const end=source.indexOf('[ "$(wc -c < /tmp/body.md)"',begin);
+    assert.ok(begin>=0&&end>begin);
+    const prep=source.slice(begin,end);
+    const run=(work)=>execFileSync("bash",["-c","set -euo pipefail\n"+prep],{cwd:work,env:{...process.env,FEATURE_SLUG:"f010-quality-drift",docs_folder:"docs/custom",PROMPT:"Test prompt"},encoding:"utf8",stdio:["ignore","pipe","pipe"]});
+    const first=join(root,"first");git(root,"clone","-b","main",remote,first);run(first);
+    assert.equal(git(first,"branch","--show-current"),"ai/contract-f010-quality-drift");
+    assert.equal(git(first,"rev-parse","HEAD"),base);
+    assert.equal(git(first,"ls-remote","--heads","origin","refs/heads/ai/contract-f010-quality-drift"),"");
+    git(seed,"switch","-c","ai/contract-f010-quality-drift");
+    const docDir=join(seed,"docs/custom/f010-quality-drift");mkdirSync(docDir,{recursive:true});
+    for(const [file,content] of Object.entries(files))writeFileSync(join(docDir,file),content);
+    git(seed,"add",".");git(seed,"-c","user.name=Fixture","-c","user.email=fixture@example.invalid","commit","-m","saved contract");
+    const saved=git(seed,"rev-parse","HEAD");git(seed,"push","origin","HEAD:refs/heads/ai/contract-f010-quality-drift");
+    const second=join(root,"second");git(root,"clone","-b","main",remote,second);run(second);
+    assert.equal(git(second,"rev-parse","HEAD"),saved);
+    assert.deepEqual(resolveRemoteContract("f010-quality-drift",second,"docs/custom"),{head:saved,files});
+    assert.throws(()=>resolveRemoteContract("f010-quality-drift",second,"docs/product"));
+    assert.equal(git(second,"ls-remote","--heads","origin","refs/heads/ai/contract-f010-quality-drift").split("\t")[0],saved);
+  }finally{rmSync(root,{recursive:true,force:true});}
+});

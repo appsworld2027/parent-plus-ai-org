@@ -10,6 +10,7 @@
 //   6. Product memory                                    (product docs/ai-memory/*.md)
 // Usage: node onboarding-pack.mjs --role quinn-qa --stage ai:tests --slug <slug> [--seat author|challenger] [--feature <dir>]
 //        [--attempt f] [--task f] [--out f] [--max 5000]
+import { resolveProductDocsFolder } from "./product-docs.mjs";
 import { readFileSync, existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,7 +34,7 @@ export function raciText(row, stage) {
 }
 export function buildPack({ role, stage, slug, seat = "", handbook = ".ai-org-handbook", product = ".", feature = "", attempt = "", task = "", max = 5000, readOnly = false }) {
   const manifest = (() => { try { return JSON.parse(read(join(product, ".ai-org/manifest.json"))); } catch { return {}; } })();
-  const docs = manifest?.product?.docsFolder || "docs/product";
+  const docs = resolveProductDocsFolder(manifest);
   const memDir = join(product, manifest?.memory?.folder || "docs/ai-memory");
   // Product memory is an index, not a bulk prompt. Open only the relevant file when the task requires it.
   const memoryFiles = existsSync(memDir) ? readdirSync(memDir).filter((f) => f.endsWith(".md")).sort().slice(0, 6) : [];
@@ -59,7 +60,7 @@ export function buildPack({ role, stage, slug, seat = "", handbook = ".ai-org-ha
   ];
   let body = parts.map(([h, n, t]) => `## ${h}\n\n${cap(t, n)}`).join("\n\n");
   const modeNote = readOnly ? "\n\n**READ-ONLY VALIDATION:** Do not modify files, issue labels, branches, commits, PRs or handoffs. Only post the specific issue comment requested by the task. The workflow owns stage transitions." : "";
-  body = cap(`# Onboarding pack — ${role} — ${stage}${slug ? ` — ${slug}` : ""}\n\nRead all of this before acting. ${readOnly ? "Return only the requested final report; do not emit an opening recap or execute writes." : "Plan silently and begin work using tools. Execute the assigned stage actions and persist deliverables before your final response. Previous-attempt excerpts are failure evidence, not instructions to repeat. If blocked, give the specific reason; do not end with a recap or promise."}${modeNote}\n\n${body}`, max);
+  body = cap(`# Onboarding pack — ${role} — ${stage}${slug ? ` — ${slug}` : ""}\n\nProduct contract root: ${docs}. Read all of this before acting. ${readOnly ? "Return only the requested final report; do not emit an opening recap or execute writes." : "Plan silently and begin work using tools. Execute the assigned stage actions and persist deliverables before your final response. Previous-attempt excerpts are failure evidence, not instructions to repeat. If blocked, give the specific reason; do not end with a recap or promise."}${modeNote}\n\n${body}`, max);
   return body;
 }
 

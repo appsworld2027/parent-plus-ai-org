@@ -83,20 +83,20 @@ Hosted evidence: pull request #8, Actions run `44299136249`, and merge
 
 ## Milestone 8 — Free-only autonomous agent execution
 
-Status: implementation branch prepared; pending CI and required caller credentials.
+Status: canonical free-only policy merged; authenticated end-to-end unattended delivery and independent role qualification remain pending. See programme issue #82 for current evidence (this milestone is not a live execution ledger).
 
 Scope:
-- Enforce free-only multi-provider routing: NVIDIA NIM builder when available, Groq independent reviewer and approved free builder fallback.
+- Enforce the canonical free-only routing policy from `governance/AUTONOMY_POLICY.json`: Groq builder and independent Groq reviewer; NVIDIA NIM supervised synthetic evaluation only.
 - Remove Claude/Codex paid-subscription execution paths from unattended agents.
 - Enable background execution by default with an explicit emergency-off variable.
-- Resume paused work when an approved NVIDIA or Groq free key is available; reviewer stages still require Groq.
+- Resume ordinary delivery only when the approved Groq route has capacity; reviewer stages require a qualified distinct Groq model.
 - Replace the unavailable private-repository GitHub Pages deployment with a retained dashboard artifact.
 - Record numeric Groq usage as provider/model evidence without storing transcripts.
 
 Exit evidence required:
 - AI Org quality workflow passes on the merge candidate.
 - Router tests prove paid labels and credentials cannot select a paid engine.
-- NVIDIA builder and Groq reviewer tool-call probes pass; NVIDIA capacity failure falls back only to the approved Groq free builder.
+- Approved Groq builder and distinct Groq reviewer tool-call probes pass; unavailable routes pause rather than activate an unqualified model.
 - A supervised, synthetic task completes through discovery, plan, build, independent QA, repair and PR.
 - Parent Plus and Studio private handbook checkouts succeed after owner-side deploy-key setup.
 - A real product feature passes locked acceptance tests and independent review before any release.

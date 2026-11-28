@@ -4,6 +4,7 @@
 // may contain only the contract docs and its tests; a delivery PR (label ai:delivery = contract + merged build,
 // the final stacked PR) may contain app code, but its locked tests must be exactly those of its contract commit
 // and no build commit may have touched them; no PR may skip or focus tests.
+import { DEFAULT_PRODUCT_DOCS_FOLDER, normalizeProductDocsFolder, resolveProductDocsFolder } from "./product-docs.mjs";
 import { execFileSync } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -13,7 +14,8 @@ import { realpathSync } from "node:fs";
 function isMain(url) { try { return !!process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(url)); } catch { return false; } }
 
 export const DEFAULT_LOCKED_PATHS = ["tests/acceptance/"];
-export const CONTRACT_DOC_PATHS = ["docs/product/", "docs/ai-memory/"]; // contract docs, handovers, CPTO-approved memory
+export const CONTRACT_DOC_PATHS = ["docs/product/", "docs/ai-memory/"];
+const contractDocPaths = docsFolder => [`${normalizeProductDocsFolder(docsFolder)}/`, "docs/ai-memory/"]; // contract docs, handovers, CPTO-approved memory
 const SKIP_PATTERNS = [
   /\b(?:it|test|describe)\.(?:skip|only|fixme|todo)\s*\(/,
   /\bx(?:it|test|describe)\s*\(/,
@@ -25,17 +27,18 @@ const under = (path, prefixes) => prefixes.some((p) => path.startsWith(p));
 // changes: [{ status, path }]; addedLines: { [path]: string[] }; labels: string[]
 // commits: [{ sha, files: string[] }] non-merge commits base..HEAD, newest first (delivery PRs only).
 // lockedDrift: locked files that differ between the newest contract commit and HEAD (delivery PRs only).
-export const isContractCommit = (files, lockedPaths) =>
-  files.length > 0 && files.some((f) => under(f, lockedPaths)) && files.every((f) => under(f, lockedPaths) || under(f, CONTRACT_DOC_PATHS));
-export function checkContractLock({ changes, addedLines = {}, labels = [], lockedPaths = DEFAULT_LOCKED_PATHS, commits = [], lockedDrift = [] }) {
+export const isContractCommit = (files, lockedPaths, docsFolder = DEFAULT_PRODUCT_DOCS_FOLDER) =>
+  files.length > 0 && files.some((f) => under(f, lockedPaths)) && files.every((f) => under(f, lockedPaths) || under(f, contractDocPaths(docsFolder)));
+export function checkContractLock({ changes, addedLines = {}, labels = [], lockedPaths = DEFAULT_LOCKED_PATHS, commits = [], lockedDrift = [], docsFolder = DEFAULT_PRODUCT_DOCS_FOLDER }) {
+  docsFolder = normalizeProductDocsFolder(docsFolder);
   const isDeliveryPR = labels.includes("ai:delivery");
   const isContractPR = labels.includes("ai:contract") && !isDeliveryPR;
   const violations = [];
   if (isDeliveryPR) {
-    const contract = commits.find((c) => isContractCommit(c.files, lockedPaths));
-    if (!contract) violations.push("Delivery PR has no contract commit (only docs/product/ + locked tests) in its history");
+    const contract = commits.find((c) => isContractCommit(c.files, lockedPaths, docsFolder));
+    if (!contract) violations.push(`Delivery PR has no contract commit (only ${docsFolder}/ + locked tests) in its history`);
     for (const c of commits) {
-      if (isContractCommit(c.files, lockedPaths)) continue;
+      if (isContractCommit(c.files, lockedPaths, docsFolder)) continue;
       for (const f of c.files) if (under(f, lockedPaths)) violations.push(`Build commit ${c.sha.slice(0, 7)} changed locked test: ${f}`);
     }
     for (const f of lockedDrift) violations.push(`Locked test differs from the approved contract commit: ${f}`);
@@ -45,8 +48,8 @@ export function checkContractLock({ changes, addedLines = {}, labels = [], locke
     if (!isContractPR && under(path, lockedPaths)) {
       violations.push(`Locked acceptance test ${status === "D" ? "deleted" : "changed"} in a non-contract PR: ${path}`);
     }
-    if (isContractPR && !under(path, lockedPaths) && !under(path, CONTRACT_DOC_PATHS)) {
-      violations.push(`Contract PR may only contain the contract (docs/product/) and its tests: ${path}`);
+    if (isContractPR && !under(path, lockedPaths) && !under(path, contractDocPaths(docsFolder))) {
+      violations.push(`Contract PR may only contain the contract (${docsFolder}/) and its tests: ${path}`);
     }
   }
   for (const [path, lines] of Object.entries(addedLines)) {
@@ -92,6 +95,10 @@ function main() {
     .split(",").map((s) => s.trim()).filter(Boolean)
     .map((p) => (p.endsWith("/") ? p : p + "/"));
   const git = (...args) => execFileSync("git", args, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  const manifestPath = ".ai-org/manifest.json";
+  const manifest = git("ls-tree", "--name-only", base, "--", manifestPath).trim()
+    ? JSON.parse(git("show", `${base}:${manifestPath}`)) : {};
+  const docsFolder = resolveProductDocsFolder(manifest);
   const range = `${base}...${head}`;
   const changes = parseNameStatus(git("diff", "--name-status", "--find-renames", range));
   const addedLines = parseAddedLines(git("diff", "-U0", "--no-color", range));
@@ -99,10 +106,10 @@ function main() {
   if (labels.includes("ai:delivery")) {
     const shas = git("log", "--no-merges", "--format=%H", range.replace("...", "..")).split("\n").filter(Boolean);
     commits = shas.map((sha) => ({ sha, files: git("diff-tree", "--no-commit-id", "--name-only", "-r", sha).split("\n").filter(Boolean) }));
-    const contract = commits.find((c) => isContractCommit(c.files, lockedPaths));
+    const contract = commits.find((c) => isContractCommit(c.files, lockedPaths, docsFolder));
     if (contract) lockedDrift = git("diff", "--name-only", contract.sha, head, "--", ...lockedPaths).split("\n").filter(Boolean);
   }
-  const result = checkContractLock({ changes, addedLines, labels, lockedPaths, commits, lockedDrift });
+  const result = checkContractLock({ changes, addedLines, labels, lockedPaths, commits, lockedDrift, docsFolder });
 
   const kind = result.isDeliveryPR ? "delivery PR" : result.isContractPR ? "contract PR" : "build/fix PR";
   const header = `contract-lock: ${result.ok ? "PASS" : "FAIL"} (${kind}; ` +
