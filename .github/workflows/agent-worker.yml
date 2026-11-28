@@ -374,6 +374,31 @@ jobs:
           jq --arg model "$MODEL_ROUTE" --arg provider "$PROVIDER" --argjson fallback "$MODEL_FALLBACK" '.free_model=$model | .free_provider=$provider | .model_fallback=$fallback' /tmp/route.json > /tmp/route.json.tmp
           mv /tmp/route.json.tmp /tmp/route.json
           echo "Free provider tool-call preflight: PASS ($PROVIDER/$MODEL_ID)"
+          # One explicitly admitted pilot uses native JSON output, without the incompatible FCC tool wrapper.
+          if [ "$FREE_MODEL" = groq/openai/gpt-oss-20b ] && [ "$STAGE" = ai:discovery ] && [ "$TOOL_MODE" = standard ]; then
+            [ "$GITHUB_REPOSITORY" = appsworld2027/parent-plus-ai-org ] && [ "$NUMBER" = 170 ] && [ "$FEATURE_SLUG" = f010-quality-drift ] || exit 1
+            BRANCH="ai/contract-$FEATURE_SLUG"
+            REMOTE_CONTRACT=$(git ls-remote --heads origin "refs/heads/$BRANCH") || exit 1
+            [ -z "$REMOTE_CONTRACT" ] || { echo "::error::Prior contract exists; reconcile before native generation."; exit 1; }
+            git fetch --no-tags origin refs/heads/main && git switch -c "$BRANCH" FETCH_HEAD || exit 1
+            git config user.name "$AGENT_NAME (AppsWorld AI Org)"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/agent-logs/started-at
+            DIRECTORY="$docs_folder/$FEATURE_SLUG"
+            if timeout "$STRATEGY_WALL_SECONDS" node .ai-org-handbook/scripts/discovery-native.mjs /tmp/body.md .ai-org-runtime/onboarding.md .ai-org-handbook/.ai/skills/superpowers/brainstorming/SKILL.md .ai-org-handbook/templates/PRODUCT_THINKING.md "$GITHUB_REPOSITORY" "$NUMBER" "$FEATURE_SLUG" "$docs_folder" "$BRANCH" "$GITHUB_WORKSPACE" /tmp/agent-logs "$STRATEGY_OUTPUT_CAP" 2>&1 | tee /tmp/agent-logs/native-run.txt &&
+              git diff --cached --quiet &&
+              git add -- "$DIRECTORY/SUMMARY.md" "$DIRECTORY/ACCEPTANCE.md" "$DIRECTORY/PRODUCT_THINKING.md" &&
+              git commit -m "docs: Maya native discovery contract for $FEATURE_SLUG" &&
+              git push origin "HEAD:refs/heads/$BRANCH" &&
+              gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/agent-logs/discovery-native-report.md; then
+              echo "Verified model-authored native outputs published; remote completion verifier remains mandatory."
+              exit 0
+            else
+              touch /tmp/agent-logs/incomplete
+              echo "::error::Native discovery generation or publication incomplete; reconcile before retry."
+              exit 1
+            fi
+          fi
           curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null
           export PATH="$HOME/.local/bin:$PATH"
           uv tool install "free-claude-code==6.19.56" >/dev/null
@@ -467,13 +492,6 @@ jobs:
             PROMPT="$PROMPT
           The authoritative issue body is embedded above; do not reread unless a specific ambiguity requires it.
           Discovery publication rule (overrides older issue or handbook marker instructions): deliver the complete product contract, commit and push SUMMARY.md, ACCEPTANCE.md, PRODUCT_THINKING.md to ai/contract-<slug>. Publish your substantive report with the footer <!-- ai-org:contract-candidate <slug> --> using the actual slug. Do not publish contract-ready or alter stage labels; the workflow verifies the remote files and publishes readiness. Do not stop at a recap."
-          fi
-          # Compact packet only for the admitted F010 alternate route. Ordinary stages unchanged.
-          if [ "$FREE_MODEL" = groq/openai/gpt-oss-20b ] && [ "$STAGE" = ai:discovery ] && [ "$TOOL_MODE" = standard ]; then
-            PROMPT=$(node .ai-org-handbook/scripts/discovery-packet.mjs /tmp/body.md .ai-org-runtime/onboarding.md .ai-org-handbook/.ai/skills/superpowers/brainstorming/SKILL.md .ai-org-handbook/templates/PRODUCT_THINKING.md "$GITHUB_REPOSITORY" "$NUMBER" "$FEATURE_SLUG" "$docs_folder" "$BRANCH") || exit 1
-            TOOLS=Bash
-            ALLOWED_TOOLS=Bash
-            printf 'Compact discovery packet: %s bytes; one tool schema; pinned method and exact template.\n' "$(printf %s "$PROMPT" | wc -c)"
           fi
           date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/agent-logs/started-at
           start=$(date +%s)

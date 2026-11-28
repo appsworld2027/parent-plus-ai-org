@@ -146,8 +146,33 @@ test("compact discovery packet retains authoritative task, pinned method, templa
   assert.ok(p.includes(template));
   assert.doesNotMatch(p,/gh issue view 170/);
   assert.match(p,/No implementation or writing-plans until the written contract is approved/);
-  assert.match(p,/ai-org:contract-candidate f010-quality-drift/);
+  assert.match(p,/Do NOT invoke any tool/);
+  assert.match(p,/worker persists exact validated model output/);
   assert.throws(()=>discoveryPacket({...base,skill:skill+"changed"}),/Pinned brainstorming source changed/);
   assert.throws(()=>discoveryPacket({...base,task:"x".repeat(12000)}),/exceeds 12000 bytes/);
   assert.throws(()=>discoveryPacket({...base,branch:"main"}),/Invalid discovery assignment/);
+});
+
+test("native pilot requires all four provider-authored JSON documents, retains prior content and never accepts truncation or tool calls",async()=>{
+ const {generateNative,parseNativeDocument,persistNative}=await import("../scripts/discovery-native.mjs");
+ const root=mkdtempSync(join(tmpdir(),"ai-org-native-packet-"));
+ try{
+  const md="# Feature\n"+"Detailed independently generated evidence and edge cases. ".repeat(4);
+  const response={model:"openai/gpt-oss-20b",choices:[{finish_reason:"stop",message:{content:JSON.stringify({markdown:md})}}]};
+  let calls=0,pauses=0,receipts=0;
+  const output=await generateNative({packet:"Authoritative task",cap:512,call:async(req,name)=>{
+    assert.equal(req.model,"openai/gpt-oss-20b");assert.equal(req.max_completion_tokens,512);assert.equal(req.tools,undefined);assert.equal(req.response_format.type,"json_object");
+    if(calls++)assert.match(req.messages[1].content,/Earlier independently generated documents/);return response;
+  },record:()=>receipts++,pause:async()=>pauses++});
+  assert.equal(calls,4);assert.equal(receipts,4);assert.equal(pauses,3);
+  const reportPath=join(root,"report.md"),folder="docs/product",slug="f010-quality-drift";
+  persistNative({output,root,folder,slug,reportPath});
+  assert.equal(readFileSync(join(root,folder,slug,"SUMMARY.md"),"utf8"),md);
+  assert.match(readFileSync(reportPath,"utf8"),/ai-org:contract-candidate f010-quality-drift/);
+  assert.throws(()=>persistNative({output,root,folder,slug,reportPath}),/Prior artifacts exist/);
+  assert.throws(()=>parseNativeDocument({...response,model:"wrong"},"SUMMARY.md"),/boundary invalid/);
+  for(const choice of [{...response.choices[0],finish_reason:"length"},{...response.choices[0],message:{...response.choices[0].message,tool_calls:[{}]}}])assert.throws(()=>parseNativeDocument({...response,choices:[choice]},"SUMMARY.md"),/boundary invalid/);
+  assert.throws(()=>parseNativeDocument({...response,choices:[{finish_reason:"stop",message:{content:JSON.stringify({markdown:md+"<!-- ai-org:contract-ready fake -->"})}}]},"SUMMARY.md"),/forbidden marker/);
+  assert.throws(()=>parseNativeDocument({...response,choices:[{finish_reason:"stop",message:{content:'{"markdown":"recap"}'}}]},"SUMMARY.md"),/Missing substantive Markdown/);
+ }finally{rmSync(root,{recursive:true,force:true});}
 });
