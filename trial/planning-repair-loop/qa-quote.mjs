@@ -8,6 +8,6 @@ export function screenQaDependencyQuote(graph,review){
   if(!ids.length)return {valid:true,reason:'no-incomplete-qa-predecessors',ids};
   const words=typeof quote==='string'?quote.toLowerCase().match(/[a-z0-9_-]+/g)||[]:[];
   const missing=ids.filter(id=>!words.includes(id.toLowerCase()));
-  const valid=words.includes('qa')&&words.some(w=>['complete','completed','completion','finished'].includes(w))&&missing.length===0;
+  const valid=words.includes('qa')&&words.some(w=>['complete','completed','completing','completion','finished','finishing'].includes(w))&&missing.length===0;
   return {valid,reason:valid?'minimum-qa-quote-screen-pass':'insufficient-qa-completion-quote',ids,missing};
 }

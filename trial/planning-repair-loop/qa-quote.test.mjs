@@ -8,3 +8,5 @@ test('all four incomplete QA predecessors explicitly named with completion requi
 test('unblocking is not completion',()=>assert.equal(screenQaDependencyQuote(graph,review('All of api, database, ui, integration must be unblocked before QA.')).valid,false));
 test('omitted pending UI is rejected',()=>assert.deepEqual(screenQaDependencyQuote(graph,review('Before QA, api, database and integration must complete.')).missing,['ui']));
 test('controller-only quotations cannot prove author judgment',()=>assert.equal(screenQaDependencyQuote(graph,{evidence:[{criterion:'dependency-completion',source:'CONTROLLER',status:'supported',quote:'api database ui integration complete before QA'}]}).valid,false));
+
+test('actual correct Qwen evidence using completing is accepted',()=>assert.equal(screenQaDependencyQuote(graph,review('QA depends on api, database, ui, integration all completing, not merely unblocked')).valid,true));
