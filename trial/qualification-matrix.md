@@ -8,7 +8,7 @@ Scope: supervised synthetic qualification evidence only; not full role admission
 |---|---|---|---|
 | Kiran project manager | Q-001 PASS 12/12 | Q-002 PASS 12/12 | Q-003 PASS 12/12 |
 | Leela project manager | Q-004 PASS 14/14 (alternate reviewer) | Q-005 PASS 14/14 | Q-006 PASS 14/14 |
-| Maya AI PM | Q-007 IN PROGRESS (NIM truncation, Groq 429; split trial) | Q-008 PENDING | Q-009 PENDING |
+| Maya AI PM | Q-007 PASS 12/12 (tool-assisted, independent 6/6) | Q-008 PENDING | Q-009 PENDING |
 | Arjun CPTO | Q-010 PENDING | Q-011 PENDING | Q-012 PENDING |
 | Iris design | Q-013 PENDING | Q-014 PENDING | Q-015 PENDING |
 | Dev coder | Q-016 PENDING | Q-017 PENDING | Q-018 PENDING |
@@ -28,10 +28,13 @@ Relative to trial/openrouter-exact-review:
 - Q-004: evidence/leela-normal-indexed-20261128 plus evidence/leela-normal-gptoss-v2-20261128; original loop exhausted budget, alternate model reviewed exact final artifact; 1,662 alternate-review tokens. Earlier resource concern corrected by exact locked fixture and empty conflict register.
 - Q-005: evidence/leela-edge-indexed-20261128; first-pass single round, 4,096 tokens.
 - Q-006: evidence/leela-adversarial-offline-replay-20261128; actual independent review and repair reverified without inference.
-- Q-007: evidence/maya-normal-concept-20261128, evidence/maya-normal-concept-gptoss-20261128; next trial/concept-role-loop/split-maya.mjs.
+- Q-007: evidence/maya-normal-hybrid-20261128 (11/12); targeted Ultra and Lightning rejected length; Groq full repair 10/12; evidence/maya-normal-structured-20261128 (accepted GPT-OSS patch, initial renderer overlength), evidence/maya-normal-structured-replay-20261128 (12/12, 1,562-character brief, 713 model tokens, zero additional inference), evidence/maya-normal-independent-20261128 (Qwen APPROVE 6/6, 2,294 tokens). Exact final artifact f859bfac35f3fe460ae688b23d1e1ee45ba7cf315eadf2cf42f72889e672b227. The review board wording is a proposed action, not verified governance structure; actual owner Arjun is pending review. No real 200-tenant test was run. Supervised tool-assisted evidence, not a full role admission.
 
 ## Operating rules
 Use role-appropriate free model routes. Reject rate limits, unknown identities, truncated outputs, unsupported claims, wrong source attribution, contradictory approvals, failed acceptance screens; preserve raw receipts and never synthesize a replacement result. Stop or hold if parallel AI agents occupy reviewer capacity. Use offline accepted receipt replay before paying for more inference. Explicitly separate automated screen, independent model review, semantic inspection, role admission, unattended proof and real deployment.
 
 ## Outstanding acceptance gates
-Complete Q-007–Q-033 and all 15 organization admission gates; integrate a single agent/configuration policy, enforce stage-appropriate Superpowers, validate real product documents, actual independent QA, browser verification and deployment, memory recovery and interruption/laptop-closed execution. Keep security debt separately deferred.
+Complete Q-008–Q-033 and all 15 organization admission gates; integrate a single agent/configuration policy, enforce stage-appropriate Superpowers, validate real product documents, actual independent QA, browser verification and deployment, memory recovery and interruption/laptop-closed execution. Keep security debt separately deferred.
+
+## 28 November checkpoint
+7 of 33 supervised synthetic cases passed; 26 remain. All 75 trial unit tests passed; no inference required for offline replays. Q-008 edge Maya next, then Q-009 adversarial Maya. Security remains deferred; no paid route or production merge authorized.
