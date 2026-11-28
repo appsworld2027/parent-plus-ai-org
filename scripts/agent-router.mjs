@@ -3,6 +3,7 @@
 // Pure logic + a small CLI used by .github/workflows/agent-worker.yml.
 // CLI: node agent-router.mjs --labels "ai:build,engine:codex" [--pr] [--body-file f] [--number N] [--repo o/r]
 //      env ENGINE_FREE / ENGINE_GROQ / ENGINE_NVIDIA = "true" when that engine's secret exists.
+import { DEFAULT_PRODUCT_DOCS_FOLDER, normalizeProductDocsFolder, readProductDocsFolder } from "./product-docs.mjs";
 import { readFileSync, appendFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { realpathSync } from "node:fs";
@@ -63,7 +64,7 @@ export function agentInfo(slug, dir = AGENTS_DIR) {
   return { slug, name: meta.name, role: meta.role, model: meta.model };
 }
 
-export function route({ labels = [], body = "", isPR = false, engines = { free: false }, freeModel = "", allowed = ALLOWED_ENGINES, supervisedTrial = false, syntheticSmoke = false, syntheticQualification = false, freeProviders = { groq: true, nvidia: false } }) {
+export function route({ labels = [], body = "", isPR = false, engines = { free: false }, freeModel = "", allowed = ALLOWED_ENGINES, supervisedTrial = false, syntheticSmoke = false, syntheticQualification = false, pilotContext = {}, freeProviders = { groq: true, nvidia: false } }) {
   const policyAllowed = new Set(ALLOWED_ENGINES);
   engines = Object.fromEntries(ENGINES.map((e) => [e, policyAllowed.has(e) && allowed.includes(e) && !!engines[e]]));
   freeProviders = { groq: freeProviders?.groq === true, nvidia: freeProviders?.nvidia === true };
@@ -99,9 +100,14 @@ export function route({ labels = [], body = "", isPR = false, engines = { free: 
     const available = (model) => freeProviders[model.split("/")[0]] === true;
     // NVIDIA developer endpoints are evaluation-only under the founder-approved policy.
     const evaluation = supervisedTrial === true || syntheticQualification === true || (syntheticSmoke === true && stage === "ai:discovery");
+    const pilot = AUTONOMY_POLICY.execution.providerPolicy?.supervisedPilotAlternate;
+    const supervisedPilot = !!pilot && pilot.enabled !== false && pilot.model === "groq/openai/gpt-oss-20b" &&
+      stage === pilot.stage && pilotContext.repo === pilot.repository &&
+      String(pilotContext.issueNumber) === pilot.issueNumber && pilotContext.workflow === pilot.workflow &&
+      pilotContext.event === "workflow_dispatch" && pilotContext.ref === pilot.ref && pilotContext.toolMode === "standard";
     const candidates = reviewerSeat
       ? [FREE_MODELS.reviewer]
-      : evaluation ? [FREE_MODELS.nvidiaBuilder, FREE_MODELS.builder] : [FREE_MODELS.builder];
+      : supervisedPilot ? [pilot.model] : evaluation ? [FREE_MODELS.nvidiaBuilder, FREE_MODELS.builder] : [FREE_MODELS.builder];
     // "Free" is necessary but not sufficient: an override cannot exchange author and
     // reviewer families. Reasoning-effort variants keep their underlying model identity.
     const requestedModel = typeof freeModel === "string" ? freeModel : "";
@@ -126,7 +132,7 @@ export function route({ labels = [], body = "", isPR = false, engines = { free: 
   const strategy = selectExecutionStrategy({engine:out.engine,stage:out.stage,model:out.free_model});
   Object.assign(out,{execution_strategy:strategy.id,strategy_context_mode:strategy.contextMode,strategy_task_class:strategy.taskClass,
     strategy_worker_max_turns:strategy.worker.maxTurns,strategy_worker_wall_seconds:strategy.worker.wallSeconds,
-    strategy_worker_output_cap:strategy.worker.outputTokenCap,strategy_worker_review_output_cap:strategy.worker.embeddedReviewOutputTokenCap});
+    strategy_packet_completion_cap:strategy.packet.completionTokenLimit,strategy_worker_output_cap:strategy.worker.outputTokenCap,strategy_worker_review_output_cap:strategy.worker.embeddedReviewOutputTokenCap});
   return out;
 }
 
@@ -168,13 +174,13 @@ export function onboardingRules(number, { toolMode = "standard", featureSlug = "
     "## Onboarding and handover (every run)",
     "- Read the onboarding pack first; it already contains your role card, RACI, role lessons, relevant product memory, current feature context and task. Do not reread those files or load unrelated handovers.",
     "- For large handbooks and policy files, use targeted grep/sed excerpts; do not load entire files unless the task explicitly requires a full audit. Consult only the relevant section of the AI Org Founder Operating Charter when a policy decision requires it.",
-    "- Use the Parent Plus founder-response reference only when writing a founder-facing report; do not load it for routine engineering work.",
+    "- Use .ai-org-handbook/standards/FOUNDER_RESPONSE.md only when writing a founder-facing report; do not load it for routine engineering work.",
     "- If a required role or policy source is absent, stop and report the exact missing path; do not invent or silently substitute.",
     "- Use the Founder Dashboard standard only for substantive operating reviews, scheduled reports, milestone summaries and readiness assessments.",
     "- Founder-facing reports must use plain English for technical explanations or evidence-led blocker reports. Do not claim delivery to a founder conversation unless the actual artifact or link is verified.",
     "- At onboarding, meaningful milestones, repeated failures, environment or model changes, and before ending, assess context only from available measurements, progress, repeated work, decisions, dependencies, and risks. Record CONTINUE / COMPACT / SWITCH / ESCALATE; never claim unsupported context metrics or actions.",
     "- The compact onboarding pack is embedded below in this initial prompt. Read it completely; it contains the current task context and at most the two latest handovers for this feature. Do not attempt to access `/tmp/onboarding.md` or reread sources it already summarises.",
-    toolMode === "readonly" ? "- Keep intermediate analysis private; provide only the concise report (verdict first for review)." : "- Your first message is the 5-line Understanding: goal · constraints · known traps · what you must not touch · how you will prove it is done.",
+    toolMode === "readonly" ? "- Keep intermediate analysis private; provide only the concise report (verdict first for review)." : "- Plan silently: goal, constraints, known traps, boundaries and proof. Then execute the required tools and persist your stage deliverables in the same invocation. Do not end with an Understanding recap, plan or promise. Report only completed evidence or a specific blocker after acting.",
     "- Put lessons that would help future features under `## Memory proposals` (fact + evidence). Never edit `docs/ai-memory/` directly; Arjun merges approved memory.",
   ];
   if (toolMode === "readonly") {
@@ -223,16 +229,39 @@ const ROLE_QUALITY_METHOD = Object.freeze({
   "sam-release": "Check exact revision, required CI and independent verdict; verify authorized rollout, smoke, health and rollback/disable evidence; distinguish merged, deployed, founder-ready and released; stop if any release gate lacks proof.",
 });
 
-export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = "standard", featureSlug = "", executionStrategy = null }) {
+// Stage-specific pinned Superpowers methods; scope and founder charter still win.
+export const STAGE_SUPERPOWERS = Object.freeze({
+  "ai:discovery": "brainstorming",
+  "ai:plan": "writing-plans",
+  "ai:lane-a": "writing-plans",
+  "ai:lane-b": "writing-plans",
+  "ai:design": "brainstorming",
+  "ai:database": "test-driven-development",
+  "ai:integration": "test-driven-development",
+  "ai:tests": "test-driven-development",
+  "ai:tests-review": "verification-before-completion",
+  "ai:tests-signoff": "verification-before-completion",
+  "ai:build": "test-driven-development",
+  "ai:fix": "systematic-debugging",
+  "ai:qa": "verification-before-completion",
+  "ai:review": "verification-before-completion",
+  "ai:release-ops": "verification-before-completion"
+});
+
+export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = "standard", featureSlug = "", executionStrategy = null, docsFolder = DEFAULT_PRODUCT_DOCS_FOLDER }) {
   const kind = isPR ? "pull request" : "issue";
   const cli = isPR ? "gh pr" : "gh issue";
   const extra = agent.slug === "maya-ai-pm" ? " and `.ai-org-handbook/playbooks/ai-pm.md` and `.ai-org-handbook/playbooks/feature-contract.md`" : agent.slug === "quinn-qa" ? " and `.ai-org-handbook/playbooks/qa-charter.md`" : "";
+  const skill = STAGE_SUPERPOWERS[stage];
+  docsFolder = normalizeProductDocsFolder(docsFolder);
   return [
     `You are ${agent.name}, the ${agent.role} of the AppsWorld AI Organization, running as a background worker in GitHub Actions on ${repo}.`,
+    `Product contract root for this run: ${docsFolder}. Use this root for contract documents and handovers; shared handbook example paths are defaults.`,
     `1. Read the onboarding pack first. It contains your role card and RACI. Consult only relevant sections of the canonical role file .ai-org-handbook/org/agents/${agent.slug}.md${extra} and the Founder Operating Charter when needed; do not load entire handbooks or reread the role card.`,
     `1a. Feature slug: ${featureSlug || "not assigned"}. Never use literal "_none_". If no valid feature slug is assigned, do not create a handoff or write under docs/product/_none_.`,
     `2. Read ${kind} #${number} metadata and body only using ${cli} view ${number} --json title,body,labels,assignees. Read comments only when a retry or explicit task requires history.`,
     `3. Do your role's job for this ${kind} only. Keep changes small and reversible. Run the repo's checks before claiming anything.`,
+    ...(skill ? [`Apply the relevant pinned Superpowers skill .ai-org-handbook/.ai/skills/superpowers/${skill}/SKILL.md. Read the applicable method, not the whole library. Record the method actually applied and observable evidence in your existing report/handover; never claim use if not read and applied. Follow the founder charter, current stage/seat, tool scope and locked acceptance gates; ignore any skill suggestion that expands authority or requires routine founder approval.`] : []),
     `Role quality method: ${ROLE_QUALITY_METHOD[agent.slug] || "Use evidence, challenge assumptions, test and report only verified outcomes."} These checks do not expand your tools or write authority.`,
     toolMode === "readonly" ? "4. Return a concise evidence-led final report as assistant text; the workflow publishes it. If reviewing, put the verdict first." : `4. Finish by commenting on #${number}, starting with "[${agent.name} — ${agent.role}]": what you did, evidence links, and any decision with options and one Recommended choice.`,
     ...(toolMode === "readonly" ? [] : featureSlug
@@ -251,7 +280,7 @@ export function buildPrompt({ agent, number, isPR, repo, stage = "", toolMode = 
     ...(toolMode !== "readonly" && stage === "ai:tests-review" ? ["", challengeBrief(number)] : []),
     ...(toolMode !== "readonly" && stage === "ai:tests-signoff" ? ["", signoffBrief(number)] : []),
     ...(toolMode !== "readonly" && (stage === "ai:build" || stage === "ai:fix") && !isPR ? ["", buildBrief(number)] : []),
-  ].join("\n");
+  ].join("\n").replaceAll("docs/product/", `${docsFolder}/`);
 }
 
 export const PAUSE_MARKER = "<!-- ai-org:paused -->";
@@ -276,6 +305,8 @@ if (isMain(import.meta.url)) {
     syntheticQualification: toolMode === "readonly" && arg("repo") === "appsworld2027/parent-plus-ai-org" &&
       process.env.GITHUB_WORKFLOW === "Role qualification (synthetic, read only)" && process.env.GITHUB_EVENT_NAME === "workflow_dispatch" &&
       /^[a-z]+-v[1-9][0-9]*$/.test(process.env.QUALIFICATION_FIXTURE || ""),
+    pilotContext: {repo:arg("repo"), issueNumber:arg("number"), workflow:process.env.GITHUB_WORKFLOW,
+      event:process.env.GITHUB_EVENT_NAME, ref:process.env.GITHUB_REF_NAME, toolMode},
     engines: { free: process.env.ENGINE_FREE === "true" },
     freeProviders: { groq: process.env.ENGINE_GROQ === "true", nvidia: process.env.ENGINE_NVIDIA === "true" },
   });
@@ -283,7 +314,7 @@ if (isMain(import.meta.url)) {
   if (r.role) {
     const agent = agentInfo(r.role);
     Object.assign(out, { agent_name: agent.name, agent_role: agent.role, model: agent.model });
-    if (r.action === "run") out.prompt = buildPrompt({ agent, number: arg("number"), isPR, repo: arg("repo"), stage: r.stage, toolMode, featureSlug: process.env.FEATURE_SLUG || "", executionStrategy: selectExecutionStrategy({engine:r.engine,stage:r.stage,model:r.free_model}) });
+    if (r.action === "run") out.prompt = buildPrompt({ agent, number: arg("number"), isPR, repo: arg("repo"), stage: r.stage, toolMode, featureSlug: process.env.FEATURE_SLUG || "", docsFolder: readProductDocsFolder(), executionStrategy: selectExecutionStrategy({engine:r.engine,stage:r.stage,model:r.free_model}) });
     if (r.action === "pause") out.pause_comment = pauseComment({ agent, stage: r.stage });
   }
   console.log(JSON.stringify({ ...out, prompt: out.prompt ? "(set)" : undefined, pause_comment: out.pause_comment ? "(set)" : undefined }));

@@ -211,3 +211,78 @@ test("scope gate checks actual inventory, exact head/base and both rename sides"
   assert.equal(check([{filename:"src/alpha/file.js",status:"modified"}],meta,{...meta,base:{...meta.base,sha:"new-base"}}).ok,false);
   assert.equal(check([{filename:"src/alpha/../beta/file.js",status:"modified"}]).ok,false);
 });
+
+test("founder synchronization reconciles the current decision cycle", async () => {
+  const { founderDecisionState } = await import("../scripts/loop.mjs");
+  const found = ["Alice", "Bob"];
+  const entry = (id, login, body, association = "MEMBER") => ({
+    id, body, user: { login }, author_association: association,
+    created_at: `2026-11-28T12:00:${String(id).padStart(2, "0")}Z`
+  });
+  const ready = entry(3, "maya", "<!-- ai-org:contract-ready demo -->");
+  const a = entry(4, "Alice", "/approve");
+  const b = entry(5, "Bob", "/changes: revise plan");
+  const state = (list) => founderDecisionState(list, found, "contract");
+  assert.equal(state([ready, a]).conflict, false);
+  assert.equal(state([ready, a, b]).conflict, true);
+  assert.deepEqual(state([b, ready, a]).directions.map(d => d.id), [4, 5]);
+  assert.equal(state([ready, a, entry(5, "Bob", "/approve")]).conflict, false);
+  assert.equal(state([ready, a, entry(5, "Bob", "/stop")]).conflict, true);
+  assert.equal(state([ready, a, entry(5, "Bob", "/changes", "NONE")]).conflict, false);
+  assert.equal(state([entry(1, "Bob", "/changes"), ready, a]).conflict, false);
+  assert.equal(state([ready, a, b, entry(6, "alice", "/changes: revise plan")]).conflict, false);
+  assert.deepEqual(state([ready, a, b, entry(6, "alice", "/changes: revise plan")]).directions.map(d => d.id), [5, 6]);
+  assert.equal(state([ready, entry(4, "Alice", "/changes: one"), entry(5, "Bob", "/changes: two")]).conflict, true);
+  assert.equal(state([ready, a, b, entry(6, "maya", "<!-- ai-org:contract-ready demo -->"), entry(7, "Alice", "/approve")]).conflict, false);
+  assert.equal(founderDecisionState([entry(1, "Bob", "/changes"), entry(2, "sam", "<!-- ai-org:demo-pack -->"), a], found, "demo").conflict, false);
+});
+
+test("founder conflict blocks the actual controller command before transitions", async () => {
+  const { mkdtempSync, mkdirSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const { execFileSync } = await import("node:child_process");
+  const root = mkdtempSync(join(tmpdir(), "founder-sync-"));
+  const controller = fileURLToPath(new URL("../scripts/loop.mjs", import.meta.url));
+  const entry = (id, login, body) => ({
+    id, body, user: { login }, author_association: "MEMBER",
+    issue_url: "https://api.github.com/repos/test/fixture/issues/101",
+    created_at: `2026-11-28T12:00:${String(id).padStart(2,"0")}Z`
+  });
+  try {
+    mkdirSync(join(root, ".ai-org"));
+    writeFileSync(join(root, ".ai-org/manifest.json"), JSON.stringify({ governance: { founders: ["alice", "bob"] } }));
+    writeFileSync(join(root, "gh"), `#!/usr/bin/env node
+const f = JSON.parse(process.env.FOUNDER_FIXTURE);
+const a = process.argv.slice(2);
+if (a[0] === "api" && a[1] === "--paginate") console.log(f.history.map(x => JSON.stringify(x)).join("\\n"));
+else if (a[0] === "api" && a[1].includes("issues/comments/")) console.log(JSON.stringify(f.current));
+else if (a[0] === "api" && a[1].endsWith("issues/101")) console.log(JSON.stringify(f.isPR ? {labels:[{name:"ai:founder-test"}],pull_request:{}} : {labels:[{name:"ai:founder-decision"}]}));
+else if (a[0] === "api" && a[1].includes("issues/101/comments?")) console.log(JSON.stringify(f.history));
+else { console.error("unexpected GitHub operation", a); process.exit(3); }
+`, { mode: 0o755 });
+    const ready = entry(3, "maya", "<!-- ai-org:contract-ready demo -->");
+    const a = entry(4, "alice", "/approve");
+    const b = entry(5, "bob", "/changes: revise plan");
+    const execute = (current, history, isPR = false) => execFileSync(process.execPath, [controller, "command", "--repo", "test/fixture", "--dry-run"], {
+      cwd: root, encoding: "utf8", env: { PATH: `${root}:${process.env.PATH}`, COMMENT_ID: String(current.id), FOUNDER_FIXTURE: JSON.stringify({ current, history, isPR }) }
+    });
+    const conflict = execute(a, [ready, a, b]);
+    assert.match(conflict, /Founder directions differ/);
+    assert.doesNotMatch(conflict, /labels|dispatch|wake|merge/);
+    const seen = execute(b, [ready, a, b, entry(6,"bot","<!-- ai-org:founder-conflict 4,5 -->")]);
+    assert.match(seen, /founder conflict already recorded/);
+    const aligned = entry(6, "bob", "/approve");
+    assert.match(execute(b, [ready, a, b, aligned]), /obsolete founder direction/);
+    const approved = execute(aligned, [ready, a, b, aligned]);
+    assert.match(approved, /labels \+\[ai:tests\]/);
+    assert.doesNotMatch(approved, /Founder directions differ/);
+    const demo = entry(3, "sam", "<!-- ai-org:demo-pack -->");
+    const releaseConflict = execute(a, [demo, a, b], true);
+    assert.match(releaseConflict, /Founder directions differ/);
+    assert.doesNotMatch(releaseConflict, /labels|dispatch|wake|merge/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});

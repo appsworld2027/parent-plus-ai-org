@@ -73,6 +73,10 @@
           "completionTokenLimit": 1400,
           "reasoningEffort": "low"
         },
+        "groq/openai/gpt-oss-20b": {
+          "completionTokenLimit": 1800,
+          "reasoningEffort": "low"
+        },
         "groq/qwen/qwen3.8-27b": {
           "completionTokenLimit": 1800,
           "reasoningEffort": "provider-default"

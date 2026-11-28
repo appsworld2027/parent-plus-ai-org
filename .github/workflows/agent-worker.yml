@@ -178,6 +178,8 @@ jobs:
           SEAT=$(case "$STAGE" in ai:tests) echo author;; ai:tests-review) echo challenger;; ai:tests-signoff) echo accountable;; *) echo "";; esac)
           FREE_MODEL_OVERRIDE=$(jq -r --arg s "$STAGE" --arg seat "$SEAT" '(.raci["ai:tests"].models[$seat] // .ai.freeModels[$s]) // ""' .ai-org/manifest.json 2>/dev/null || true)
           export FREE_MODEL_OVERRIDE
+          docs_folder=$(node .ai-org-handbook/scripts/product-docs.mjs)
+          printf "docs_folder=%s\n" "$docs_folder" >> "$GITHUB_ENV"
           node .ai-org-handbook/scripts/agent-router.mjs --labels "$LABELS" $PRFLAG --tool-mode "$TOOL_MODE" --body-file /tmp/body.md --number "$NUMBER" --repo "$GITHUB_REPOSITORY" | tee /tmp/route.json
           {
             echo "### AI Org router — #$NUMBER"
@@ -230,7 +232,7 @@ jobs:
           [ -n "$SLUG" ] || SLUG="$FEATURE_SLUG"
           FEATURE=""
           if [ -n "$SLUG" ] && git ls-remote --exit-code --heads origin "ai/contract-$SLUG" >/dev/null 2>&1; then
-            git fetch -q origin "ai/contract-$SLUG" && git worktree add -q -f --detach /tmp/feature-wt "origin/ai/contract-$SLUG" && FEATURE="/tmp/feature-wt/docs/product/$SLUG"
+            git fetch -q origin "ai/contract-$SLUG" && git worktree add -q -f --detach /tmp/feature-wt "origin/ai/contract-$SLUG" && FEATURE="/tmp/feature-wt/$docs_folder/$SLUG"
           fi
           rm -rf .ai-org-handbook/trial
           SINCE=$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)
@@ -240,7 +242,7 @@ jobs:
             gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" --jq "[.[] | select(.created_at > \"$SINCE\") | select(.body | contains(\"ai-org:failed\"))] | last | .body // \"\"" > /tmp/attempt.md 2>/dev/null || true
           fi
           sed -i -E '/^[[:space:]]*total[[:space:]]+used[[:space:]]/d; /^Mem:/d; /^Swap:/d' /tmp/attempt.md
-          printf 'Item #%s, stage %s, seat %s. Read issue metadata and body only: gh issue view %s --json title,body,labels,assignees\n' "$NUMBER" "$STAGE" "${SEAT:-none}" "$NUMBER" > /tmp/task.md
+          printf 'Item #%s, stage %s, seat %s. Start by inspecting issue metadata and body: gh issue view %s --json title,body,labels,assignees. Then follow the role and mode: standard must execute and persist its assigned stage deliverables using authorized tools; readonly returns only the requested report.\n' "$NUMBER" "$STAGE" "${SEAT:-none}" "$NUMBER" > /tmp/task.md
           READONLY_FLAG=""; [ "$TOOL_MODE" = "readonly" ] && READONLY_FLAG="--read-only"
           node .ai-org-handbook/scripts/onboarding-pack.mjs --role "$ROLE" --stage "$STAGE" --slug "$SLUG" --seat "$SEAT" --feature "$FEATURE" --attempt /tmp/attempt.md --task /tmp/task.md --out "$ONBOARDING_FILE" --max 8000 $READONLY_FLAG
           test -s "$ONBOARDING_FILE" || { echo "::error::Onboarding pack was not created."; exit 1; }
@@ -286,6 +288,7 @@ jobs:
           STRATEGY_MAX_TURNS: ${{ steps.router.outputs.strategy_worker_max_turns }}
           STRATEGY_WALL_SECONDS: ${{ steps.router.outputs.strategy_worker_wall_seconds }}
           STRATEGY_OUTPUT_CAP: ${{ steps.router.outputs.strategy_worker_output_cap }}
+          STRATEGY_PACKET_COMPLETION_CAP: ${{ steps.router.outputs.strategy_packet_completion_cap }}
           STRATEGY_REVIEW_OUTPUT_CAP: ${{ steps.router.outputs.strategy_worker_review_output_cap }}
           AGENT_NAME: ${{ steps.router.outputs.agent_name }}
           AGENT_ROLE: ${{ steps.router.outputs.agent_role }}
@@ -328,15 +331,23 @@ jobs:
             esac
             [ -n "$API_KEY" ] || { echo "::error::$PROVIDER free-provider key is unavailable."; return 1; }
           }
+          NATIVE_PILOT=false
+          if [ "$FREE_MODEL" = groq/openai/gpt-oss-120b ] && [ "$STAGE" = ai:discovery ] && [ "$TOOL_MODE" = standard ] && [ "$GITHUB_REPOSITORY" = appsworld2027/parent-plus-ai-org ] && [ "$NUMBER" = 170 ] && [ "$FEATURE_SLUG" = f010-quality-drift ] && [ "$GITHUB_REF_NAME" = audit/f010-pilot-20261128 ] && [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            NATIVE_PILOT=true
+          fi
           probe_provider() {
             PROBE_REASON=""
-            jq -n --arg model "$MODEL_ID" '{
+            if [ "$NATIVE_PILOT" = true ]; then
+              jq -n --arg model "$MODEL_ID" '{model:$model,messages:[{role:"user",content:"Return only the JSON object {\"ready\":true}."}],response_format:{type:"json_object"},reasoning_effort:"low",max_completion_tokens:512}' > "/tmp/agent-logs/$PROVIDER-probe-request.json"
+            else
+              jq -n --arg model "$MODEL_ID" '{
               model:$model,
               messages:[{role:"user",content:"Call the report_ready tool with ready=true now."}],
               tools:[{type:"function",function:{name:"report_ready",description:"Report that the model can call tools.",parameters:{type:"object",properties:{ready:{type:"boolean"}},required:["ready"],additionalProperties:false}}}],
               tool_choice:"required",
               max_tokens:80
             }' > "/tmp/agent-logs/$PROVIDER-probe-request.json"
+            fi
             HTTP_STATUS=$(curl -sS --max-time 120 -D "/tmp/agent-logs/$PROVIDER-probe.headers" -o "/tmp/agent-logs/$PROVIDER-probe-response.json" -w '%{http_code}' \
               -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
               --data-binary @"/tmp/agent-logs/$PROVIDER-probe-request.json" "$API_URL")
@@ -347,7 +358,12 @@ jobs:
               jq -r '.error.message // "Provider request failed."' "/tmp/agent-logs/$PROVIDER-probe-response.json" 2>/dev/null | cut -c1-300 || true
               return 1
             fi
-            if ! jq -e '.choices[0].message.tool_calls | length > 0' "/tmp/agent-logs/$PROVIDER-probe-response.json" >/dev/null; then
+            if [ "$NATIVE_PILOT" = true ]; then
+              if ! jq -e --arg model "$MODEL_ID" '(.model == $model) and (.choices[0].finish_reason == "stop") and ((.choices[0].message.tool_calls // []) | length == 0) and ((.choices[0].message.content | fromjson) == {ready:true})' "/tmp/agent-logs/$PROVIDER-probe-response.json" >/dev/null; then
+                PROBE_REASON="invalid-native-json"
+                return 1
+              fi
+            elif ! jq -e '.choices[0].message.tool_calls | length > 0' "/tmp/agent-logs/$PROVIDER-probe-response.json" >/dev/null; then
               PROBE_REASON="no-tool-call"
               return 1
             fi
@@ -371,7 +387,52 @@ jobs:
           FREE_MODEL="$MODEL_ROUTE"
           jq --arg model "$MODEL_ROUTE" --arg provider "$PROVIDER" --argjson fallback "$MODEL_FALLBACK" '.free_model=$model | .free_provider=$provider | .model_fallback=$fallback' /tmp/route.json > /tmp/route.json.tmp
           mv /tmp/route.json.tmp /tmp/route.json
-          echo "Free provider tool-call preflight: PASS ($PROVIDER/$MODEL_ID)"
+          if [ "$NATIVE_PILOT" = true ]; then echo "Free provider native JSON preflight: PASS ($PROVIDER/$MODEL_ID)"; else echo "Free provider tool-call preflight: PASS ($PROVIDER/$MODEL_ID)"; fi
+          # One explicitly admitted pilot uses native JSON output, without the incompatible FCC tool wrapper.
+          if [ "$NATIVE_PILOT" = true ]; then
+            [ "$GITHUB_REPOSITORY" = appsworld2027/parent-plus-ai-org ] && [ "$NUMBER" = 170 ] && [ "$FEATURE_SLUG" = f010-quality-drift ] || exit 1
+            BRANCH="ai/contract-$FEATURE_SLUG"
+            REMOTE_CONTRACT=$(git ls-remote --heads origin "refs/heads/$BRANCH") || exit 1
+            gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -s 'add // []' > /tmp/discovery-comments-before.json || { echo "::error::Discovery baseline comments unavailable"; exit 1; }
+            jq -e 'type == "array"' /tmp/discovery-comments-before.json >/dev/null || exit 1
+            NATIVE_ROOT="$GITHUB_WORKSPACE"
+            NATIVE_REVISION_BASE=""
+            if [ -z "$REMOTE_CONTRACT" ]; then
+              git fetch --no-tags origin refs/heads/main && git switch -c "$BRANCH" FETCH_HEAD || exit 1
+            else
+              NATIVE_REVISION_BASE=229d47675217a1f640ef88a41b97c28117988657
+              [ "$(printf '%s\n' "$REMOTE_CONTRACT" | cut -f1)" = "$NATIVE_REVISION_BASE" ] || { echo "::error::Unreconciled contract branch; manual review required."; exit 1; }
+              git fetch --no-tags origin "refs/heads/$BRANCH" && [ "$(git rev-parse FETCH_HEAD)" = "$NATIVE_REVISION_BASE" ] && git switch -c "$BRANCH" FETCH_HEAD || exit 1
+              NATIVE_ROOT=$(mktemp -d) || exit 1
+            fi
+            export NATIVE_REVISION_BASE
+            git config user.name "$AGENT_NAME (AppsWorld AI Org)"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/agent-logs/started-at
+            DIRECTORY="$docs_folder/$FEATURE_SLUG"
+            native_content_matches() {
+              for doc in SUMMARY.md ACCEPTANCE.md PRODUCT_THINKING.md; do
+                expected=$(jq -er --arg doc "$doc" '.[$doc]' /tmp/agent-logs/native-content-sha.json) || return 1
+                actual=$(sha256sum "$DIRECTORY/$doc" | cut -d" " -f1) || return 1
+                [ "$expected" = "$actual" ] || return 1
+              done
+            }
+            if timeout "$STRATEGY_WALL_SECONDS" node .ai-org-handbook/scripts/discovery-native.mjs /tmp/body.md .ai-org-runtime/onboarding.md .ai-org-handbook/.ai/skills/superpowers/brainstorming/SKILL.md .ai-org-handbook/templates/PRODUCT_THINKING.md "$GITHUB_REPOSITORY" "$NUMBER" "$FEATURE_SLUG" "$docs_folder" "$BRANCH" "$NATIVE_ROOT" /tmp/agent-logs "$STRATEGY_PACKET_COMPLETION_CAP" 2>&1 | tee /tmp/agent-logs/native-run.txt &&
+              git diff --cached --quiet &&
+              { [ -z "$NATIVE_REVISION_BASE" ] || { [ "$(git rev-parse HEAD)" = "$NATIVE_REVISION_BASE" ] && git diff --quiet -- "$DIRECTORY" && cp -- "$NATIVE_ROOT/$DIRECTORY/SUMMARY.md" "$NATIVE_ROOT/$DIRECTORY/ACCEPTANCE.md" "$NATIVE_ROOT/$DIRECTORY/PRODUCT_THINKING.md" "$DIRECTORY/"; }; } &&
+              native_content_matches &&
+              git add -- "$DIRECTORY/SUMMARY.md" "$DIRECTORY/ACCEPTANCE.md" "$DIRECTORY/PRODUCT_THINKING.md" &&
+              git commit -m "docs: Maya native discovery contract for $FEATURE_SLUG" &&
+              git push origin "HEAD:refs/heads/$BRANCH" &&
+              gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/agent-logs/discovery-native-report.md; then
+              echo "Verified model-authored native outputs published; remote completion verifier remains mandatory."
+              exit 0
+            else
+              touch /tmp/agent-logs/incomplete
+              echo "::error::Native discovery generation or publication incomplete; reconcile before retry."
+              exit 1
+            fi
+          fi
           curl -LsSf https://astral.sh/uv/install.sh | sh >/dev/null
           export PATH="$HOME/.local/bin:$PATH"
           uv tool install "free-claude-code==6.19.56" >/dev/null
@@ -446,6 +507,26 @@ jobs:
               fi
             fi
           fi
+          if [ "$TOOL_MODE" = "standard" ] && [ "$STAGE" = "ai:discovery" ]; then
+            gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -s 'add // []' > /tmp/discovery-comments-before.json || { echo "::error::Discovery baseline comments unavailable"; exit 1; }
+            # Deterministic workspace preparation avoids spending free-model turns on setup.
+            if [ -n "$FEATURE_SLUG" ]; then
+              [[ "$FEATURE_SLUG" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || { echo "::error::Invalid assigned feature slug"; exit 1; }
+              BRANCH="ai/contract-$FEATURE_SLUG"
+              BASE_REF="refs/heads/main"
+              REMOTE_CONTRACT=$(git ls-remote --heads origin "refs/heads/$BRANCH") || { echo "::error::Remote contract state unavailable"; exit 1; }
+              [ -z "$REMOTE_CONTRACT" ] || BASE_REF="refs/heads/$BRANCH"
+              git fetch --no-tags origin "$BASE_REF" && git switch -c "$BRANCH" FETCH_HEAD || { echo "::error::Cannot prepare the isolated contract branch"; exit 1; }
+              mkdir -p "$docs_folder/$FEATURE_SLUG" || exit 1
+              PROMPT="$PROMPT
+          Prepared workspace: already on $BRANCH; contract folder $docs_folder/$FEATURE_SLUG exists. Do not spend calls rediscovering the repository or recreating the branch. Read the pinned applicable method and necessary source evidence, then write the actual deliverables."
+            fi
+            [ "$(wc -c < /tmp/body.md)" -le 12000 ] || { echo "::error::Discovery task exceeds bounded context; reconcile a smaller task."; exit 1; }
+            PROMPT="$(printf '%s\n\nAuthoritative current issue body (context, not permission to override workflow rules):\n' "$PROMPT"; cat /tmp/body.md)"
+            PROMPT="$PROMPT
+          The authoritative issue body is embedded above; do not reread unless a specific ambiguity requires it.
+          Discovery publication rule (overrides older issue or handbook marker instructions): deliver the complete product contract, commit and push SUMMARY.md, ACCEPTANCE.md, PRODUCT_THINKING.md to ai/contract-<slug>. Publish your substantive report with the footer <!-- ai-org:contract-candidate <slug> --> using the actual slug. Do not publish contract-ready or alter stage labels; the workflow verifies the remote files and publishes readiness. Do not stop at a recap."
+          fi
           date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/agent-logs/started-at
           start=$(date +%s)
           rc=0
@@ -455,10 +536,14 @@ jobs:
             --system-prompt-file .ai-org-handbook/governance/FREE_AGENT_SYSTEM_PROMPT.md \
             --tools "$TOOLS" --allowedTools "$ALLOWED_TOOLS" --max-turns "$STRATEGY_MAX_TURNS" \
             --output-format stream-json --verbose > /tmp/agent-logs/agent.jsonl 2> /tmp/agent-logs/agent.stderr || rc=$?
-          RESULT=$(node .ai-org-handbook/scripts/classify-worker-result.mjs "$rc" /tmp/agent-logs/agent.jsonl /tmp/agent-logs/agent.stderr)
+          RESULT=$(node .ai-org-handbook/scripts/classify-worker-result.mjs "$rc" /tmp/agent-logs/agent.jsonl /tmp/agent-logs/agent.stderr "$TOOL_MODE")
           rc=$(jq -er '.exitCode' <<< "$RESULT")
           KIND=$(jq -er '.kind' <<< "$RESULT")
           case "$KIND" in
+            incomplete)
+              touch /tmp/agent-logs/incomplete
+              echo "::error::Standard agent exited without invoking tools; no stage work proven."
+              ;;
             output-limit)
               touch /tmp/agent-logs/output-limit
               echo "Free-provider output ceiling exhausted; revise the bounded report before retrying." | tee -a "$GITHUB_STEP_SUMMARY"
@@ -567,7 +652,7 @@ jobs:
           else
             npx tsc --noEmit >/tmp/agent-logs/gate-tsc.txt 2>&1; tsc=$?
             npx playwright test "$SPEC" --reporter=json --timeout=20000 --workers=2 > /tmp/agent-logs/gate-report.json 2>/tmp/agent-logs/gate-pw.txt || true
-            node .ai-org-handbook/scripts/grade-acceptance.mjs --spec "$SPEC" --report /tmp/agent-logs/gate-report.json --contract "docs/product/$SLUG/ACCEPTANCE.md" --src src --tsc-exit "$tsc" --md /tmp/gate.md >/dev/null; g=$?
+            node .ai-org-handbook/scripts/grade-acceptance.mjs --spec "$SPEC" --report /tmp/agent-logs/gate-report.json --contract "$docs_folder/$SLUG/ACCEPTANCE.md" --src src --tsc-exit "$tsc" --md /tmp/gate.md >/dev/null; g=$?
           fi
           cat /tmp/gate.md | tee -a "$GITHUB_STEP_SUMMARY"
           { echo "<!-- ai-org:gate $SHA -->"; echo "Acceptance-test gate on ${SHA:0:7}"; echo; cat /tmp/gate.md; } > /tmp/gate-comment.md
@@ -586,9 +671,9 @@ jobs:
           [ -n "${slug:-}" ] || { echo "no feature slug - handover check skipped"; exit 0; }
           git fetch -q origin "ai/contract-$slug" 2>/dev/null || { echo "no contract branch - handover check skipped"; exit 0; }
           FROM=${contract_before:-$GITHUB_SHA}
-          NEW=$(git diff --name-only --diff-filter=A "$FROM" "origin/ai/contract-$slug" -- "docs/product/$slug/handoffs/" 2>/dev/null | sort | tail -1)
+          NEW=$(git diff --name-only --diff-filter=A "$FROM" "origin/ai/contract-$slug" -- "$docs_folder/$slug/handoffs/" 2>/dev/null | sort | tail -1)
           ok=1
-          if [ -z "$NEW" ]; then echo "::error::No handover packet was committed to docs/product/$slug/handoffs/ by this run"; ok=0
+          if [ -z "$NEW" ]; then echo "::error::No handover packet was committed to $docs_folder/$slug/handoffs/ by this run"; ok=0
           else
             git show "origin/ai/contract-$slug:$NEW" > /tmp/handoff.md
             node .ai-org-handbook/scripts/handoff.mjs validate /tmp/handoff.md | tee -a "$GITHUB_STEP_SUMMARY" /tmp/agent-logs/handover.txt; [ "${PIPESTATUS[0]}" = 0 ] || ok=0
@@ -600,6 +685,17 @@ jobs:
             exit 1
           fi
 
+      - name: Verify and publish discovery output
+        if: success() && steps.router.outputs.action == 'run' && inputs.tool_mode == 'standard' && steps.router.outputs.stage == 'ai:discovery'
+        env:
+          FEATURE_SLUG: ${{ steps.item.outputs.feature_slug }}
+        run: |
+          set -euo pipefail
+          cd "$GITHUB_WORKSPACE"
+          gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$NUMBER/comments?per_page=100" | jq -s 'add // []' > /tmp/discovery-comments-after.json || { touch /tmp/agent-logs/incomplete; exit 1; }
+          node .ai-org-handbook/scripts/verify-discovery-output.mjs /tmp/discovery-comments-before.json /tmp/discovery-comments-after.json "$FEATURE_SLUG" /tmp/discovery-verified-report.md "$docs_folder" > /tmp/agent-logs/discovery-proof.json || { cat /tmp/agent-logs/discovery-proof.json; touch /tmp/agent-logs/incomplete; exit 1; }
+          cat /tmp/agent-logs/discovery-proof.json | tee -a "$GITHUB_STEP_SUMMARY"
+          gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/discovery-verified-report.md || { touch /tmp/agent-logs/incomplete; exit 1; }
       - name: Save agent logs
         if: always() && steps.router.outputs.action == 'run'
         uses: actions/upload-artifact@v4
@@ -628,7 +724,10 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           STATE="failed"
-          if [ -f /tmp/agent-logs/output-limit ]; then
+          if [ -f /tmp/agent-logs/incomplete ]; then
+            MARKER="ai-org:failed"; STATE="blocked"
+            SUMMARY="The agent did not produce verifiable stage deliverables. Reconcile partial writes and missing evidence; no automatic replay or ready receipt."
+          elif [ -f /tmp/agent-logs/output-limit ]; then
             MARKER="ai-org:failed"; STATE="blocked"
             SUMMARY="The free-model output ceiling was exhausted. Reconcile the attempt and reduce report scope before retrying. No paid fallback was attempted."
           elif [ -f /tmp/agent-logs/request-too-large ]; then
@@ -664,10 +763,21 @@ jobs:
         env:
           BEFORE: ${{ steps.item.outputs.stage }}
           WORKFLOW: ${{ inputs.dispatch_workflow }}
+          HANDBOOK_REF: ${{ inputs.handbook_ref }}
         run: |
           set -euo pipefail
           AFTER=$(gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER" --jq '[.labels[].name | select(startswith("ai:"))] | first // ""')
           echo "stage before: ${BEFORE:-none}  after: ${AFTER:-none}" | tee -a "$GITHUB_STEP_SUMMARY"
+          # A manually dispatched candidate must never switch to main or advance unrelated work.
+          if [ "$GITHUB_REPOSITORY" = appsworld2027/parent-plus-ai-org ] && [ "$HANDBOOK_REF" != main ]; then
+            if [ -n "$AFTER" ] && [ "$AFTER" != "$BEFORE" ]; then
+              CURRENT=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$GITHUB_REF_NAME" --jq '.object.sha')
+              [ "$CURRENT" = "$HANDBOOK_REF" ] || { echo "Pinned candidate moved; stop chain"; exit 1; }
+              gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f number="$NUMBER"
+              echo "Dispatched pinned candidate for #$NUMBER ($AFTER)" | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
+            exit 0
+          fi
           if [ -n "$AFTER" ] && [ "$AFTER" != "$BEFORE" ]; then
             gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" -f number="$NUMBER"
             echo "Dispatched $WORKFLOW for #$NUMBER ($AFTER)" | tee -a "$GITHUB_STEP_SUMMARY"

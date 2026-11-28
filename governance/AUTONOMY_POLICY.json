@@ -50,7 +50,18 @@
         "groq/openai/gpt-oss-120b"
       ],
       "nvidiaMode": "supervised-synthetic-evaluation-only",
-      "reviewerModelFamilyMustDifferFromBuilder": true
+      "reviewerModelFamilyMustDifferFromBuilder": true,
+      "supervisedPilotAlternate": {
+        "enabled": false,
+        "repository": "appsworld2027/parent-plus-ai-org",
+        "issueNumber": "170",
+        "workflow": "AI agents",
+        "ref": "audit/f010-pilot-20261128",
+        "stage": "ai:discovery",
+        "model": "groq/openai/gpt-oss-20b",
+        "qualificationRun": "46136003905",
+        "qualificationHead": "d45ce7df872fc05348adbb4c1c5cafff3db2154d"
+      }
     }
   },
   "release": {

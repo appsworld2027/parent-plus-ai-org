@@ -255,3 +255,17 @@ test("validated read-only synthetic smoke can still use NVIDIA; ordinary readonl
   assert.equal(route({ ...base, syntheticSmoke: true }).free_model, FREE_MODELS.nvidiaBuilder);
   assert.equal(route({ ...base, labels: ["ai:build"], syntheticSmoke: true }).free_model, FREE_MODELS.builder);
 });
+
+test("qualified 20B trial is retired; actual pilot uses approved ordinary builder, no implicit fallback", () => {
+ const pilotContext={repo:"appsworld2027/parent-plus-ai-org",issueNumber:"170",workflow:"AI agents",event:"workflow_dispatch",ref:"audit/f010-pilot-20261128",toolMode:"standard"};
+ const base={labels:["ai:discovery"],engines:freeOnly,freeProviders:{groq:true,nvidia:true}};
+ assert.equal(route({...base,pilotContext}).free_model,"groq/openai/gpt-oss-120b");
+ assert.equal(route({...base,pilotContext}).strategy_packet_completion_cap,1400);
+ assert.equal(route({...base,pilotContext}).strategy_worker_output_cap,512);
+ for (const [k,v] of Object.entries({repo:"elsewhere/product",issueNumber:"171",workflow:"Role qualification",event:"issues",ref:"main",toolMode:"readonly"})) {
+   assert.equal(route({...base,pilotContext:{...pilotContext,[k]:v}}).free_model,"groq/openai/gpt-oss-120b");
+ }
+ assert.equal(route({...base,pilotContext,labels:["ai:build"]}).free_model,"groq/openai/gpt-oss-120b");
+ assert.equal(route({...base,pilotContext,labels:["ai:review"]}).free_model,"groq/qwen/qwen3.8-27b");
+ assert.equal(route({...base,pilotContext,freeProviders:{groq:false,nvidia:true}}).action,"pause");
+});
