@@ -704,10 +704,21 @@ jobs:
         env:
           BEFORE: ${{ steps.item.outputs.stage }}
           WORKFLOW: ${{ inputs.dispatch_workflow }}
+          HANDBOOK_REF: ${{ inputs.handbook_ref }}
         run: |
           set -euo pipefail
           AFTER=$(gh api "repos/$GITHUB_REPOSITORY/issues/$NUMBER" --jq '[.labels[].name | select(startswith("ai:"))] | first // ""')
           echo "stage before: ${BEFORE:-none}  after: ${AFTER:-none}" | tee -a "$GITHUB_STEP_SUMMARY"
+          # A manually dispatched candidate must never switch to main or advance unrelated work.
+          if [ "$GITHUB_REPOSITORY" = appsworld2027/parent-plus-ai-org ] && [ "$HANDBOOK_REF" != main ]; then
+            if [ -n "$AFTER" ] && [ "$AFTER" != "$BEFORE" ]; then
+              CURRENT=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/$GITHUB_REF_NAME" --jq '.object.sha')
+              [ "$CURRENT" = "$HANDBOOK_REF" ] || { echo "Pinned candidate moved; stop chain"; exit 1; }
+              gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME" -f number="$NUMBER"
+              echo "Dispatched pinned candidate for #$NUMBER ($AFTER)" | tee -a "$GITHUB_STEP_SUMMARY"
+            fi
+            exit 0
+          fi
           if [ -n "$AFTER" ] && [ "$AFTER" != "$BEFORE" ]; then
             gh workflow run "$WORKFLOW" --repo "$GITHUB_REPOSITORY" -f number="$NUMBER"
             echo "Dispatched $WORKFLOW for #$NUMBER ($AFTER)" | tee -a "$GITHUB_STEP_SUMMARY"

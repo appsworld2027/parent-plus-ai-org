@@ -111,3 +111,26 @@ test("integrated workflow prepares the assigned branch locally and resumes an ex
     assert.equal(git(second,"ls-remote","--heads","origin","refs/heads/ai/contract-f010-quality-drift").split("\t")[0],saved);
   }finally{rmSync(root,{recursive:true,force:true});}
 });
+
+test("manual pilot chains only the exact candidate revision and never advances unrelated work",()=>{
+ const source=readFileSync(new URL("../.github/workflows/agent-worker.yml",import.meta.url),"utf8");
+ const script=source.split("- name: Chain to the next agent if the stage changed")[1].split("run: |")[1];
+ const root=mkdtempSync(join(tmpdir(),"ai-org-pilot-chain-"));
+ try {
+   const log=join(root,"dispatch.log"),summary=join(root,"step.txt");
+   const stub='gh() { if [ "$1" = api ]; then case "$2" in */issues/*) echo "$AFTER_FIXTURE";; */git/ref/heads/*) echo "$CURRENT_FIXTURE";; *) return 1;; esac; else printf "%s\\n" "$*" >> "$DISPATCH_LOG"; fi; }\n';
+   const run=(handbook,current,after)=>{
+     writeFileSync(log,"");
+     const result=execFileSync("bash",["-c",stub+script],{env:{...process.env,GITHUB_REPOSITORY:"appsworld2027/parent-plus-ai-org",GITHUB_REF_NAME:"audit/pilot",GITHUB_STEP_SUMMARY:summary,NUMBER:"170",BEFORE:"ai:discovery",WORKFLOW:"ai-agents.yml",HANDBOOK_REF:handbook,CURRENT_FIXTURE:current,AFTER_FIXTURE:after,DISPATCH_LOG:log},stdio:["ignore","pipe","pipe"],encoding:"utf8"});
+     return {result,dispatch:readFileSync(log,"utf8")};
+   };
+   assert.match(run("pinned","pinned","ai:founder-decision").dispatch,/--ref audit\/pilot -f number=170\n$/);
+   assert.equal(run("pinned","pinned","ai:discovery").dispatch,"");
+   assert.throws(()=>run("pinned","changed","ai:founder-decision"),/Command failed/);
+   assert.equal(readFileSync(log,"utf8"),"");
+   const main=run("main","ignored","ai:founder-decision").dispatch;
+   assert.match(main,/-f number=170\n/);
+   assert.match(main,/-f number=0 -f mode=advance\n/);
+   assert.doesNotMatch(main,/--ref/);
+ }finally{rmSync(root,{recursive:true,force:true});}
+});
