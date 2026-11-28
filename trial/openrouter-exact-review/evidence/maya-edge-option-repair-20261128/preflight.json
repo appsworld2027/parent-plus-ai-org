@@ -1,0 +1,10 @@
+{
+  "scope": "7ec04803584c26654ea4ecc35755898b23fe06704ae6616a56f7f331c6f2ff43",
+  "role": "maya-ai-pm",
+  "variant": "edge",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "priorArtifactHash": "87d986ba1372901d1005b1cc32342d64011fe76de6281216a1e9c5936717f378",
+  "reviewHash": "8ed51007a2387cab0e70981785b1eac5d78fcf379738aa11ba8a4e895fe50b22",
+  "qualification": false,
+  "paidFallback": false
+}
