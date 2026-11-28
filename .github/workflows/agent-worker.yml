@@ -470,9 +470,9 @@ jobs:
           fi
           # Compact packet only for the admitted F010 alternate route. Ordinary stages unchanged.
           if [ "$FREE_MODEL" = groq/openai/gpt-oss-20b ] && [ "$STAGE" = ai:discovery ] && [ "$TOOL_MODE" = standard ]; then
-            PROMPT=$(node .ai-org-handbook/scripts/discovery-packet.mjs /tmp/body.md .ai-org-runtime/onboarding.md .ai-org-handbook/.ai/skills/superpowers/brainstorming/SKILL.md .ai-org-handbook/templates/PRODUCT_THINKING.md "$GITHUB_REPOSITORY" "$NUMBER" "$FEATURE_SLUG" "$docs_folder" "$BRANCH") || exit 1
-            TOOLS=Bash
-            ALLOWED_TOOLS=Bash
+            PROMPT=$(node .ai-org-handbook/scripts/discovery-packet.mjs /tmp/body.md .ai-org-runtime/onboarding.md .ai-org-handbook/.ai/skills/superpowers/brainstorming/SKILL.md .ai-org-handbook/templates/PRODUCT_THINKING.md "$GITHUB_REPOSITORY" "$NUMBER" "$FEATURE_SLUG" "$docs_folder" "$BRANCH" "$GITHUB_WORKSPACE") || exit 1
+            TOOLS=Write
+            ALLOWED_TOOLS=Write
             printf 'Compact discovery packet: %s bytes; one tool schema; pinned method and exact template.\n' "$(printf %s "$PROMPT" | wc -c)"
           fi
           date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/agent-logs/started-at
@@ -509,6 +509,22 @@ jobs:
               fi
               ;;
           esac
+          # Publication is deterministic only after all actual agent-authored files and successful tool receipts are verified.
+          if [ "$rc" -eq 0 ] && [ "$FREE_MODEL" = groq/openai/gpt-oss-20b ] && [ "$STAGE" = ai:discovery ] && [ "$TOOL_MODE" = standard ]; then
+            DIRECTORY="$docs_folder/$FEATURE_SLUG"
+            if node .ai-org-handbook/scripts/verify-discovery-authorship.mjs /tmp/agent-logs/agent.jsonl "$GITHUB_WORKSPACE" "$docs_folder" "$FEATURE_SLUG" > /tmp/agent-logs/discovery-authored-report.md &&
+              git diff --cached --quiet &&
+              git add -- "$DIRECTORY/SUMMARY.md" "$DIRECTORY/ACCEPTANCE.md" "$DIRECTORY/PRODUCT_THINKING.md" &&
+              git commit -m "docs: Maya discovery contract for $FEATURE_SLUG" &&
+              git push origin "HEAD:refs/heads/$BRANCH" &&
+              gh issue comment "$NUMBER" --repo "$GITHUB_REPOSITORY" --body-file /tmp/agent-logs/discovery-authored-report.md; then
+              echo "Actual Maya Write evidence verified; worker persisted contract and original agent report."
+            else
+              touch /tmp/agent-logs/incomplete
+              echo "::error::Authorship verification or publication failed; reconcile artifacts before retrying."
+              rc=1
+            fi
+          fi
           secs=$(( $(date +%s) - start ))
           stats=$(jq -r 'select(.type=="result") | "turns=\(.num_turns) subtype=\(.subtype) is_error=\(.is_error)"' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -1)
           final=$(jq -r 'select(.type=="result") | .result // ""' /tmp/agent-logs/agent.jsonl 2>/dev/null | tail -c 3000)
