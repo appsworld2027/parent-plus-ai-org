@@ -47,13 +47,55 @@ export const ALLOWED_ENGINES = Object.freeze([...AUTONOMY_POLICY.execution.allow
 
 // Free engine = Claude Code CLI through the pinned Free Claude Code adapter, backed by Groq's free tier.
 // Builder and reviewer are distinct Groq free-tier model families; model quality is tracked by regression evidence.
-export const FREE_MODELS = {
-  builder: "groq/openai/gpt-oss-120b",
-  nvidiaBuilder: "nvidia/nvidia/nemotron-3-ultra-550b-a55b",
-  reviewer: "groq/qwen/qwen3.8-27b",
-};
-// Only approved free model IDs are accepted. NVIDIA is builder-only until independent-review latency is qualified.
-const FREE_OVERRIDE = /^(?:groq\/(?:openai\/gpt-oss-120b|qwen\/qwen3\.8-27b)(?:@(off|low|medium|high|xhigh|max))?|nvidia\/nvidia\/nemotron-3-ultra-550b-a55b)$/;
+export function resolveFreeRoutePolicy(policy) {
+  const e = policy?.execution, p = e?.providerPolicy;
+  if (!e || !p || p.mode !== "free-only" || p.paidFallback !== false ||
+      p.subscriptionAuthentication !== false || p.nvidiaReviewerEnabled !== false ||
+      p.nvidiaMode !== "supervised-synthetic-evaluation-only" ||
+      p.reviewerModelFamilyMustDifferFromBuilder !== true ||
+      !Array.isArray(e.allowedEngines) || e.allowedEngines.length !== 1 || e.allowedEngines[0] !== "free") {
+    throw new Error("Unsupported model policy: free-only, distinct review, supervised NVIDIA evaluation and no paid fallback are required.");
+  }
+  const ordinary = p.builderPreference, evaluation = p.evaluationBuilderPreference, reviewer = p.independentReviewer;
+  const groq = /^groq\/[A-Za-z0-9][A-Za-z0-9._/-]+$/;
+  const nvidia = /^nvidia\/[A-Za-z0-9][A-Za-z0-9._/-]+$/;
+  const unique = values => Array.isArray(values) && values.length > 0 && new Set(values).size === values.length;
+  if (!unique(ordinary) || !ordinary.every(model => groq.test(model)) ||
+      !unique(evaluation) || !evaluation.every(model => groq.test(model) || nvidia.test(model)) ||
+      !groq.test(reviewer) || ordinary.includes(reviewer) || evaluation.includes(reviewer) ||
+      !ordinary.every(model => evaluation.includes(model)) ||
+      e.freeModels?.builder !== ordinary[0] || e.freeModels?.builderPreferred !== ordinary[0] ||
+      e.freeModels?.reviewer !== reviewer || !nvidia.test(e.freeModels?.nvidiaEvaluationBuilder || "") ||
+      !evaluation.includes(e.freeModels.nvidiaEvaluationBuilder)) {
+    throw new Error("Inconsistent configured free-model routes; reconcile the authoritative policy before executing.");
+  }
+  return Object.freeze({
+    builderPreference: Object.freeze([...ordinary]),
+    evaluationBuilderPreference: Object.freeze([...evaluation]),
+    independentReviewer: reviewer,
+    nvidiaEvaluationBuilder: e.freeModels.nvidiaEvaluationBuilder
+  });
+}
+const FREE_ROUTING = resolveFreeRoutePolicy(AUTONOMY_POLICY);
+export const FREE_MODELS = Object.freeze({
+  builder: FREE_ROUTING.builderPreference[0],
+  nvidiaBuilder: FREE_ROUTING.nvidiaEvaluationBuilder,
+  reviewer: FREE_ROUTING.independentReviewer
+});
+
+// Configuration is not proof of provider entitlement. The caller still supplies
+// observed provider availability; synthetic evaluation is a separate gate.
+export function choosePolicyModel({ policy = FREE_ROUTING, reviewerSeat = false, evaluation = false, freeProviders = {}, requestedModel = "" }) {
+  const candidates = reviewerSeat ? [policy.independentReviewer] :
+    evaluation ? policy.evaluationBuilderPreference : policy.builderPreference;
+  const available = model => freeProviders[model.split("/")[0]] === true;
+  const requested = typeof requestedModel === "string" ? requestedModel : "";
+  const [base, effort, extra] = requested.split("@");
+  const validEffort = effort === undefined || (base.startsWith("groq/") &&
+    ["off", "low", "medium", "high", "xhigh", "max"].includes(effort) && extra === undefined);
+  const override = validEffort && candidates.includes(base) && available(base) ? requested : "";
+  return { selected: override || candidates.find(available) || "", overrideRejected: !!requested && !override };
+}
 const REVIEW_ROLES = ["quinn-qa", "rex-reviewer"];
 
 export function agentInfo(slug, dir = AGENTS_DIR) {
@@ -97,19 +139,9 @@ export function route({ labels = [], body = "", isPR = false, engines = { free: 
   // made 52 tool calls in 50 minutes and timed out on #42; the builder model averaged ~10 s per call on #37.)
   if (engine === "free") {
     const reviewerSeat = REVIEW_ROLES.includes(role) && stage !== "ai:tests";
-    const available = (model) => freeProviders[model.split("/")[0]] === true;
-    // NVIDIA developer endpoints are evaluation-only under the founder-approved policy.
     const evaluation = supervisedTrial === true || syntheticQualification === true || (syntheticSmoke === true && stage === "ai:discovery");
-    const candidates = reviewerSeat
-      ? [FREE_MODELS.reviewer]
-      : evaluation ? [FREE_MODELS.nvidiaBuilder, FREE_MODELS.builder] : [FREE_MODELS.builder];
-    // "Free" is necessary but not sufficient: an override cannot exchange author and
-    // reviewer families. Reasoning-effort variants keep their underlying model identity.
-    const requestedModel = typeof freeModel === "string" ? freeModel : "";
-    const baseModel = requestedModel.split("@")[0];
-    const override = FREE_OVERRIDE.test(requestedModel) && candidates.includes(baseModel) && available(requestedModel) ? requestedModel : "";
-    const selected = override || candidates.find(available) || "";
-    out.free_model_override_rejected = !!requestedModel && !override;
+    const { selected, overrideRejected } = choosePolicyModel({ reviewerSeat, evaluation, freeProviders, requestedModel: freeModel });
+    out.free_model_override_rejected = overrideRejected;
     if (!selected) {
       return {
         action: "pause",
