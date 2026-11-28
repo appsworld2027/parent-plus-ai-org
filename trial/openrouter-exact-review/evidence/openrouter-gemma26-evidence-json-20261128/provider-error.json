@@ -1,0 +1,7 @@
+{
+  "httpStatus": 429,
+  "category": "account-or-daily-limit",
+  "retryAfter": null,
+  "requestedModel": "google/gemma-4-26b-a4b-it:free",
+  "paidFallback": false
+}

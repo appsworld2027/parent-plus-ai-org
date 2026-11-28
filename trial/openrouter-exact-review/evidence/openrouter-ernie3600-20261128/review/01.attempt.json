@@ -1,0 +1,1 @@
+{"schema":1,"scope":"524ff19ada1d1f15f1a185506e0f19e8afac98e860009e570e65a3e7e389b5aa","model":"baidu/ernie-5.5-flash-preview:free","path":"review.json","format":"json_object","maxTokens":3600,"promptHash":"ad4c15ccb71a6f8cc3ebca378acd7a5efad90fca94dbfbf38a6f848beada1f5f","priorHashes":[]}

@@ -1,0 +1,7 @@
+{
+  "reportedModel": "baidu/ernie-5.5-flash-preview:free",
+  "reportedCost": 0,
+  "reasoningTokens": 3601,
+  "zeroPriceGate": true,
+  "paidFallback": false
+}

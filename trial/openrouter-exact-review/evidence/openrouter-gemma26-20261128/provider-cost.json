@@ -1,0 +1,7 @@
+{
+  "reportedModel": "google/gemma-4-26b-a4b-it:free",
+  "reportedCost": 0,
+  "reasoningTokens": 0,
+  "zeroPriceGate": true,
+  "paidFallback": false
+}

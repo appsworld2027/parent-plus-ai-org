@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "scope": "b0a68107fbd803148734e6e66bf9f3173a27be8237a91aee8d80b535a0ace58a",
+  "model": "baidu/ernie-5.5-flash-preview:free",
+  "path": "review.json",
+  "format": "json_object",
+  "maxTokens": 2600,
+  "promptHash": "ad4c15ccb71a6f8cc3ebca378acd7a5efad90fca94dbfbf38a6f848beada1f5f",
+  "priorHashes": [],
+  "status": "rejected",
+  "httpStatus": 200,
+  "reportedModel": "baidu/ernie-5.5-flash-preview:free",
+  "finishReason": "length",
+  "responseHash": "c3509a0d7e7a01d2ef9f101661fba296a6f27f98acf7f1c0638cf4b18407dd08",
+  "usage": {
+    "prompt_tokens": 2024,
+    "completion_tokens": 2600,
+    "total_tokens": 4624
+  },
+  "failure": "identity-finish-or-format"
+}

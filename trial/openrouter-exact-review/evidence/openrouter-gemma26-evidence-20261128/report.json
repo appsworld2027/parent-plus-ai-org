@@ -1,0 +1,56 @@
+{
+  "scope": "OpenRouter-zero-price-synthetic-evidence-review",
+  "sourceRun": 46104313533,
+  "sourceArtifact": 15247060844,
+  "sourceHead": "03398e98b312077328b40ac3b355cac208b05654",
+  "rawDecisionHash": "c5115b43163ad3424b121d21d3686a3e34977d039f109f740f85649bb3c1ed83",
+  "artifactHash": "22d6152abb88911f73fa821358fdb41548d64884b08fecca548d9f3b93607a34",
+  "fixtureHash": "ec23020022f825316b884a72a680df1211aed2375a6d4e5d935f605b5ab2edb0",
+  "passed": 12,
+  "expected": 12,
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "reviewer": "google/gemma-4-26b-a4b-it:free",
+  "reviewerCandidates": [
+    "google/gemma-4-31b-it:free",
+    "baidu/ernie-5.5-flash-preview:free",
+    "google/gemma-4-26b-a4b-it:free"
+  ],
+  "replayedAuthor": true,
+  "standaloneModelQualification": false,
+  "qualification": false,
+  "productionReady": false,
+  "paidFallback": false,
+  "independentlyApproved": false,
+  "status": "blocked",
+  "catalogMatches": [
+    {
+      "id": "baidu/ernie-5.5-flash-preview:free",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      }
+    },
+    {
+      "id": "google/gemma-4-26b-a4b-it:free",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      }
+    },
+    {
+      "id": "google/gemma-4-31b-it:free",
+      "pricing": {
+        "prompt": "0",
+        "completion": "0"
+      }
+    }
+  ],
+  "failure": "provider-or-artifact-blocked:http-404",
+  "reviewReceipt": {
+    "status": "rejected",
+    "model": null,
+    "finish": null,
+    "usage": null,
+    "failure": "http-404"
+  }
+}

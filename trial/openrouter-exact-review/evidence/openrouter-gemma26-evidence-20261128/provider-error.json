@@ -1,0 +1,7 @@
+{
+  "httpStatus": 404,
+  "category": "request-parameters",
+  "retryAfter": null,
+  "requestedModel": "google/gemma-4-26b-a4b-it:free",
+  "paidFallback": false
+}
