@@ -201,3 +201,34 @@ test("read-only reporting is workflow-owned across all prompt sources", () => {
   assert.ok(router.includes("The workflow owns stage transitions and publishes your final assistant report."));
   assert.ok(!router.includes("Only perform the specific issue comment explicitly requested"));
 });
+
+test("native pilot preflight checks exact JSON capability while ordinary routes still require tools", async () => {
+  const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const { spawnSync } = await import("node:child_process");
+  const yaml = parseDocument(read("../.github/workflows/agent-worker.yml")).toJS();
+  const worker = Object.values(yaml.jobs).flatMap(j => j.steps || []).find(s => s.run?.includes("probe_provider()")).run;
+  const begin = worker.indexOf("NATIVE_PILOT=false"), end = worker.indexOf("configure_provider || exit 1", begin);
+  assert.ok(begin >= 0 && end > begin);
+  const root = mkdtempSync(join(tmpdir(), "ai-org-probe-"));
+  try {
+    const fixture = join(root, "response.json");
+    const snippet = worker.slice(begin, end).replaceAll("/tmp/agent-logs", root);
+    const native = { model: "openai/gpt-oss-20b", choices: [{ finish_reason: "stop", message: { content: '{"ready":true}' } }] };
+    const tools = { model: "openai/gpt-oss-20b", choices: [{ finish_reason: "tool_calls", message: { tool_calls: [{ function: { name: "report_ready" } }] } }] };
+    const env = { ...process.env, PROVIDER:"groq", MODEL_ID:"openai/gpt-oss-20b", FREE_MODEL:"groq/openai/gpt-oss-20b", STAGE:"ai:discovery", TOOL_MODE:"standard", GITHUB_REPOSITORY:"appsworld2027/parent-plus-ai-org", NUMBER:"170", FEATURE_SLUG:"f010-quality-drift", GITHUB_REF_NAME:"audit/f010-pilot-20261128", GITHUB_EVENT_NAME:"workflow_dispatch", API_KEY:"synthetic", API_URL:"synthetic", PROBE_LOGS:root, FIXTURE:fixture };
+    function run(response, overrides={}) {
+      writeFileSync(fixture, JSON.stringify(response));
+      const result=spawnSync("bash",["-c",'curl() { cp "$FIXTURE" "$PROBE_LOGS/$PROVIDER-probe-response.json"; printf 200; }\n'+snippet+'\nprobe_provider'],{env:{...env,...overrides},encoding:"utf8"});
+      const req=JSON.parse(readFileSync(join(root,"groq-probe-request.json"),"utf8"));
+      return { status:result.status, req, stderr:result.stderr };
+    }
+    const good=run(native); assert.equal(good.status,0,good.stderr); assert.equal(good.req.response_format.type,"json_object"); assert.equal(good.req.tools,undefined);
+    assert.notEqual(run({ ...native, model:"wrong-model" }).status,0);
+    assert.notEqual(run({ ...native, choices:[{finish_reason:"length",message:{content:'{"ready":true}'}}] }).status,0);
+    assert.notEqual(run(tools).status,0);
+    const ordinary=run(tools,{NUMBER:"171"}); assert.equal(ordinary.status,0,ordinary.stderr); assert.equal(ordinary.req.tool_choice,"required");
+    assert.notEqual(run(native,{NUMBER:"171"}).status,0);
+  } finally { rmSync(root,{recursive:true,force:true}); }
+});

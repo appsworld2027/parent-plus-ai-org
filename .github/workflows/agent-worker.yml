@@ -331,15 +331,23 @@ jobs:
             esac
             [ -n "$API_KEY" ] || { echo "::error::$PROVIDER free-provider key is unavailable."; return 1; }
           }
+          NATIVE_PILOT=false
+          if [ "$FREE_MODEL" = groq/openai/gpt-oss-20b ] && [ "$STAGE" = ai:discovery ] && [ "$TOOL_MODE" = standard ] && [ "$GITHUB_REPOSITORY" = appsworld2027/parent-plus-ai-org ] && [ "$NUMBER" = 170 ] && [ "$FEATURE_SLUG" = f010-quality-drift ] && [ "$GITHUB_REF_NAME" = audit/f010-pilot-20261128 ] && [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            NATIVE_PILOT=true
+          fi
           probe_provider() {
             PROBE_REASON=""
-            jq -n --arg model "$MODEL_ID" '{
+            if [ "$NATIVE_PILOT" = true ]; then
+              jq -n --arg model "$MODEL_ID" '{model:$model,messages:[{role:"user",content:"Return only the JSON object {\"ready\":true}."}],response_format:{type:"json_object"},reasoning_effort:"low",max_completion_tokens:512}' > "/tmp/agent-logs/$PROVIDER-probe-request.json"
+            else
+              jq -n --arg model "$MODEL_ID" '{
               model:$model,
               messages:[{role:"user",content:"Call the report_ready tool with ready=true now."}],
               tools:[{type:"function",function:{name:"report_ready",description:"Report that the model can call tools.",parameters:{type:"object",properties:{ready:{type:"boolean"}},required:["ready"],additionalProperties:false}}}],
               tool_choice:"required",
               max_tokens:80
             }' > "/tmp/agent-logs/$PROVIDER-probe-request.json"
+            fi
             HTTP_STATUS=$(curl -sS --max-time 120 -D "/tmp/agent-logs/$PROVIDER-probe.headers" -o "/tmp/agent-logs/$PROVIDER-probe-response.json" -w '%{http_code}' \
               -H "Authorization: Bearer $API_KEY" -H "Content-Type: application/json" \
               --data-binary @"/tmp/agent-logs/$PROVIDER-probe-request.json" "$API_URL")
@@ -350,7 +358,12 @@ jobs:
               jq -r '.error.message // "Provider request failed."' "/tmp/agent-logs/$PROVIDER-probe-response.json" 2>/dev/null | cut -c1-300 || true
               return 1
             fi
-            if ! jq -e '.choices[0].message.tool_calls | length > 0' "/tmp/agent-logs/$PROVIDER-probe-response.json" >/dev/null; then
+            if [ "$NATIVE_PILOT" = true ]; then
+              if ! jq -e --arg model "$MODEL_ID" '(.model == $model) and (.choices[0].finish_reason == "stop") and ((.choices[0].message.tool_calls // []) | length == 0) and ((.choices[0].message.content | fromjson) == {ready:true})' "/tmp/agent-logs/$PROVIDER-probe-response.json" >/dev/null; then
+                PROBE_REASON="invalid-native-json"
+                return 1
+              fi
+            elif ! jq -e '.choices[0].message.tool_calls | length > 0' "/tmp/agent-logs/$PROVIDER-probe-response.json" >/dev/null; then
               PROBE_REASON="no-tool-call"
               return 1
             fi
@@ -374,9 +387,9 @@ jobs:
           FREE_MODEL="$MODEL_ROUTE"
           jq --arg model "$MODEL_ROUTE" --arg provider "$PROVIDER" --argjson fallback "$MODEL_FALLBACK" '.free_model=$model | .free_provider=$provider | .model_fallback=$fallback' /tmp/route.json > /tmp/route.json.tmp
           mv /tmp/route.json.tmp /tmp/route.json
-          echo "Free provider tool-call preflight: PASS ($PROVIDER/$MODEL_ID)"
+          if [ "$NATIVE_PILOT" = true ]; then echo "Free provider native JSON preflight: PASS ($PROVIDER/$MODEL_ID)"; else echo "Free provider tool-call preflight: PASS ($PROVIDER/$MODEL_ID)"; fi
           # One explicitly admitted pilot uses native JSON output, without the incompatible FCC tool wrapper.
-          if [ "$FREE_MODEL" = groq/openai/gpt-oss-20b ] && [ "$STAGE" = ai:discovery ] && [ "$TOOL_MODE" = standard ]; then
+          if [ "$NATIVE_PILOT" = true ]; then
             [ "$GITHUB_REPOSITORY" = appsworld2027/parent-plus-ai-org ] && [ "$NUMBER" = 170 ] && [ "$FEATURE_SLUG" = f010-quality-drift ] || exit 1
             BRANCH="ai/contract-$FEATURE_SLUG"
             REMOTE_CONTRACT=$(git ls-remote --heads origin "refs/heads/$BRANCH") || exit 1
