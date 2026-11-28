@@ -1,0 +1,4 @@
+{
+  "dispatchTaskIds": ["database"],
+  "handover": "Dispatching database (pending, deps met: tests complete). Capacity 2, budget 1 permits one immediate dispatch. database uses schema:reminders; no resource conflict with ui (file:board.html). api (reconcile, gen4, priorWorker worker-old, existingPr synthetic-pr-41, no completionEvidence) and integration (reconcile, gen7, priorWorker worker-stale, existingPr synthetic-pr-42, no completionEvidence) remain blocked: require old-worker fencing and verification of existing PR outcomes against current base before any reassignment; do not claim PR outcomes or completion. Downstream QA requires api, database, ui, and integration all to complete (not merely become unblocked). ui is ready but deferred to next budget window. No CI status known; decisions based solely on observed graph state."
+}
