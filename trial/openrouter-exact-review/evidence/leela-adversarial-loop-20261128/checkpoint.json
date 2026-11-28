@@ -10,7 +10,7 @@
   "scope": "supervised-synthetic-only",
   "paidFallback": false,
   "qualification": false,
-  "status": "concurrency-hold",
+  "status": "blocked",
   "rounds": [
     {
       "round": 0,
@@ -26,5 +26,6 @@
     }
   ],
   "unattended": false,
-  "productionReady": false
+  "productionReady": false,
+  "failure": "provider-or-artifact-blocked:http-400"
 }
