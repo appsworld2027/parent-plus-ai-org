@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "role": "leela-pjm-b",
+  "variant": "adversarial",
+  "fixtureHash": "eef0b513215484b7feae67116c4234fd9fde321cedc3321524c0f80d402591d7",
+  "artifactHash": "2c4997afd6a5f1f17cc39fcc8e31ec5c8968bdad9bef6449f50284476a13639a",
+  "checks": {
+    "P01": {
+      "pass": true
+    },
+    "P02": {
+      "pass": true
+    },
+    "P03": {
+      "pass": true
+    },
+    "P04": {
+      "pass": true
+    },
+    "P05": {
+      "pass": true
+    },
+    "P06": {
+      "pass": true
+    },
+    "P07": {
+      "pass": true
+    },
+    "P08": {
+      "pass": true
+    },
+    "P09": {
+      "pass": true
+    },
+    "P10": {
+      "pass": true
+    },
+    "P11": {
+      "pass": true
+    },
+    "P12": {
+      "pass": true
+    },
+    "P13": {
+      "pass": true
+    },
+    "P14": {
+      "pass": true
+    }
+  },
+  "passed": 14,
+  "expected": 14,
+  "qualified": true,
+  "qualification": false
+}

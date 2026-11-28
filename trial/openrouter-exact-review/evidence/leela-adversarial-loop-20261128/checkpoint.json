@@ -1,0 +1,30 @@
+{
+  "role": "leela-pjm-b",
+  "variant": "adversarial",
+  "fixtureHash": "eef0b513215484b7feae67116c4234fd9fde321cedc3321524c0f80d402591d7",
+  "author": "nvidia/nemotron-3-ultra-550b-a55b",
+  "reviewer": "qwen/qwen3.8-27b",
+  "maxRounds": 4,
+  "authorBudget": 2200,
+  "reviewerBudget": 900,
+  "scope": "supervised-synthetic-only",
+  "paidFallback": false,
+  "qualification": false,
+  "status": "concurrency-hold",
+  "rounds": [
+    {
+      "round": 0,
+      "rawHash": "ea602d612c23c407402bf66ccce8c45272e220289c20269cd6177d18d4f8a0ce",
+      "artifactHash": "2c4997afd6a5f1f17cc39fcc8e31ec5c8968bdad9bef6449f50284476a13639a",
+      "screenPassed": 14,
+      "screenExpected": 14,
+      "authorUsage": {
+        "prompt_tokens": 829,
+        "completion_tokens": 1443,
+        "total_tokens": 2272
+      }
+    }
+  ],
+  "unattended": false,
+  "productionReady": false
+}
